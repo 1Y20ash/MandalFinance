@@ -45,13 +45,14 @@ class LedgerService:
 
     @staticmethod
     def _ensure_not_duplicate(source_module, source_id, external_ref=None):
-        query = Transaction.query.filter(
-            Transaction.source_module == source_module,
-            Transaction.source_id == source_id,
-            Transaction.is_reversed.is_(False),
-        )
-        if query.first() is not None:
-            raise ValueError('A ledger transaction already exists for this source record.')
+        if source_id is not None:
+            existing = Transaction.query.filter(
+                Transaction.source_module == source_module,
+                Transaction.source_id == source_id,
+                Transaction.is_reversed.is_(False),
+            ).first()
+            if existing is not None:
+                raise ValueError('A ledger transaction already exists for this source record.')
 
         if external_ref:
             existing = Transaction.query.filter_by(external_ref=external_ref).first()
