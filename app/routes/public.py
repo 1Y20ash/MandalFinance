@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 
 from app.extensions import csrf, db
 from app.models.income import Donation
@@ -58,7 +58,6 @@ def public_donate():
         amount_str = request.form.get('amount', '').strip()
         purpose = request.form.get('purpose', 'General Utsav Donation').strip()
 
-        donation = None
         try:
             amount_dec = DonationService._normalize_amount(amount_str)
             if len(donor_name) < 2:
@@ -188,7 +187,6 @@ def payment_webhook():
             account.id,
         )
     except ValueError as exc:
-        # A duplicate payment or already-processed event is safely idempotent.
         if 'already exists' in str(exc).lower() or 'already' in str(exc).lower():
             return jsonify({'status': 'already processed', 'event_id': event_id}), 200
         return jsonify({'status': 'processing failed'}), 400
