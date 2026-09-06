@@ -2,6 +2,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from app.extensions import db
 
+
 class Mandal(db.Model):
     __tablename__ = 'mandals'
 
@@ -21,13 +22,17 @@ class FinancialYear(db.Model):
     __tablename__ = 'financial_years'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, unique=True)  # e.g., "FY 2026-2027"
+    name = db.Column(db.String(50), nullable=False, unique=True)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     opening_balance = db.Column(db.Numeric(15, 2), nullable=False, default=Decimal('0.00'))
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.CheckConstraint('start_date <= end_date', name='ck_financial_year_dates'),
+    )
 
     events = db.relationship('Event', backref='financial_year', lazy=True)
 
@@ -36,15 +41,21 @@ class Event(db.Model):
     __tablename__ = 'events'
 
     id = db.Column(db.Integer, primary_key=True)
-    mandal_id = db.Column(db.Integer, db.ForeignKey('mandals.id'), nullable=False)
-    financial_year_id = db.Column(db.Integer, db.ForeignKey('financial_years.id'), nullable=False)
-    title = db.Column(db.String(150), nullable=False)  # e.g., "Ganesh Utsav 2026"
-    year = db.Column(db.Integer, nullable=False)
+    mandal_id = db.Column(db.Integer, db.ForeignKey('mandals.id'), nullable=False, index=True)
+    financial_year_id = db.Column(db.Integer, db.ForeignKey('financial_years.id'), nullable=False, index=True)
+    title = db.Column(db.String(150), nullable=False)
+    year = db.Column(db.Integer, nullable=False, index=True)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     budget_target = db.Column(db.Numeric(15, 2), nullable=False, default=Decimal('0.00'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.CheckConstraint('start_date <= end_date', name='ck_events_dates'),
+        db.CheckConstraint('budget_target >= 0', name='ck_events_budget_target_nonnegative'),
+        db.Index('ix_events_mandal_year', 'mandal_id', 'year'),
+    )
 
     def __repr__(self):
         return f'<Event {self.title}>'
