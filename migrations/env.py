@@ -1,14 +1,10 @@
 import os
-from logging.config import fileConfig
 
 from alembic import context
 from flask import current_app
 
 # Alembic Config object, which provides access to values in alembic.ini.
 config = context.config
-
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
 
 # Import all models so SQLAlchemy metadata is complete for autogenerate.
 from app import create_app, db  # noqa: E402
