@@ -2,85 +2,89 @@
 {% block title %}Expenses - Ashtavinayak Mandal{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="fw-bold mb-0"><i class="fa-solid fa-receipt me-2 text-danger"></i>Expense Management</h3>
-    <a href="{{ url_for('expenses.create_expense') }}" class="btn btn-danger"><i class="fa-solid fa-plus me-1"></i>Submit New Expense</a>
-</div>
+<div class="expense-page">
+    <div class="d-flex justify-content-between align-items-center mb-3 page-heading">
+        <div>
+            <h3 class="fw-bold mb-1"><i class="fa-solid fa-receipt me-2 text-danger"></i>Expense Management</h3>
+            <p class="text-muted mb-0 small">Track expense commitments and payment records.</p>
+        </div>
+        <a href="{{ url_for('expenses.create_expense') }}" class="btn btn-danger"><i class="fa-solid fa-plus me-1"></i>Submit New Expense</a>
+    </div>
 
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-2">
-            <div class="col-md-4">
-                <select name="status" class="form-select">
-                    <option value="">All Statuses</option>
-                    <option value="SUBMITTED" {% if status_filter == 'SUBMITTED' %}selected{% endif %}>SUBMITTED</option>
-                    <option value="UNDER_REVIEW" {% if status_filter == 'UNDER_REVIEW' %}selected{% endif %}>UNDER_REVIEW</option>
-                    <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>APPROVED</option>
-                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>REJECTED</option>
-                    <option value="PAID" {% if status_filter == 'PAID' %}selected{% endif %}>PAID</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <select name="category_id" class="form-select">
-                    <option value="">All Categories</option>
-                    {% for c in categories %}
-                        <option value="{{ c.id }}" {% if category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+    <div class="card shadow-sm border-0 mb-4 expense-toolbar">
+        <div class="card-body">
+            <form method="GET" class="row g-2" role="search" aria-label="Filter expenses">
+                <div class="col-lg-4">
+                    <label class="visually-hidden" for="expenseSearch">Search expenses</label>
+                    <input id="expenseSearch" type="search" name="q" value="{{ search_query }}" class="form-control" placeholder="Search ref, title, bill or payment ref">
+                </div>
+                <div class="col-lg-3">
+                    <label class="visually-hidden" for="expenseStatus">Status</label>
+                    <select id="expenseStatus" name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for status in ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PAID'] %}
+                            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-3">
+                    <label class="visually-hidden" for="expenseCategory">Category</label>
+                    <select id="expenseCategory" name="category_id" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for c in categories %}
+                            <option value="{{ c.id }}" {% if category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-2 filter-actions">
+                    <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 expense-card">
+        <div class="card-body p-0 expense-table-wrap">
+            <table class="table table-hover align-middle mb-0 expense-table">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Ref</th><th>Title</th><th>Category</th><th>Vendor</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in pagination.items %}
+                    <tr>
+                        <td class="fw-bold expense-ref">{{ e.expense_ref }}</td>
+                        <td>{{ e.title }}</td>
+                        <td><span class="badge bg-secondary">{{ e.category.name if e.category else '-' }}</span></td>
+                        <td>{{ e.vendor.name if e.vendor else 'Direct' }}</td>
+                        <td class="fw-bold text-danger">{{ e.amount | currency }}</td>
+                        <td>
+                            {% if e.status == 'PAID' %}<span class="badge bg-success status-badge">PAID</span>
+                            {% elif e.status == 'APPROVED' %}<span class="badge bg-primary status-badge">APPROVED</span>
+                            {% elif e.status == 'SUBMITTED' %}<span class="badge bg-warning text-dark status-badge">SUBMITTED</span>
+                            {% elif e.status == 'REJECTED' %}<span class="badge bg-danger status-badge">REJECTED</span>
+                            {% else %}<span class="badge bg-secondary status-badge">{{ e.status }}</span>{% endif %}
+                        </td>
+                        <td>{{ e.expense_date.strftime('%d-%b-%Y') }}</td>
+                        <td><a href="{{ url_for('expenses.view_expense', expense_id=e.id) }}" class="btn btn-sm btn-outline-info expense-action"><i class="fa-solid fa-eye me-1"></i>View</a></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="text-center py-5 text-muted"><i class="fa-regular fa-folder-open d-block fs-3 mb-2"></i>No expenses found for the selected filters.</td></tr>
                     {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i>Filter Expenses</button>
-            </div>
-        </form>
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
-                <tr>
-                    <th>Ref</th>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Vendor</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Expense Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for e in pagination.items %}
-                <tr>
-                    <td class="fw-bold">{{ e.expense_ref }}</td>
-                    <td>{{ e.title }}</td>
-                    <td><span class="badge bg-secondary">{{ e.category.name if e.category else '-' }}</span></td>
-                    <td>{{ e.vendor.name if e.vendor else 'Direct' }}</td>
-                    <td class="fw-bold text-danger">{{ e.amount | currency }}</td>
-                    <td>
-                        {% if e.status == 'PAID' %}
-                            <span class="badge bg-success">PAID</span>
-                        {% elif e.status == 'APPROVED' %}
-                            <span class="badge bg-primary">APPROVED</span>
-                        {% elif e.status == 'SUBMITTED' %}
-                            <span class="badge bg-warning text-dark">SUBMITTED</span>
-                        {% elif e.status == 'REJECTED' %}
-                            <span class="badge bg-danger">REJECTED</span>
-                        {% else %}
-                            <span class="badge bg-secondary">{{ e.status }}</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ e.expense_date.strftime('%d-%b-%Y') }}</td>
-                    <td>
-                        <a href="{{ url_for('expenses.view_expense', expense_id=e.id) }}" class="btn btn-sm btn-outline-info"><i class="fa-solid fa-eye me-1"></i>View & Workflow</a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="8" class="text-center py-4 text-muted">No expenses found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    {% if pagination.pages > 1 %}
+    <nav class="mt-3" aria-label="Expense pages">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}"><a class="page-link" href="{{ url_for('expenses.list_expenses', page=pagination.prev_num, q=search_query, status=status_filter, category_id=category_id) }}">Previous</a></li>
+            <li class="page-item disabled"><span class="page-link">Page {{ pagination.page }} of {{ pagination.pages }}</span></li>
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}"><a class="page-link" href="{{ url_for('expenses.list_expenses', page=pagination.next_num, q=search_query, status=status_filter, category_id=category_id) }}">Next</a></li>
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %}
