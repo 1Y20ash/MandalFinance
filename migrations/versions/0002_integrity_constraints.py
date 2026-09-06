@@ -13,78 +13,81 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade() -> None:
-    # The application models are the canonical definition of these checks.
-    # PostgreSQL receives the constraints explicitly here so existing
-    # databases can be hardened through a normal Alembic migration.
-    op.create_check_constraint(
-        "ck_accounts_account_type",
-        "accounts",
-        "account_type IN ('cash', 'bank', 'upi')",
-    )
-    op.create_check_constraint(
-        "ck_accounts_opening_balance_nonnegative",
-        "accounts",
-        "opening_balance >= 0",
-    )
-    op.create_unique_constraint(
-        "uq_transaction_categories_name_type",
-        "transaction_categories",
-        ["name", "category_type"],
-    )
-    op.create_check_constraint(
-        "ck_transaction_categories_type",
-        "transaction_categories",
-        "category_type IN ('income', 'expense', 'transfer')",
-    )
-    op.create_check_constraint(
-        "ck_transactions_type",
-        "transactions",
-        "transaction_type IN ('INCOME', 'EXPENSE', 'TRANSFER', 'REVERSAL')",
-    )
-    op.create_check_constraint(
-        "ck_transactions_amount_positive",
-        "transactions",
-        "amount > 0",
-    )
-    op.create_check_constraint(
-        "ck_transactions_payment_mode",
-        "transactions",
-        "payment_mode IN ('CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE', 'GATEWAY')",
-    )
-    op.create_check_constraint(
-        "ck_financial_year_dates",
-        "financial_years",
-        "start_date <= end_date",
-    )
-    op.create_check_constraint(
-        "ck_events_dates",
-        "events",
-        "start_date <= end_date",
-    )
-    op.create_check_constraint(
-        "ck_events_budget_target_nonnegative",
-        "events",
-        "budget_target >= 0",
+def _constraint_exists(bind, table_name, constraint_name):
+    inspector = op.get_context().connection.dialect.get_inspector(bind)
+    return any(
+        constraint.get("name") == constraint_name
+        for constraint in inspector.get_check_constraints(table_name)
+    ) or any(
+        constraint.get("name") == constraint_name
+        for constraint in inspector.get_unique_constraints(table_name)
     )
 
-    op.create_index("ix_transactions_source", "transactions", ["source_module", "source_id"])
-    op.create_index("ix_transactions_account_date", "transactions", ["account_id", "transaction_date"])
-    op.create_index("ix_events_mandal_year", "events", ["mandal_id", "year"])
+
+def _index_exists(bind, table_name, index_name):
+    inspector = op.get_context().connection.dialect.get_inspector(bind)
+    return any(index.get("name") == index_name for index in inspector.get_indexes(table_name))
+
+
+def upgrade() -> None:
+    bind = op.get_bind()
+
+    checks = [
+        ("ck_accounts_account_type", "accounts", "account_type IN ('cash', 'bank', 'upi')"),
+        ("ck_accounts_opening_balance_nonnegative", "accounts", "opening_balance >= 0"),
+        ("ck_transaction_categories_type", "transaction_categories", "category_type IN ('income', 'expense', 'transfer')"),
+        ("ck_transactions_type", "transactions", "transaction_type IN ('INCOME', 'EXPENSE', 'TRANSFER', 'REVERSAL')"),
+        ("ck_transactions_amount_positive", "transactions", "amount > 0"),
+        ("ck_transactions_payment_mode", "transactions", "payment_mode IN ('CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE', 'GATEWAY')"),
+        ("ck_financial_year_dates", "financial_years", "start_date <= end_date"),
+        ("ck_events_dates", "events", "start_date <= end_date"),
+        ("ck_events_budget_target_nonnegative", "events", "budget_target >= 0"),
+    ]
+
+    for name, table, condition in checks:
+        if not _constraint_exists(bind, table, name):
+            op.create_check_constraint(name, table, condition)
+
+    if not _constraint_exists(bind, "transaction_categories", "uq_transaction_categories_name_type"):
+        op.create_unique_constraint(
+            "uq_transaction_categories_name_type",
+            "transaction_categories",
+            ["name", "category_type"],
+        )
+
+    indexes = [
+        ("ix_transactions_source", "transactions", ["source_module", "source_id"]),
+        ("ix_transactions_account_date", "transactions", ["account_id", "transaction_date"]),
+        ("ix_events_mandal_year", "events", ["mandal_id", "year"]),
+    ]
+
+    for name, table, columns in indexes:
+        if not _index_exists(bind, table, name):
+            op.create_index(name, table, columns)
 
 
 def downgrade() -> None:
-    op.drop_index("ix_events_mandal_year", table_name="events")
-    op.drop_index("ix_transactions_account_date", table_name="transactions")
-    op.drop_index("ix_transactions_source", table_name="transactions")
+    bind = op.get_bind()
 
-    op.drop_constraint("ck_events_budget_target_nonnegative", "events", type_="check")
-    op.drop_constraint("ck_events_dates", "events", type_="check")
-    op.drop_constraint("ck_financial_year_dates", "financial_years", type_="check")
-    op.drop_constraint("ck_transactions_payment_mode", "transactions", type_="check")
-    op.drop_constraint("ck_transactions_amount_positive", "transactions", type_="check")
-    op.drop_constraint("ck_transactions_type", "transactions", type_="check")
-    op.drop_constraint("ck_transaction_categories_type", "transaction_categories", type_="check")
-    op.drop_constraint("uq_transaction_categories_name_type", "transaction_categories", type_="unique")
-    op.drop_constraint("ck_accounts_opening_balance_nonnegative", "accounts", type_="check")
-    op.drop_constraint("ck_accounts_account_type", "accounts", type_="check")
+    for name, table in [
+        ("ix_events_mandal_year", "events"),
+        ("ix_transactions_account_date", "transactions"),
+        ("ix_transactions_source", "transactions"),
+    ]:
+        if _index_exists(bind, table, name):
+            op.drop_index(name, table_name=table)
+
+    for name, table, kind in [
+        ("ck_events_budget_target_nonnegative", "events", "check"),
+        ("ck_events_dates", "events", "check"),
+        ("ck_financial_year_dates", "financial_years", "check"),
+        ("ck_transactions_payment_mode", "transactions", "check"),
+        ("ck_transactions_amount_positive", "transactions", "check"),
+        ("ck_transactions_type", "transactions", "check"),
+        ("ck_transaction_categories_type", "transaction_categories", "check"),
+        ("uq_transaction_categories_name_type", "transaction_categories", "unique"),
+        ("ck_accounts_opening_balance_nonnegative", "accounts", "check"),
+        ("ck_accounts_account_type", "accounts", "check"),
+    ]:
+        if _constraint_exists(bind, table, name):
+            op.drop_constraint(name, table, type_=kind)
