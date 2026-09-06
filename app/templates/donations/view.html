@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Donation {{ donation.donation_number }} - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fa-solid fa-receipt me-2"></i>Donation Details</h5>
+                {% if donation.status == 'SUCCESS' %}
+                <a href="{{ url_for('donations.download_receipt', donation_id=donation.id) }}" class="btn btn-sm btn-success" target="_blank">
+                    <i class="fa-solid fa-download me-1"></i>Download Official PDF Receipt
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                <table class="table align-middle">
+                    <tr><th>Donation Number</th><td class="fw-bold">{{ donation.donation_number }}</td></tr>
+                    <tr><th>Receipt Number</th><td class="fw-bold text-primary">{{ donation.receipt_number or 'N/A' }}</td></tr>
+                    <tr><th>Status</th>
+                        <td>
+                            {% if donation.status == 'SUCCESS' %}
+                                <span class="badge bg-success">SUCCESS</span>
+                            {% else %}
+                                <span class="badge bg-warning">{{ donation.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr><th>Donor Name</th><td>{{ donation.donor_name }}</td></tr>
+                    <tr><th>Amount</th><td class="fs-4 fw-bold text-success">{{ donation.amount | currency }}</td></tr>
+                    <tr><th>Payment Mode</th><td>{{ donation.payment_mode }}</td></tr>
+                    <tr><th>Transaction Ref</th><td>{{ donation.transaction_ref or 'N/A' }}</td></tr>
+                    <tr><th>Purpose</th><td>{{ donation.purpose }}</td></tr>
+                    <tr><th>Date</th><td>{{ donation.created_at.strftime('%d-%b-%Y %H:%M') }}</td></tr>
+                </table>
+
+                <div class="mt-4">
+                    <a href="{{ url_for('donations.list_donations') }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Back to Donations List</a>
+                    <a href="{{ url_for('documents.upload_document', entity_type='DONATION', entity_id=donation.id) }}" class="btn btn-outline-primary"><i class="fa-solid fa-paperclip me-1"></i>Attach Supporting Document Proof</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

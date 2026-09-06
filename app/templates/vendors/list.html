@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Vendors - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="fw-bold mb-0"><i class="fa-solid fa-truck me-2 text-primary"></i>Vendor Directory</h3>
+    <a href="{{ url_for('vendors.create_vendor') }}" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>Add New Vendor</a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Vendor Name</th>
+                    <th>Category</th>
+                    <th>Contact Person</th>
+                    <th>Phone</th>
+                    <th>Total Paid</th>
+                    <th>Pending Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vendors %}
+                <tr>
+                    <td class="fw-bold">{{ v.name }}</td>
+                    <td><span class="badge bg-info text-dark">{{ v.category }}</span></td>
+                    <td>{{ v.contact_person or '-' }}</td>
+                    <td>{{ v.phone or '-' }}</td>
+                    <td class="fw-bold text-success">{{ v.total_paid | currency }}</td>
+                    <td class="fw-bold text-danger">{{ v.pending_amount | currency }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center py-4 text-muted">No vendors registered.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

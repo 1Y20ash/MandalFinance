@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Public Financial Transparency - Shree Ashtavinayak Ganesh Utsav Mandal{% endblock %}
+
+{% block content %}
+<div class="text-center my-4">
+    <i class="fa-solid fa-om text-danger fa-4x mb-2"></i>
+    <h2 class="fw-bold">Shree Ashtavinayak Ganesh Utsav Mandal</h2>
+    <p class="lead text-muted">Panchasheel Nagar, Gittikhadan, Nagpur, Maharashtra, India</p>
+    <div class="badge bg-success p-2 fs-6 mb-3"><i class="fa-solid fa-shield-check me-1"></i>Public Accountability Portal &bull; Every rupee in. Every rupee out.</div>
+</div>
+
+<!-- High Level Financial Summary Cards -->
+<div class="row g-4 my-4">
+    <div class="col-md-4">
+        <div class="card card-stat bg-white p-4 text-center border-top border-4 border-success shadow">
+            <span class="text-muted fw-bold small">TOTAL APPROVED INCOME</span>
+            <h2 class="fw-bold text-success my-2">{{ summary.total_income | currency }}</h2>
+            <p class="small text-muted mb-0">Total public donations & contributions</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-stat bg-white p-4 text-center border-top border-4 border-danger shadow">
+            <span class="text-muted fw-bold small">TOTAL APPROVED EXPENSES</span>
+            <h2 class="fw-bold text-danger my-2">{{ summary.total_expense | currency }}</h2>
+            <p class="small text-muted mb-0">Total verified festival expenditure</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-stat bg-white p-4 text-center border-top border-4 border-primary shadow">
+            <span class="text-muted fw-bold small">CURRENT APPROVED BALANCE</span>
+            <h2 class="fw-bold text-primary my-2">{{ summary.current_balance | currency }}</h2>
+            <p class="small text-muted mb-0">Balance in Mandal Cash & Bank Accounts</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 my-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white fw-bold"><i class="fa-solid fa-circle-info me-2"></i>Mandal Financial Principles</div>
+            <div class="card-body">
+                <blockquote class="blockquote fs-6">
+                    <p class="mb-2">"Every rupee in. Every rupee out. Every transaction accounted for."</p>
+                </blockquote>
+                <p class="text-muted small">
+                    This public portal presents administrator-approved financial summaries for Shree Ashtavinayak Ganesh Utsav Mandal.
+                    All transactions follow a strict digital chain of provenance: 
+                    <strong>Money &rarr; Transaction &rarr; Supporting Evidence &rarr; User &rarr; Approval &rarr; Audit Trail</strong>.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 text-center">
+        <div class="card bg-warning bg-gradient text-dark p-4 border-0 shadow">
+            <h4 class="fw-bold"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Support Our Utsav</h4>
+            <p class="small mb-3">Contribute online towards Ganesh Utsav 2026 and get an instant digital receipt.</p>
+            <a href="{{ url_for('public.public_donate') }}" class="btn btn-dark btn-lg fw-bold py-2"><i class="fa-solid fa-heart me-1"></i>Donate Online Now</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

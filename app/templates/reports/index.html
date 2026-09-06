@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Reports - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0"><i class="fa-solid fa-file-invoice-dollar me-2 text-success"></i>Financial Reports & Statements</h3>
+        <p class="text-muted small mb-0">Event: <strong>{{ active_event.title if active_event else 'All Events' }}</strong></p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Income & Expenditure Summary Statement -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-dark text-white fw-bold">Income & Expenditure Statement</div>
+            <div class="card-body">
+                <table class="table align-middle">
+                    <tr><th>Opening Financial Balance</th><td class="fw-bold">{{ summary.opening_balance | currency }}</td></tr>
+                    <tr class="table-success"><th>Total Approved Income</th><td class="fw-bold text-success">+ {{ summary.total_income | currency }}</td></tr>
+                    <tr class="table-danger"><th>Total Paid Expenditure</th><td class="fw-bold text-danger">- {{ summary.total_expense | currency }}</td></tr>
+                    <tr class="table-primary border-top border-2"><th>Current Net Balance (Surplus / Deficit)</th><td class="fs-5 fw-bold text-primary">{{ summary.current_balance | currency }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Actions -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-dark text-white fw-bold">Export Statements & Audit Books</div>
+            <div class="card-body d-flex flex-column justify-content-around">
+                <a href="{{ url_for('reports.export_csv', report_type='donations') }}" class="btn btn-outline-success mb-2 py-2"><i class="fa-solid fa-file-csv me-2"></i>Export Official Donations Register (CSV)</a>
+                <a href="{{ url_for('reports.export_csv', report_type='expenses') }}" class="btn btn-outline-danger mb-2 py-2"><i class="fa-solid fa-file-csv me-2"></i>Export Paid Expenses Register (CSV)</a>
+                <a href="{{ url_for('reports.export_csv', report_type='ledger') }}" class="btn btn-outline-primary mb-2 py-2"><i class="fa-solid fa-file-csv me-2"></i>Export Central Financial Ledger Audit Trail (CSV)</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

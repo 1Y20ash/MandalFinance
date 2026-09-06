@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}User Profile - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fa-solid fa-user-circle me-2"></i>User Profile</h5>
+            </div>
+            <div class="card-body">
+                <table class="table align-middle">
+                    <tr><th>Full Name</th><td>{{ user.full_name }}</td></tr>
+                    <tr><th>Username</th><td>{{ user.username }}</td></tr>
+                    <tr><th>Email</th><td>{{ user.email }}</td></tr>
+                    <tr><th>Phone</th><td>{{ user.phone or 'Not provided' }}</td></tr>
+                    <tr><th>System Role(s)</th>
+                        <td>
+                            {% if user.is_admin %}
+                                <span class="badge bg-danger">Super Administrator</span>
+                            {% endif %}
+                            {% for role in user.roles %}
+                                <span class="badge bg-primary me-1">{{ role.name }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr><th>Active Status</th><td><span class="badge bg-success">Active</span></td></tr>
+                    <tr><th>Permissions Granted</th>
+                        <td>
+                            {% for perm in user.get_permissions() %}
+                                <span class="badge bg-secondary me-1 mb-1">{{ perm }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

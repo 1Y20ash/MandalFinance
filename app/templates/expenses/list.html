@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Expenses - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="fw-bold mb-0"><i class="fa-solid fa-receipt me-2 text-danger"></i>Expense Management</h3>
+    <a href="{{ url_for('expenses.create_expense') }}" class="btn btn-danger"><i class="fa-solid fa-plus me-1"></i>Submit New Expense</a>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2">
+            <div class="col-md-4">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="SUBMITTED" {% if status_filter == 'SUBMITTED' %}selected{% endif %}>SUBMITTED</option>
+                    <option value="UNDER_REVIEW" {% if status_filter == 'UNDER_REVIEW' %}selected{% endif %}>UNDER_REVIEW</option>
+                    <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>APPROVED</option>
+                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>REJECTED</option>
+                    <option value="PAID" {% if status_filter == 'PAID' %}selected{% endif %}>PAID</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select name="category_id" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for c in categories %}
+                        <option value="{{ c.id }}" {% if category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i>Filter Expenses</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Ref</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Vendor</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Expense Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in pagination.items %}
+                <tr>
+                    <td class="fw-bold">{{ e.expense_ref }}</td>
+                    <td>{{ e.title }}</td>
+                    <td><span class="badge bg-secondary">{{ e.category.name if e.category else '-' }}</span></td>
+                    <td>{{ e.vendor.name if e.vendor else 'Direct' }}</td>
+                    <td class="fw-bold text-danger">{{ e.amount | currency }}</td>
+                    <td>
+                        {% if e.status == 'PAID' %}
+                            <span class="badge bg-success">PAID</span>
+                        {% elif e.status == 'APPROVED' %}
+                            <span class="badge bg-primary">APPROVED</span>
+                        {% elif e.status == 'SUBMITTED' %}
+                            <span class="badge bg-warning text-dark">SUBMITTED</span>
+                        {% elif e.status == 'REJECTED' %}
+                            <span class="badge bg-danger">REJECTED</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ e.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ e.expense_date.strftime('%d-%b-%Y') }}</td>
+                    <td>
+                        <a href="{{ url_for('expenses.view_expense', expense_id=e.id) }}" class="btn btn-sm btn-outline-info"><i class="fa-solid fa-eye me-1"></i>View & Workflow</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center py-4 text-muted">No expenses found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

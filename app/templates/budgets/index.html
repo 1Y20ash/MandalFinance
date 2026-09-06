@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Budget Management - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="fw-bold mb-0"><i class="fa-solid fa-wallet me-2 text-warning"></i>Budget vs Actual Spending</h3>
+        <p class="text-muted small mb-0">Event: <strong>{{ active_event.title if active_event else 'N/A' }}</strong></p>
+    </div>
+    <a href="{{ url_for('budgets.manage_budget') }}" class="btn btn-warning"><i class="fa-solid fa-edit me-1"></i>Configure Budget Limits</a>
+</div>
+
+{% if budget %}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card card-stat p-3 bg-white border-start border-4 border-success">
+            <span class="small text-muted fw-bold">TOTAL INCOME TARGET</span>
+            <h4 class="fw-bold text-success mb-0">{{ budget.total_income_target | currency }}</h4>
+            <span class="small text-muted">Actual Income: {{ budget.actual_income | currency }}</span>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-stat p-3 bg-white border-start border-4 border-danger">
+            <span class="small text-muted fw-bold">TOTAL EXPENSE LIMIT</span>
+            <h4 class="fw-bold text-danger mb-0">{{ budget.total_expense_limit | currency }}</h4>
+            <span class="small text-muted">Actual Spent: {{ budget.actual_expense | currency }}</span>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-stat p-3 bg-white border-start border-4 border-info">
+            <span class="small text-muted fw-bold">REMAINING EXPENSE BUDGET</span>
+            <h4 class="fw-bold text-info mb-0">{{ (budget.total_expense_limit - budget.actual_expense) | currency }}</h4>
+            <span class="small text-muted">Budget Utilization</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white fw-bold">Category Budget Utilization & Threshold Alerts</div>
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Category</th>
+                    <th>Allocated Limit</th>
+                    <th>Actual Spent</th>
+                    <th>Remaining</th>
+                    <th>Utilization %</th>
+                    <th>Alert Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bc in budget_categories %}
+                <tr>
+                    <td class="fw-bold">{{ bc.expense_category.name }}</td>
+                    <td>{{ bc.allocated_amount | currency }}</td>
+                    <td class="fw-bold text-danger">{{ bc.spent_amount | currency }}</td>
+                    <td class="fw-bold text-success">{{ bc.remaining_amount | currency }}</td>
+                    <td>
+                        <div class="progress" style="height: 18px;">
+                            <div class="progress-bar {% if bc.utilization_percentage > 100 %}bg-danger{% elif bc.utilization_percentage >= 90 %}bg-warning text-dark{% else %}bg-success{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ [bc.utilization_percentage, 100] | min }}%;">
+                                {{ "%.1f" | format(bc.utilization_percentage) }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% set st = bc.alert_status %}
+                        {% if st == 'EXCEEDED' %}
+                            <span class="badge bg-danger">EXCEEDED (>100%)</span>
+                        {% elif st == 'HIGH_WARNING' %}
+                            <span class="badge bg-warning text-dark">HIGH WARNING (≥90%)</span>
+                        {% elif st == 'WARNING' %}
+                            <span class="badge bg-info text-dark">WARNING (≥75%)</span>
+                        {% else %}
+                            <span class="badge bg-success">NORMAL</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center py-4 text-muted">No budget allocations configured. Click "Configure Budget Limits" above to set category limits.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

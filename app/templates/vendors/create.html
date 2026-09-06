@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Add Vendor - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white fw-bold">
+                <i class="fa-solid fa-plus-circle me-2"></i>Add Vendor Record
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Vendor / Firm Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. ABC Decorations & Lights" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Service Category</label>
+                            <input type="text" name="category" class="form-control" placeholder="e.g. Decoration, Sound, Idol, Catering" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Contact Person</label>
+                            <input type="text" name="contact_person" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">GSTIN (Optional)</label>
+                            <input type="text" name="gstin" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Bank Name</label>
+                            <input type="text" name="bank_name" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Account Number</label>
+                            <input type="text" name="account_number" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">UPI ID</label>
+                            <input type="text" name="upi_id" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('vendors.list_vendors') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4"><i class="fa-solid fa-save me-1"></i>Save Vendor</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

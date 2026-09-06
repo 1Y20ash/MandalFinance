@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Checkout - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 text-center">
+        <div class="card shadow-lg border-0 mt-3 p-4">
+            <h4 class="fw-bold text-success mb-3"><i class="fa-solid fa-credit-card me-2"></i>Complete Payment</h4>
+            <table class="table align-middle text-start">
+                <tr><th>Donation Ref</th><td>{{ donation.donation_number }}</td></tr>
+                <tr><th>Donor Name</th><td>{{ donation.donor_name }}</td></tr>
+                <tr><th>Amount</th><td class="fs-4 fw-bold text-success">Rs. {{ donation.amount }}</td></tr>
+                <tr><th>Purpose</th><td>{{ donation.purpose }}</td></tr>
+            </table>
+
+            <form method="POST" action="{{ url_for('public.confirm_online_payment') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="donation_id" value="{{ donation.id }}"/>
+                <input type="hidden" name="gateway_payment_id" value="pay_mock_{{ order_info.order_id }}"/>
+                <input type="hidden" name="gateway_signature" value="valid_mock_signature"/>
+
+                <div class="alert alert-info small my-3">
+                    <i class="fa-solid fa-info-circle me-1"></i>Simulated Secure Gateway Checkout (Order ID: {{ order_info.order_id }})
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold">
+                    <i class="fa-solid fa-check-double me-2"></i>Simulate Successful Payment & Issue Receipt
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
