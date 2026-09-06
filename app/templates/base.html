@@ -6,51 +6,21 @@
     <title>{% block title %}Shree Ashtavinayak Ganesh Utsav Mandal{% endblock %}</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0f172a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/static/img/icon-192.svg">
     <link rel="icon" type="image/svg+xml" href="/static/img/icon-192.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/income.css') }}" rel="stylesheet">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('public.transparency') }}"><span class="fs-4 me-2">🕉</span><span>Ashtavinayak Mandal</span></a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('public.transparency') }}"><i class="fa-solid fa-eye me-1"></i>Transparency</a></li>
-                    <li class="nav-item"><a class="nav-link btn-donate ms-lg-2" href="{{ url_for('public.public_donate') }}"><i class="fa-solid fa-hand-holding-dollar me-1"></i>Donate Online</a></li>
-                    {% if current_user.is_authenticated %}
-                    <li class="nav-item"><a class="nav-link ms-lg-3" href="{{ url_for('dashboard.index') }}"><i class="fa-solid fa-chart-line me-1"></i>Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('donations.list_donations') }}"><i class="fa-solid fa-hand-holding-heart me-1"></i>Donations</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('income.list_income') }}"><i class="fa-solid fa-arrow-trend-up me-1"></i>Income</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('expenses.list_expenses') }}"><i class="fa-solid fa-receipt me-1"></i>Expenses</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('vendors.list_vendors') }}"><i class="fa-solid fa-truck me-1"></i>Vendors</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('budgets.index') }}"><i class="fa-solid fa-wallet me-1"></i>Budgets</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('documents.list_documents') }}"><i class="fa-solid fa-vault me-1"></i>Evidence Vault</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.index') }}"><i class="fa-solid fa-file-invoice-dollar me-1"></i>Reports</a></li>
-                    {% if current_user.is_admin %}
-                    <li class="nav-item dropdown"><a class="nav-link dropdown-toggle text-warning" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown"><i class="fa-solid fa-user-shield me-1"></i>Admin RBAC</a><ul class="dropdown-menu dropdown-menu-dark"><li><a class="dropdown-item" href="{{ url_for('admin.list_users') }}">User & Role Assignments</a></li><li><a class="dropdown-item" href="{{ url_for('admin.list_roles') }}">Role Permissions</a></li><li><a class="dropdown-item" href="{{ url_for('admin.audit_logs') }}">System Audit Logs</a></li></ul></li>
-                    {% endif %}
-                    {% endif %}
-                </ul>
-                <ul class="navbar-nav">{% if current_user.is_authenticated %}<li class="nav-item dropdown"><a class="nav-link dropdown-toggle text-white" href="#" id="userMenu" role="button" data-bs-toggle="dropdown"><i class="fa-solid fa-circle-user me-1 text-warning"></i>{{ current_user.full_name }}</a><ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end"><li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li><li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-right-from-bracket me-1"></i>Logout</a></li></ul></li>{% else %}<li class="nav-item"><a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.login') }}"><i class="fa-solid fa-right-to-bracket me-1"></i>Login</a></li>{% endif %}</ul>
-            </div>
-        </div>
-    </nav>
-    <div class="container mt-4">{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endif %}{% endwith %}</div>
-    <main class="container my-4">{% block content %}{% endblock %}</main>
-    <div id="offlineBanner" class="alert alert-warning shadow-lg"><i class="fa-solid fa-wifi me-2"></i>You are currently operating offline. Cached mandal data displayed.</div>
-    <footer class="footer text-center"><div class="container"><p class="mb-1 text-white font-heading"><strong>Shree Ashtavinayak Ganesh Utsav Mandal</strong></p><p class="small text-muted mb-0">Panchasheel Nagar, Gittikhadan, Nagpur, Maharashtra, India</p><p class="small text-muted mt-1 mb-0">PWA Enabled &bull; Financial Accountability System &bull; Every rupee in. Every rupee out.</p></div></footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(err => console.log('PWA ServiceWorker registration failed:', err)); }); } window.addEventListener('offline', () => { document.getElementById('offlineBanner').style.display = 'block'; }); window.addEventListener('online', () => { document.getElementById('offlineBanner').style.display = 'none'; });</script>
-    {% block extra_js %}{% endblock %}
-</body>
-</html>
+<nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top"><div class="container-fluid"><a class="navbar-brand d-flex align-items-center" href="{{ url_for('public.transparency') }}"><span class="fs-4 me-2">🕉</span><span>Ashtavinayak Mandal</span></a><button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button><div class="collapse navbar-collapse" id="navbarNav"><ul class="navbar-nav me-auto mb-2 mb-lg-0"><li class="nav-item"><a class="nav-link" href="{{ url_for('public.transparency') }}"><i class="fa-solid fa-eye me-1"></i>Transparency</a></li><li class="nav-item"><a class="nav-link btn-donate ms-lg-2" href="{{ url_for('public.public_donate') }}"><i class="fa-solid fa-hand-holding-dollar me-1"></i>Donate Online</a></li>{% if current_user.is_authenticated %}<li class="nav-item"><a class="nav-link ms-lg-3" href="{{ url_for('dashboard.index') }}"><i class="fa-solid fa-chart-line me-1"></i>Dashboard</a></li><li class="nav-item"><a class="nav-link" href="{{ url_for('donations.list_donations') }}"><i class="fa-solid fa-hand-holding-heart me-1"></i>Donations</a></li><li class="nav-item"><a class="nav-link" href="{{ url_for('income.list_income') }}"><i class="fa-solid fa-arrow-trend-up me-1"></i>Income</a></li><li class="nav-item"><a class="nav-link" href="{{ url_for('expenses.list_expenses') }}"><i class="fa-solid fa-receipt me-1"></i>Expenses</a></li><li class="nav-item"><a class="nav-link" href="{{ url_for('vendors.list_vendors') }}"><i class="fa-solid fa-truck me-1"></i>Vendors</a></li><li class="nav-item"><a class="nav-link" href="{{ url_for('budgets.index') }}"><i class="fa-solid fa-wallet me-1"></i>Budgets</a></li><li class="nav-item"><a class="nav-link" href="{{ url_for('documents.list_documents') }}"><i class="fa-solid fa-vault me-1"></i>Evidence Vault</a></li><li class="nav-item"><a class="nav-link" href="{{ url_for('reports.index') }}"><i class="fa-solid fa-file-invoice-dollar me-1"></i>Reports</a></li>{% if current_user.is_admin %}<li class="nav-item dropdown"><a class="nav-link dropdown-toggle text-warning" href="#" id="adminDropdown" data-bs-toggle="dropdown"><i class="fa-solid fa-user-shield me-1"></i>Admin RBAC</a><ul class="dropdown-menu dropdown-menu-dark"><li><a class="dropdown-item" href="{{ url_for('admin.list_users') }}">User & Role Assignments</a></li><li><a class="dropdown-item" href="{{ url_for('admin.list_roles') }}">Role Permissions</a></li><li><a class="dropdown-item" href="{{ url_for('admin.audit_logs') }}">System Audit Logs</a></li></ul></li>{% endif %}{% endif %}</ul><ul class="navbar-nav">{% if current_user.is_authenticated %}<li class="nav-item dropdown"><a class="nav-link dropdown-toggle text-white" href="#" id="userMenu" data-bs-toggle="dropdown"><i class="fa-solid fa-circle-user me-1 text-warning"></i>{{ current_user.full_name }}</a><ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end"><li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li><li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Logout</a></li></ul></li>{% else %}<li class="nav-item"><a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.login') }}">Login</a></li>{% endif %}</ul></div></div></nav>
+<div class="container mt-4">{% with messages = get_flashed_messages(with_categories=true) %}{% for category,message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endwith %}</div>
+<main class="container my-4">{% block content %}{% endblock %}</main>
+<div id="offlineBanner" class="alert alert-warning shadow-lg"><i class="fa-solid fa-wifi me-2"></i>You are currently operating offline. Cached mandal data displayed.</div>
+<footer class="footer text-center"><div class="container"><p class="mb-1 text-white font-heading"><strong>Shree Ashtavinayak Ganesh Utsav Mandal</strong></p><p class="small text-muted mb-0">Panchasheel Nagar, Gittikhadan, Nagpur, Maharashtra, India</p><p class="small text-muted mt-1 mb-0">PWA Enabled &bull; Financial Accountability System &bull; Every rupee in. Every rupee out.</p></div></footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script><script>if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}window.addEventListener('offline',()=>document.getElementById('offlineBanner').style.display='block');window.addEventListener('online',()=>document.getElementById('offlineBanner').style.display='none');</script>{% block extra_js %}{% endblock %}
+</body></html>
