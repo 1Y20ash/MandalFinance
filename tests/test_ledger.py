@@ -2,7 +2,8 @@ from decimal import Decimal
 
 import pytest
 
-from app.models.ledger import Account, Transaction
+from app.extensions import db
+from app.models.ledger import Account
 from app.models.auth import User
 from app.services.ledger_service import LedgerService
 
