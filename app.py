@@ -1,6 +1,5 @@
 import os
 
-from flask import Flask
 from flask_migrate import upgrade
 
 from app import create_app
