@@ -2,82 +2,100 @@
 {% block title %}Record Donation - Ashtavinayak Mandal{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white fw-bold">
-                <i class="fa-solid fa-plus-circle me-2"></i>Record Offline Donation
+<div class="donation-page">
+    <div class="donation-form-shell">
+        <div class="donation-form-header">
+            <div>
+                <span class="donation-kicker">Financial Income</span>
+                <h1 class="h3 mb-1">Record Offline Donation</h1>
+                <p class="mb-0 text-white-50">The donation, receipt and ledger entry are saved together.</p>
             </div>
-            <div class="card-body p-4">
-                <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Target Event</label>
-                            <select name="event_id" class="form-select" required>
-                                {% for ev in events %}
-                                    <option value="{{ ev.id }}">{{ ev.title }} ({{ ev.year }})</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Receiving Account</label>
-                            <select name="account_id" class="form-select" required>
-                                {% for acc in accounts %}
-                                    <option value="{{ acc.id }}">{{ acc.name }} ({{ acc.account_type | upper }})</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
+            <span class="donation-header-icon" aria-hidden="true"><i class="fa-solid fa-hand-holding-heart"></i></span>
+        </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Donor Name</label>
-                            <input type="text" name="donor_name" class="form-control" placeholder="e.g. Ramesh Kumar" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Donation Amount (₹)</label>
-                            <input type="number" step="0.01" min="1" name="amount" class="form-control" placeholder="e.g. 5000.00" required>
-                        </div>
-                    </div>
+        <div class="card-body p-4 p-lg-5">
+            <form method="POST" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Payment Mode</label>
-                            <select name="payment_mode" class="form-select" required>
-                                <option value="CASH">CASH</option>
-                                <option value="UPI">UPI</option>
-                                <option value="BANK_TRANSFER">BANK TRANSFER</option>
-                                <option value="CHEQUE">CHEQUE</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Donor Phone</label>
-                            <input type="text" name="donor_phone" class="form-control" placeholder="Optional">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">PAN Number</label>
-                            <input type="text" name="pan_number" class="form-control" placeholder="Optional (for 80G)">
-                        </div>
+                <div class="donation-section-title"><span>1</span><div><strong>Transaction</strong><small>Choose where the donation belongs.</small></div></div>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="event_id">Target Event</label>
+                        <select id="event_id" name="event_id" class="form-select" required>
+                            <option value="">Select event</option>
+                            {% for ev in events %}<option value="{{ ev.id }}">{{ ev.title }} ({{ ev.year }})</option>{% endfor %}
+                        </select>
                     </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="account_id">Receiving Account</label>
+                        <select id="account_id" name="account_id" class="form-select" required>
+                            <option value="">Select account</option>
+                            {% for acc in accounts %}<option value="{{ acc.id }}">{{ acc.name }} ({{ acc.account_type | upper }})</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Transaction Ref / UTR / Cheque No.</label>
-                        <input type="text" name="transaction_ref" class="form-control" placeholder="Optional for cash, required for UPI/Bank">
+                <div class="donation-section-title"><span>2</span><div><strong>Donor & Amount</strong><small>Capture the minimum information needed for the receipt.</small></div></div>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-7">
+                        <label class="form-label fw-semibold" for="donor_name">Donor Name</label>
+                        <input id="donor_name" type="text" name="donor_name" class="form-control" placeholder="e.g. Ramesh Kumar" minlength="2" maxlength="120" required>
                     </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold" for="amount">Donation Amount (₹)</label>
+                        <div class="input-group donation-amount-group"><span class="input-group-text">₹</span><input id="amount" type="number" step="0.01" min="0.01" name="amount" class="form-control" placeholder="5000.00" required></div>
+                    </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Purpose / Notes</label>
-                        <textarea name="purpose" class="form-control" rows="2" placeholder="e.g., General Utsav Donation / Prasad Sponsorship"></textarea>
+                <div class="donation-section-title"><span>3</span><div><strong>Payment Details</strong><small>Reference numbers are required for traceable non-cash payments.</small></div></div>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label" for="payment_mode">Payment Mode</label>
+                        <select id="payment_mode" name="payment_mode" class="form-select" required>
+                            <option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank Transfer</option><option value="CHEQUE">Cheque</option>
+                        </select>
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="transaction_ref">Transaction Ref / UTR / Cheque No.</label>
+                        <input id="transaction_ref" type="text" name="transaction_ref" class="form-control" placeholder="Required for UPI / bank / cheque">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="donor_phone">Donor Phone</label>
+                        <input id="donor_phone" type="text" name="donor_phone" class="form-control" maxlength="20" placeholder="Optional">
+                    </div>
+                </div>
 
-                    <div class="d-flex justify-content-end gap-2">
-                        <a href="{{ url_for('donations.list_donations') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-success px-4"><i class="fa-solid fa-check me-1"></i>Save Donation & Issue Receipt</button>
-                    </div>
-                </form>
-            </div>
+                <div class="donation-section-title"><span>4</span><div><strong>Additional Information</strong><small>Optional details for record keeping.</small></div></div>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6"><label class="form-label" for="pan_number">PAN Number</label><input id="pan_number" type="text" name="pan_number" class="form-control" maxlength="20" placeholder="Optional"></div>
+                    <div class="col-md-6"><label class="form-label" for="purpose">Purpose</label><input id="purpose" type="text" name="purpose" class="form-control" maxlength="150" placeholder="General Donation"></div>
+                    <div class="col-12"><label class="form-label" for="notes">Notes</label><textarea id="notes" name="notes" class="form-control" rows="3" maxlength="2000" placeholder="Optional internal note"></textarea></div>
+                </div>
+
+                <div class="donation-integrity-note"><i class="fa-solid fa-shield-halved"></i><div><strong>Accountability check</strong><p class="mb-0">Saving this form creates one donation record, one receipt number and one corresponding central-ledger income entry.</p></div></div>
+                <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+                    <a href="{{ url_for('donations.list_donations') }}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-success px-4"><i class="fa-solid fa-check me-1"></i>Save Donation & Issue Receipt</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+    const mode = document.getElementById('payment_mode');
+    const ref = document.getElementById('transaction_ref');
+    const syncReference = () => {
+        const required = mode.value !== 'CASH';
+        ref.required = required;
+        ref.setAttribute('aria-required', required ? 'true' : 'false');
+        ref.placeholder = required ? 'Required for this payment mode' : 'Optional for cash';
+    };
+    mode.addEventListener('change', syncReference);
+    syncReference();
+})();
+</script>
 {% endblock %}

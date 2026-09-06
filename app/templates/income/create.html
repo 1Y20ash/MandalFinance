@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Record Income - Ashtavinayak Mandal{% endblock %}
+{% block content %}
+<div class="income-form-shell">
+  <div class="income-form-card">
+    <div class="income-form-header"><div><span class="income-eyebrow">PHASE 10</span><h1>Record Income</h1><p>Record non-donation income and post it to the central financial ledger.</p></div><i class="fa-solid fa-arrow-trend-up income-header-icon"></i></div>
+    <form method="POST" class="mt-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Target Event</label><select name="event_id" class="form-select" required><option value="">Select event</option>{% for ev in events %}<option value="{{ ev.id }}">{{ ev.title }} ({{ ev.year }})</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label">Income Category</label><select name="category_id" class="form-select" required><option value="">Select income category</option>{% for cat in categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label">Receiving Account</label><select name="account_id" class="form-select" required><option value="">Select account</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.name }} ({{ account.account_type|upper }})</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label">Income Date</label><input type="date" name="income_date" class="form-control" value="{{ request.form.get('income_date', '') }}" required></div>
+        <div class="col-md-8"><label class="form-label">Income Source</label><input type="text" name="source_name" class="form-control" placeholder="e.g. Stall rental, interest, refund" value="{{ request.form.get('source_name', '') }}" maxlength="150" required></div>
+        <div class="col-md-4"><label class="form-label">Amount (₹)</label><input type="number" name="amount" class="form-control" min="0.01" step="0.01" placeholder="0.00" value="{{ request.form.get('amount', '') }}" required></div>
+        <div class="col-md-6"><label class="form-label">Payment Mode</label><select name="payment_mode" id="incomePaymentMode" class="form-select" required><option value="">Select mode</option><option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank Transfer</option><option value="CHEQUE">Cheque</option></select></div>
+        <div class="col-md-6"><label class="form-label">Transaction Reference</label><input type="text" name="transaction_ref" id="incomeTransactionRef" class="form-control" placeholder="Required for non-cash modes" maxlength="100"></div>
+        <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3" placeholder="Explain the source and purpose of this income" required>{{ request.form.get('description', '') }}</textarea></div>
+        <div class="col-12"><label class="form-label">Notes <span class="text-muted fw-normal">(Optional)</span></label><textarea name="notes" class="form-control" rows="2" placeholder="Additional internal notes">{{ request.form.get('notes', '') }}</textarea></div>
+      </div>
+      <div class="income-form-warning mt-4"><i class="fa-solid fa-circle-info"></i><span>Saving this form creates the income record, central-ledger transaction, and audit entry atomically.</span></div>
+      <div class="d-flex justify-content-end gap-2 mt-4"><a href="{{ url_for('income.list_income') }}" class="btn btn-secondary">Cancel</a><button class="btn btn-success px-4" type="submit"><i class="fa-solid fa-check me-1"></i>Record Income</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>const mode=document.getElementById('incomePaymentMode');const ref=document.getElementById('incomeTransactionRef');function syncRef(){const required=mode.value&&mode.value!=='CASH';ref.required=required;ref.placeholder=required?'Transaction reference required':'Optional for cash';}mode.addEventListener('change',syncRef);syncRef();</script>{% endblock %}

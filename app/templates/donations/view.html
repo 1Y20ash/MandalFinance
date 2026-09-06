@@ -2,42 +2,52 @@
 {% block title %}Donation {{ donation.donation_number }} - Ashtavinayak Mandal{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fa-solid fa-receipt me-2"></i>Donation Details</h5>
-                {% if donation.status == 'SUCCESS' %}
-                <a href="{{ url_for('donations.download_receipt', donation_id=donation.id) }}" class="btn btn-sm btn-success" target="_blank">
-                    <i class="fa-solid fa-download me-1"></i>Download Official PDF Receipt
-                </a>
+<div class="donation-detail-page">
+    <div class="card donation-detail-card">
+        <div class="card-header donation-detail-header">
+            <div>
+                <span class="donation-kicker">Donation record</span>
+                <h5 class="mb-0"><i class="fa-solid fa-hand-holding-heart me-2"></i>Donation Details</h5>
+            </div>
+            {% if donation.status == 'SUCCESS' %}
+            <a href="{{ url_for('donations.download_receipt', donation_id=donation.id) }}" class="btn btn-success" target="_blank" rel="noopener">
+                <i class="fa-solid fa-file-pdf me-1"></i>View / Print Receipt
+            </a>
+            {% endif %}
+        </div>
+
+        {% if donation.status == 'SUCCESS' %}
+        <div class="receipt-ready-banner">
+            <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+            <div>
+                <strong>Official receipt ready</strong>
+                <p class="mb-0">Receipt {{ donation.receipt_number }} is available as a computer-generated PDF.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card-body p-4">
+            <div class="donation-detail-grid">
+                <div class="donation-detail-item"><span>Donation Number</span><strong>{{ donation.donation_number }}</strong></div>
+                <div class="donation-detail-item"><span>Receipt Number</span><strong>{{ donation.receipt_number or 'N/A' }}</strong></div>
+                <div class="donation-detail-item"><span>Status</span><strong>{{ donation.status }}</strong></div>
+                <div class="donation-detail-item donation-detail-amount"><span>Amount</span><strong>{{ donation.amount | currency }}</strong></div>
+                <div class="donation-detail-item"><span>Donor Name</span><strong>{{ donation.donor_name }}</strong></div>
+                <div class="donation-detail-item"><span>Payment Mode</span><strong>{{ donation.payment_mode }}</strong></div>
+                <div class="donation-detail-item"><span>Transaction Ref</span><strong>{{ donation.transaction_ref or 'N/A' }}</strong></div>
+                <div class="donation-detail-item"><span>Purpose</span><strong>{{ donation.purpose }}</strong></div>
+                <div class="donation-detail-item"><span>Date</span><strong>{{ donation.created_at.strftime('%d-%b-%Y %H:%M') }}</strong></div>
+                {% if donation.receipt_generated_at %}
+                <div class="donation-detail-item"><span>Receipt Generated</span><strong>{{ donation.receipt_generated_at.strftime('%d-%b-%Y %H:%M') }}</strong></div>
                 {% endif %}
             </div>
-            <div class="card-body p-4">
-                <table class="table align-middle">
-                    <tr><th>Donation Number</th><td class="fw-bold">{{ donation.donation_number }}</td></tr>
-                    <tr><th>Receipt Number</th><td class="fw-bold text-primary">{{ donation.receipt_number or 'N/A' }}</td></tr>
-                    <tr><th>Status</th>
-                        <td>
-                            {% if donation.status == 'SUCCESS' %}
-                                <span class="badge bg-success">SUCCESS</span>
-                            {% else %}
-                                <span class="badge bg-warning">{{ donation.status }}</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr><th>Donor Name</th><td>{{ donation.donor_name }}</td></tr>
-                    <tr><th>Amount</th><td class="fs-4 fw-bold text-success">{{ donation.amount | currency }}</td></tr>
-                    <tr><th>Payment Mode</th><td>{{ donation.payment_mode }}</td></tr>
-                    <tr><th>Transaction Ref</th><td>{{ donation.transaction_ref or 'N/A' }}</td></tr>
-                    <tr><th>Purpose</th><td>{{ donation.purpose }}</td></tr>
-                    <tr><th>Date</th><td>{{ donation.created_at.strftime('%d-%b-%Y %H:%M') }}</td></tr>
-                </table>
 
-                <div class="mt-4">
-                    <a href="{{ url_for('donations.list_donations') }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Back to Donations List</a>
-                    <a href="{{ url_for('documents.upload_document', entity_type='DONATION', entity_id=donation.id) }}" class="btn btn-outline-primary"><i class="fa-solid fa-paperclip me-1"></i>Attach Supporting Document Proof</a>
-                </div>
+            <div class="donation-detail-actions">
+                <a href="{{ url_for('donations.list_donations') }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Back to Donations</a>
+                {% if donation.status == 'SUCCESS' %}
+                <a href="{{ url_for('donations.download_receipt', donation_id=donation.id) }}" class="btn btn-outline-success" target="_blank" rel="noopener"><i class="fa-solid fa-print me-1"></i>Open PDF Receipt</a>
+                {% endif %}
+                <a href="{{ url_for('documents.upload_document', entity_type='DONATION', entity_id=donation.id) }}" class="btn btn-outline-primary"><i class="fa-solid fa-paperclip me-1"></i>Attach Supporting Proof</a>
             </div>
         </div>
     </div>
