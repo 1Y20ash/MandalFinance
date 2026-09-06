@@ -3,45 +3,57 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'ashtavinayak-mandal-secret-key-2026')
+    SECRET_KEY = os.environ.get('SECRET_KEY')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # Supabase PostgreSQL / SQLite fallback
+
     DATABASE_URL = os.environ.get('DATABASE_URL')
     if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    
+
     SQLALCHEMY_DATABASE_URI = DATABASE_URL or f"sqlite:///{BASE_DIR / 'ashtavinayak_mandal.db'}"
-    
-    # Document storage configuration
+
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', str(BASE_DIR / 'uploads'))
-    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16 MB
-    
-    # Supabase configuration
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
+
     SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
     SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
     SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'mandal-financial-documents')
-    
-    # Payment gateway driver ('mock', 'razorpay')
+
     PAYMENT_GATEWAY_DRIVER = os.environ.get('PAYMENT_GATEWAY_DRIVER', 'mock')
     RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
     RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
     RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
 
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'development-only-change-me')
 
 
 class TestingConfig(Config):
     TESTING = True
+    SECRET_KEY = 'testing-secret-key'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
 
 
 class ProductionConfig(Config):
     DEBUG = False
+    SESSION_COOKIE_SECURE = True
+
+    @classmethod
+    def validate(cls):
+        required = ('SECRET_KEY', 'DATABASE_URL')
+        missing = [name for name in required if not os.environ.get(name)]
+        if missing:
+            raise RuntimeError(
+                'Missing required production environment variables: ' + ', '.join(missing)
+            )
 
 
 config_by_name = {
