@@ -61,6 +61,8 @@ class IncomeService:
             if duplicate:
                 raise ValueError('An income entry with this transaction reference already exists.')
 
+        income_ref = IncomeService._generate_income_ref()
+
         try:
             # The income row requires transaction_id, while the ledger transaction
             # needs the income row's ID as source_id. Create the ledger row first,
@@ -68,13 +70,12 @@ class IncomeService:
             # the income gets its ID, backfill txn.source_id before the atomic commit.
             txn = LedgerService.record_income(
                 account_id=account_id, amount=decimal_amount,
-                description=f"Income {IncomeService._generate_income_ref()}: {source_name.strip()}",
+                description=f"Income {income_ref}: {source_name.strip()}",
                 source_module='INCOME', source_id=None, created_by_id=created_by_id,
                 payment_mode=payment_mode, external_ref=transaction_ref,
                 category_id=category_id, event_id=event_id, commit=False,
             )
 
-            income_ref = IncomeService._generate_income_ref()
             income = Income(
                 income_ref=income_ref, event_id=event_id, category_id=category_id,
                 account_id=account_id, source_name=source_name.strip(), description=description.strip(),
