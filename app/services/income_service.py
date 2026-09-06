@@ -69,16 +69,24 @@ class IncomeService:
         )
 
         try:
-            db.session.add(income)
-            db.session.flush()
+            # income_entries.transaction_id is NOT NULL, while the central ledger
+            # needs the income row's ID as source_id. Create the ledger transaction
+            # first with a temporary NULL source_id, then link both records before
+            # the single atomic commit.
             txn = LedgerService.record_income(
                 account_id=account_id, amount=decimal_amount,
                 description=f"Income {income.income_ref}: {income.source_name}",
-                source_module='INCOME', source_id=income.id, created_by_id=created_by_id,
+                source_module='INCOME', source_id=None, created_by_id=created_by_id,
                 payment_mode=payment_mode, external_ref=transaction_ref,
                 category_id=category_id, event_id=event_id, commit=False,
             )
+
+            db.session.add(income)
+            db.session.flush()
+
+            txn.source_id = income.id
             income.transaction_id = txn.id
+
             AuditService.log_action(
                 action='CREATE', entity_type='INCOME', entity_id=income.id,
                 description=f"Recorded income {income.income_ref} of ₹{decimal_amount} from {income.source_name}",
