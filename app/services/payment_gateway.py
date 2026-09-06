@@ -54,6 +54,12 @@ class RazorpayGateway(PaymentGatewayInterface):
             raise RuntimeError('Razorpay credentials are not configured.')
         return key_id, key_secret
 
+    def _key_secret(self):
+        key_secret = current_app.config.get('RAZORPAY_KEY_SECRET', '').strip()
+        if not key_secret:
+            raise RuntimeError('Razorpay key secret is not configured.')
+        return key_secret
+
     def create_order(self, amount_decimal, donation_id, donor_name):
         key_id, key_secret = self._credentials()
         amount = Decimal(str(amount_decimal)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -84,7 +90,7 @@ class RazorpayGateway(PaymentGatewayInterface):
         }
 
     def verify_payment_signature(self, order_id, payment_id, signature):
-        _, key_secret = self._credentials()
+        key_secret = self._key_secret()
         if not order_id or not payment_id or not signature:
             return False
         message = f'{order_id}|{payment_id}'.encode('utf-8')
