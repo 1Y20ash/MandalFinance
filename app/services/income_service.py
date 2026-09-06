@@ -61,31 +61,31 @@ class IncomeService:
             if duplicate:
                 raise ValueError('An income entry with this transaction reference already exists.')
 
-        income = Income(
-            income_ref=IncomeService._generate_income_ref(), event_id=event_id, category_id=category_id,
-            account_id=account_id, source_name=source_name.strip(), description=description.strip(),
-            amount=decimal_amount, income_date=income_date, payment_mode=payment_mode,
-            transaction_ref=transaction_ref or None, notes=notes or None, created_by_id=created_by_id,
-        )
-
         try:
-            # income_entries.transaction_id is NOT NULL, while the central ledger
-            # needs the income row's ID as source_id. Create the ledger transaction
-            # first with a temporary NULL source_id, then link both records before
-            # the single atomic commit.
+            # The income row requires transaction_id, while the ledger transaction
+            # needs the income row's ID as source_id. Create the ledger row first,
+            # then create the income row already linked to that transaction. Once
+            # the income gets its ID, backfill txn.source_id before the atomic commit.
             txn = LedgerService.record_income(
                 account_id=account_id, amount=decimal_amount,
-                description=f"Income {income.income_ref}: {income.source_name}",
+                description=f"Income {IncomeService._generate_income_ref()}: {source_name.strip()}",
                 source_module='INCOME', source_id=None, created_by_id=created_by_id,
                 payment_mode=payment_mode, external_ref=transaction_ref,
                 category_id=category_id, event_id=event_id, commit=False,
             )
 
+            income_ref = IncomeService._generate_income_ref()
+            income = Income(
+                income_ref=income_ref, event_id=event_id, category_id=category_id,
+                account_id=account_id, source_name=source_name.strip(), description=description.strip(),
+                amount=decimal_amount, income_date=income_date, payment_mode=payment_mode,
+                transaction_ref=transaction_ref or None, notes=notes or None,
+                transaction_id=txn.id, created_by_id=created_by_id,
+            )
             db.session.add(income)
             db.session.flush()
 
             txn.source_id = income.id
-            income.transaction_id = txn.id
 
             AuditService.log_action(
                 action='CREATE', entity_type='INCOME', entity_id=income.id,
