@@ -3,8 +3,10 @@ from decimal import Decimal
 import pytest
 
 from app.extensions import db
-from app.models.ledger import Account
+from app.models.audit import AuditLog
+from app.models.ledger import Account, Transaction
 from app.models.auth import User
+from app.services.audit_service import AuditService
 from app.services.ledger_service import LedgerService
 
 
@@ -96,3 +98,26 @@ def test_reversal_requires_reason_and_cannot_reverse_reversal(app):
             LedgerService.reverse_transaction(txn.id, user.id, 'Again')
         with pytest.raises(ValueError, match='Only INCOME and EXPENSE'):
             LedgerService.reverse_transaction(reversal.id, user.id, 'Invalid reversal')
+
+
+def test_ledger_rolls_back_when_audit_logging_fails(app, monkeypatch):
+    with app.app_context():
+        user = User.query.filter_by(username='admin').first()
+        account = Account.query.filter_by(name='Main Cash').first()
+        before = account.current_balance
+
+        def failing_audit(*args, **kwargs):
+            raise RuntimeError('simulated audit failure')
+
+        monkeypatch.setattr(AuditService, 'log_action', failing_audit)
+
+        with pytest.raises(RuntimeError, match='simulated audit failure'):
+            LedgerService.record_income(
+                account.id, '125.00', 'Atomicity test', 'ATOMICITY_TEST', 1, user.id
+            )
+
+        db.session.expire_all()
+        db_account = db.session.get(Account, account.id)
+        assert db_account.current_balance == before
+        assert Transaction.query.filter_by(source_module='ATOMICITY_TEST', source_id=1).first() is None
+        assert AuditLog.query.filter_by(entity_type='TRANSACTION', description='Recorded INCOME of ₹125.00 to account \'Main Cash\'').first() is None
