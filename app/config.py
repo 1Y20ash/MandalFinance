@@ -21,7 +21,8 @@ class Config:
     SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
     SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'mandal-financial-documents')
 
-    PAYMENT_GATEWAY_DRIVER = os.environ.get('PAYMENT_GATEWAY_DRIVER', 'mock')
+    PAYMENT_GATEWAY_DRIVER = os.environ.get('PAYMENT_GATEWAY_DRIVER', 'mock').strip().lower()
+    ONLINE_DONATION_ACCOUNT_ID = os.environ.get('ONLINE_DONATION_ACCOUNT_ID', '')
     RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
     RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
     RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
@@ -50,6 +51,9 @@ class ProductionConfig(Config):
     def validate(cls):
         required = ('SECRET_KEY', 'DATABASE_URL')
         missing = [name for name in required if not os.environ.get(name)]
+        if cls.PAYMENT_GATEWAY_DRIVER == 'razorpay':
+            required += ('RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET', 'ONLINE_DONATION_ACCOUNT_ID')
+            missing = [name for name in required if not os.environ.get(name)]
         if missing:
             raise RuntimeError(
                 'Missing required production environment variables: ' + ', '.join(missing)
@@ -60,5 +64,5 @@ config_by_name = {
     'development': DevelopmentConfig,
     'testing': TestingConfig,
     'production': ProductionConfig,
-    'default': DevelopmentConfig
+    'default': DevelopmentConfig,
 }
