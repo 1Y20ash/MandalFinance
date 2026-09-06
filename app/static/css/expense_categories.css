@@ -1,0 +1,15 @@
+.expense-category-page { max-width: 1180px; margin: 0 auto; }
+.category-info { border-radius: 14px; }
+.category-card { border-radius: 16px; overflow: hidden; }
+.category-table th { white-space: nowrap; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+.category-table td { padding: .9rem 1rem; }
+.category-actions { white-space: nowrap; }
+.category-actions .btn { margin-left: .25rem; }
+.expense-category-page .modal-content { border: 0; border-radius: 18px; box-shadow: 0 1rem 3rem rgba(15, 23, 42, .18); }
+.expense-category-page .form-control { border-radius: 10px; }
+.expense-category-page .form-control:focus { box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .12); }
+@media (max-width: 767.98px) {
+  .category-actions { white-space: normal; min-width: 190px; }
+  .category-actions .btn { margin: .15rem 0; }
+  .category-table td, .category-table th { padding: .75rem; }
+}
