@@ -4,16 +4,19 @@ import pytest
 
 from app.extensions import db
 from app.models.audit import AuditLog
+from app.models.auth import User
 from app.models.income import Donation
 from app.models.ledger import Account, Transaction
-from app.models.auth import User
+from app.models.mandal import Event
 from app.services.donation_service import DonationService
 
 
 def _ids():
-    event_id = db.session.execute(db.select(DonationService.__dict__.get('_missing', Donation))).scalar() if False else None
-    from app.models.mandal import Event
-    return Event.query.first().id, Account.query.filter_by(name='Main Cash').first(), User.query.filter_by(username='admin').first()
+    return (
+        Event.query.first().id,
+        Account.query.filter_by(name='Main Cash').first(),
+        User.query.filter_by(username='admin').first(),
+    )
 
 
 def test_offline_donation_posts_once_to_ledger_and_audit(app):
