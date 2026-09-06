@@ -1,6 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
+
 from app.extensions import db
+
 
 class ExpenseCategory(db.Model):
     __tablename__ = 'expense_categories'
@@ -8,8 +10,8 @@ class ExpenseCategory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.String(255), nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):
         return f'<ExpenseCategory {self.name}>'
@@ -19,36 +21,46 @@ class Expense(db.Model):
     __tablename__ = 'expenses'
 
     id = db.Column(db.Integer, primary_key=True)
-    expense_ref = db.Column(db.String(50), unique=True, nullable=False, index=True)  # EXP-YYYY-XXXX
-    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
-    category_id = db.Column(db.Integer, db.ForeignKey('expense_categories.id'), nullable=False)
-    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
-    account_id = db.Column(db.Integer, db.ForeignKey('accounts.id'), nullable=True)  # Account used when paid
-    
+    expense_ref = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False, index=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('expense_categories.id'), nullable=False, index=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True, index=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('accounts.id'), nullable=True, index=True)
+
     title = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=False)
     amount = db.Column(db.Numeric(15, 2), nullable=False)
-    expense_date = db.Column(db.Date, nullable=False)
-    
-    bill_number = db.Column(db.String(100), nullable=True)
+    expense_date = db.Column(db.Date, nullable=False, index=True)
+
+    bill_number = db.Column(db.String(100), nullable=True, index=True)
     bill_date = db.Column(db.Date, nullable=True)
-    payment_mode = db.Column(db.String(30), nullable=True)  # 'CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE'
-    payment_ref = db.Column(db.String(100), nullable=True)  # UTR, Cheque No, Ref
+    payment_mode = db.Column(db.String(30), nullable=True)
+    payment_ref = db.Column(db.String(100), nullable=True, index=True)
     payment_date = db.Column(db.DateTime, nullable=True)
-    
-    # Status workflow: 'SUBMITTED' -> 'UNDER_REVIEW' -> 'APPROVED' / 'REJECTED' -> 'PAID'
+
     status = db.Column(db.String(20), nullable=False, default='SUBMITTED', index=True)
-    
-    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     paid_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    
+
     approval_date = db.Column(db.DateTime, nullable=True)
     rejection_reason = db.Column(db.Text, nullable=True)
-    
-    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id'), nullable=True)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id'), nullable=True, unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint('amount > 0', name='ck_expenses_amount_positive'),
+        db.CheckConstraint(
+            "status IN ('SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'PAID')",
+            name='ck_expenses_status',
+        ),
+        db.CheckConstraint(
+            "payment_mode IS NULL OR payment_mode IN ('CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE')",
+            name='ck_expenses_payment_mode',
+        ),
+    )
 
     event = db.relationship('Event', backref=db.backref('expenses', lazy=True))
     category = db.relationship('ExpenseCategory', backref=db.backref('expenses', lazy=True))
@@ -69,15 +81,15 @@ class Approval(db.Model):
     __tablename__ = 'approvals'
 
     id = db.Column(db.Integer, primary_key=True)
-    expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id', ondelete='CASCADE'), nullable=False)
-    approver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
-    action = db.Column(db.String(20), nullable=False)  # 'SUBMIT', 'REVIEW', 'APPROVE', 'REJECT', 'PAY'
+    expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id', ondelete='CASCADE'), nullable=False, index=True)
+    approver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+
+    action = db.Column(db.String(20), nullable=False)
     previous_status = db.Column(db.String(20), nullable=False)
     new_status = db.Column(db.String(20), nullable=False)
     comments = db.Column(db.Text, nullable=True)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     approver = db.relationship('User', foreign_keys=[approver_id])
 
