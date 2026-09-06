@@ -8,7 +8,8 @@ from app.models.vendor import Vendor
 from app.models.ledger import Account
 from app.models.mandal import Event
 from app.services.expense_service import ExpenseService
-from app.utils.decorators import permission_required
+from app.services.expense_category_service import ExpenseCategoryService
+from app.utils.decorators import permission_required, admin_required
 
 expenses_bp = Blueprint('expenses', __name__, url_prefix='/expenses')
 
@@ -45,6 +46,62 @@ def list_expenses():
         'expenses/list.html', pagination=pagination, search_query=search_query,
         status_filter=status_filter, categories=categories, category_id=category_id,
     )
+
+
+@expenses_bp.route('/categories')
+@login_required
+@admin_required
+def list_expense_categories():
+    categories = ExpenseCategory.query.order_by(ExpenseCategory.is_active.desc(), ExpenseCategory.name.asc()).all()
+    return render_template('expenses/categories.html', categories=categories)
+
+
+@expenses_bp.route('/categories/create', methods=['POST'])
+@login_required
+@admin_required
+def create_expense_category():
+    try:
+        ExpenseCategoryService.create(
+            request.form.get('name'), request.form.get('description'), current_user,
+        )
+        flash('Expense category created successfully.', 'success')
+    except (ValueError, PermissionError) as exc:
+        flash(str(exc), 'danger')
+    except Exception:
+        flash('Unable to create the expense category. No changes were saved.', 'danger')
+    return redirect(url_for('expenses.list_expense_categories'))
+
+
+@expenses_bp.route('/categories/<int:category_id>/edit', methods=['POST'])
+@login_required
+@admin_required
+def edit_expense_category(category_id):
+    try:
+        ExpenseCategoryService.update(
+            category_id, request.form.get('name'), request.form.get('description'), current_user,
+        )
+        flash('Expense category updated successfully.', 'success')
+    except (ValueError, PermissionError) as exc:
+        flash(str(exc), 'danger')
+    except Exception:
+        flash('Unable to update the expense category. No changes were saved.', 'danger')
+    return redirect(url_for('expenses.list_expense_categories'))
+
+
+@expenses_bp.route('/categories/<int:category_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def toggle_expense_category(category_id):
+    category = ExpenseCategory.query.get_or_404(category_id)
+    try:
+        ExpenseCategoryService.set_active(category_id, not category.is_active, current_user)
+        state = 'activated' if category.is_active else 'deactivated'
+        flash(f'Expense category "{category.name}" {state}.', 'success')
+    except (ValueError, PermissionError) as exc:
+        flash(str(exc), 'danger')
+    except Exception:
+        flash('Unable to change the category status. No changes were saved.', 'danger')
+    return redirect(url_for('expenses.list_expense_categories'))
 
 
 @expenses_bp.route('/create', methods=['GET', 'POST'])
