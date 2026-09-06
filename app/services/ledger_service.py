@@ -100,6 +100,7 @@ class LedgerService:
                 entity_type='TRANSACTION',
                 entity_id=transaction.id,
                 description=f"Recorded {transaction_type} of ₹{decimal_amount} to account '{account.name}' ({transaction.transaction_ref})",
+                commit=False,
             )
             db.session.commit()
             return transaction
@@ -186,6 +187,7 @@ class LedgerService:
                 entity_type='TRANSACTION',
                 entity_id=orig_txn.id,
                 description=f'Reversed transaction {orig_txn.transaction_ref} with {reversal_txn.transaction_ref}. Reason: {orig_txn.reversal_reason}',
+                commit=False,
             )
             db.session.commit()
             return reversal_txn
