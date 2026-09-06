@@ -35,6 +35,24 @@ def test_income_posts_once_to_central_ledger(app):
         assert account.current_balance == Decimal('11250.50')
 
 
+def test_cash_income_links_required_transaction_id(app):
+    with app.app_context():
+        user = User.query.filter_by(username='admin').first()
+        event_id, account_id, category_id = _ids()
+        income = IncomeService.record_income(
+            event_id, category_id, account_id, 'Cash Stall',
+            'Cash received for festival stall', '100', date.today(),
+            'CASH', user.id,
+        )
+        assert income.transaction_id is not None
+        txn = db.session.get(Transaction, income.transaction_id)
+        assert txn is not None
+        assert txn.transaction_type == 'INCOME'
+        assert txn.source_module == 'INCOME'
+        assert txn.source_id == income.id
+        assert txn.amount == Decimal('100.00')
+
+
 def test_non_cash_income_requires_transaction_reference(app):
     with app.app_context():
         user = User.query.filter_by(username='admin').first()
