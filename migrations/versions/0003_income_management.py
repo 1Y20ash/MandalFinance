@@ -42,19 +42,34 @@ def upgrade() -> None:
         sa.UniqueConstraint('income_ref', name='uq_income_entries_income_ref'),
         sa.UniqueConstraint('transaction_id', name='uq_income_entries_transaction_id'),
     )
-    op.create_index('ix_income_entries_income_ref', 'income_entries', ['income_ref'], unique=False)
-    op.create_index('ix_income_entries_event_id', 'income_entries', ['event_id'], unique=False)
-    op.create_index('ix_income_entries_category_id', 'income_entries', ['category_id'], unique=False)
-    op.create_index('ix_income_entries_account_id', 'income_entries', ['account_id'], unique=False)
-    op.create_index('ix_income_entries_income_date', 'income_entries', ['income_date'], unique=False)
-    op.create_index('ix_income_entries_transaction_ref', 'income_entries', ['transaction_ref'], unique=False)
+    for name, columns in [
+        ('ix_income_entries_income_ref', ['income_ref']),
+        ('ix_income_entries_event_id', ['event_id']),
+        ('ix_income_entries_category_id', ['category_id']),
+        ('ix_income_entries_account_id', ['account_id']),
+        ('ix_income_entries_income_date', ['income_date']),
+        ('ix_income_entries_transaction_ref', ['transaction_ref']),
+    ]:
+        op.create_index(name, 'income_entries', columns, unique=False)
+
+    permissions = sa.table(
+        'permissions',
+        sa.column('name', sa.String), sa.column('description', sa.String), sa.column('module', sa.String),
+    )
+    bind = op.get_bind()
+    for name, description in [
+        ('income.view', 'View income records'),
+        ('income.create', 'Create income records'),
+    ]:
+        exists = bind.execute(sa.select(sa.literal(1)).select_from(permissions).where(permissions.c.name == name)).first()
+        if not exists:
+            op.bulk_insert(permissions, [{'name': name, 'description': description, 'module': 'income'}])
 
 
 def downgrade() -> None:
-    op.drop_index('ix_income_entries_transaction_ref', table_name='income_entries')
-    op.drop_index('ix_income_entries_income_date', table_name='income_entries')
-    op.drop_index('ix_income_entries_account_id', table_name='income_entries')
-    op.drop_index('ix_income_entries_category_id', table_name='income_entries')
-    op.drop_index('ix_income_entries_event_id', table_name='income_entries')
-    op.drop_index('ix_income_entries_income_ref', table_name='income_entries')
+    bind = op.get_bind()
+    permissions = sa.table('permissions', sa.column('name', sa.String))
+    bind.execute(permissions.delete().where(permissions.c.name.in_(['income.view', 'income.create'])))
+    for name in ['ix_income_entries_transaction_ref', 'ix_income_entries_income_date', 'ix_income_entries_account_id', 'ix_income_entries_category_id', 'ix_income_entries_event_id', 'ix_income_entries_income_ref']:
+        op.drop_index(name, table_name='income_entries')
     op.drop_table('income_entries')
