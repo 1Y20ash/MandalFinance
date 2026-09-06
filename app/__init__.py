@@ -9,10 +9,13 @@ def create_app(config_name=None):
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
 
-    app = Flask(__name__)
-    app.config.from_object(config_by_name.get(config_name, config_by_name['default']))
+    config_class = config_by_name.get(config_name, config_by_name['default'])
+    if config_name == 'production':
+        config_class.validate()
 
-    # Initialize extensions
+    app = Flask(__name__)
+    app.config.from_object(config_class)
+
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
@@ -22,7 +25,6 @@ def create_app(config_name=None):
     def load_user(user_id):
         return db.session.get(User, int(user_id))
 
-    # Register Blueprints
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
