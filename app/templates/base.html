@@ -17,14 +17,33 @@
     <link href="{{ url_for('static', filename='css/expenses.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/expense_categories.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/premium-glass.css') }}" rel="stylesheet">
+    <style>
+        /* Keep the complete mandal name visible in the navbar. */
+        .navbar-custom .navbar-brand .brand-copy { min-width: 0; }
+        .navbar-custom .navbar-brand .brand-copy strong {
+            display: block;
+            max-width: 330px;
+            white-space: nowrap;
+            overflow: visible;
+            text-overflow: clip;
+            font-size: .98rem;
+        }
+        @media (max-width: 1200px) {
+            .navbar-custom .navbar-brand .brand-copy strong { font-size: .86rem; max-width: 285px; }
+            .nav-main-zone { min-width: 0; }
+        }
+        @media (max-width: 992px) {
+            .navbar-custom .navbar-brand .brand-copy strong { max-width: calc(100vw - 150px); font-size: .92rem; }
+        }
+    </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom" aria-label="Primary navigation">
     <div class="container-fluid nav-shell">
-        <a class="navbar-brand" href="{{ url_for('public.transparency') }}" aria-label="Ashtavinayak Mandal home">
+        <a class="navbar-brand" href="{{ url_for('public.transparency') }}" aria-label="Shree Ashtavinayak Ganesh Utsav Mandal home">
             <span class="brand-mark" aria-hidden="true">🕉</span>
-            <span class="brand-copy"><strong>Ashtavinayak</strong><small>Mandal Finance</small></span>
+            <span class="brand-copy"><strong>Shree Ashtavinayak Ganesh Utsav Mandal</strong><small>Mandal Finance</small></span>
         </a>
         <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
