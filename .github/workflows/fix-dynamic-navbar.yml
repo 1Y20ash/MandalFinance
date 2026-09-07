@@ -1,0 +1,201 @@
+name: Fix dynamic responsive navbar
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-dynamic-navbar.yml'
+    branches:
+      - feat/premium-glass-ui
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/premium-glass-ui
+          fetch-depth: 0
+
+      - name: Apply responsive navbar system
+        shell: python
+        run: |
+          from pathlib import Path
+
+          css_path = Path('app/static/css/premium-glass.css')
+          css = css_path.read_text(encoding='utf-8')
+          css += r'''
+
+/* ================================================================
+   DYNAMIC NAVBAR SYSTEM — width-aware, no overlap, no horizontal squeeze
+   ================================================================ */
+.navbar-custom .nav-shell{
+  width:100%;
+  max-width:1600px;
+  margin-inline:auto;
+  display:flex;
+  align-items:center;
+  gap:clamp(.5rem,1.2vw,1.05rem);
+  min-width:0;
+}
+.navbar-custom .navbar-brand{
+  flex:0 1 auto;
+  min-width:0;
+  max-width:min(370px,38vw);
+}
+.navbar-custom .navbar-brand .brand-copy{min-width:0;overflow:hidden}
+.navbar-custom .navbar-brand .brand-copy strong{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.navbar-custom .navbar-collapse{
+  flex:1 1 auto;
+  min-width:0;
+  display:flex !important;
+  align-items:center;
+  gap:clamp(.25rem,.7vw,.7rem);
+}
+.navbar-custom .nav-main-zone,
+.navbar-custom .nav-section-group,
+.navbar-custom .nav-user-zone{
+  min-width:0;
+  flex:0 1 auto;
+}
+.navbar-custom .nav-main-zone{flex:1 1 auto}
+.navbar-custom .nav-user-zone{margin-left:auto;flex:0 0 auto}
+.navbar-custom .nav-primary-list,
+.navbar-custom .nav-group-list,
+.navbar-custom .nav-user-list{
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  min-width:0;
+  gap:.12rem;
+}
+.navbar-custom .nav-link{
+  white-space:nowrap;
+  min-width:0;
+  padding-inline:clamp(.38rem,.65vw,.72rem)!important;
+  font-size:clamp(.68rem,.72vw,.79rem);
+}
+.navbar-custom .nav-group-title{min-width:auto}
+.navbar-custom .nav-section-label{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
+}
+
+/* Intermediate widths: stop trying to fit every label beside the brand. */
+@media (max-width:1240px){
+  .navbar-custom{padding-inline:.75rem!important}
+  .navbar-custom .nav-shell{gap:.45rem}
+  .navbar-custom .navbar-brand{max-width:300px}
+  .navbar-custom .brand-mark{width:35px;height:35px}
+  .navbar-custom .brand-copy strong{font-size:.82rem}
+  .navbar-custom .brand-copy small{font-size:.52rem}
+  .navbar-custom .nav-section-label{font-size:.5rem;letter-spacing:.12em;margin-left:.25rem}
+  .navbar-custom .nav-link{font-size:.68rem;padding-inline:.38rem!important;gap:.3rem}
+  .navbar-custom .nav-link i{width:12px;font-size:.7rem}
+  .navbar-custom .nav-main-zone{min-width:0}
+  .navbar-custom .nav-group-title::after{margin-left:0}
+}
+
+/* At widths where a desktop row becomes cramped, use the real Bootstrap
+   collapsed navigation rather than allowing flex children to overlap. */
+@media (max-width:1099px){
+  body{padding-top:70px}
+  .navbar-custom{min-height:70px;padding-block:.55rem!important}
+  .navbar-custom .nav-shell{flex-wrap:wrap}
+  .navbar-custom .navbar-brand{flex:1 1 auto;max-width:calc(100% - 56px)}
+  .navbar-custom .navbar-toggler{display:block;flex:0 0 44px}
+  .navbar-custom .navbar-collapse{display:none!important;flex-basis:100%;width:100%;flex-direction:column;align-items:stretch;gap:.3rem;padding-top:.45rem}
+  .navbar-custom .navbar-collapse.show{display:flex!important}
+  .navbar-custom .nav-main-zone,
+  .navbar-custom .nav-section-group,
+  .navbar-custom .nav-user-zone{width:100%;display:flex;flex-direction:column;align-items:stretch;gap:.1rem;margin:0}
+  .navbar-custom .nav-primary-list,
+  .navbar-custom .nav-group-list,
+  .navbar-custom .nav-user-list{width:100%;flex-direction:column;align-items:stretch;gap:.12rem}
+  .navbar-custom .nav-section-label{margin:.35rem 0 .1rem .35rem;font-size:.55rem;border:0;height:auto}
+  .navbar-custom .nav-link,
+  .navbar-custom .login-pill{width:100%;justify-content:flex-start;min-height:42px;font-size:.82rem;padding:.5rem .7rem!important}
+  .navbar-custom .nav-link i{width:18px;font-size:.78rem}
+  .navbar-custom .nav-group-title{justify-content:flex-start}
+  .navbar-custom .nav-user-zone{padding-bottom:.2rem}
+  .navbar-custom .navbar-collapse .dropdown-menu{position:static!important;float:none!important;width:100%;min-width:0;margin:.2rem 0 .3rem!important}
+}
+
+@media (max-width:575.98px){
+  body{padding-top:64px}
+  .navbar-custom{min-height:64px;padding:.42rem .55rem!important}
+  .navbar-custom .navbar-brand{padding:.3rem .42rem!important;gap:.45rem}
+  .navbar-custom .brand-mark{width:32px;height:32px;border-radius:9px;font-size:1rem}
+  .navbar-custom .brand-copy strong{font-size:.68rem;line-height:1.1}
+  .navbar-custom .brand-copy small{font-size:.48rem;letter-spacing:.1em;margin-top:.16rem}
+  .navbar-custom .navbar-toggler{width:40px;height:40px;flex-basis:40px}
+}
+
+/* If the user has a very short viewport, keep the nav usable instead of
+   pushing content sideways. */
+@media (max-height:620px) and (min-width:1100px){
+  .navbar-custom .nav-section-label{display:none}
+  .navbar-custom .nav-link{min-height:38px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .navbar-custom,.navbar-custom *{transition-duration:0.01ms!important;animation-duration:0.01ms!important;animation-iteration-count:1!important}
+}
+'''
+          css_path.write_text(css, encoding='utf-8')
+
+          base_path = Path('app/templates/base.html')
+          base = base_path.read_text(encoding='utf-8')
+          marker = '</body>'
+          script = r'''
+<script>
+/* Width-aware navbar guard. CSS handles normal responsiveness; this observer
+   also adapts when the application is embedded/resized without a full viewport resize. */
+(() => {
+  const nav = document.querySelector('.navbar-custom');
+  const shell = nav?.querySelector('.nav-shell');
+  if (!nav || !shell || !window.ResizeObserver) return;
+  const apply = width => {
+    nav.classList.toggle('nav-width-tight', width < 1100);
+    nav.classList.toggle('nav-width-compact', width >= 1100 && width < 1240);
+  };
+  const observer = new ResizeObserver(entries => {
+    const width = entries[0]?.contentRect?.width || shell.getBoundingClientRect().width;
+    apply(width);
+  });
+  observer.observe(shell);
+  apply(shell.getBoundingClientRect().width);
+})();
+</script>
+'''
+          if 'Width-aware navbar guard.' not in base:
+              base = base.replace(marker, script + '\n' + marker, 1)
+              base_path.write_text(base, encoding='utf-8')
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/static/css/premium-glass.css app/templates/base.html
+          git commit -m "fix: make navbar dynamically responsive" || exit 0
+          git push origin HEAD:feat/premium-glass-ui
+
+      - name: Remove temporary workflow
+        if: success()
+        shell: bash
+        run: |
+          git fetch origin feat/premium-glass-ui
+          git reset --hard origin/feat/premium-glass-ui
+          git rm -f .github/workflows/fix-dynamic-navbar.yml
+          git commit -m "chore: remove temporary navbar fixer" || exit 0
+          git push origin HEAD:feat/premium-glass-ui
