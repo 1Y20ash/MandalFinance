@@ -57,10 +57,20 @@ def upgrade():
             op.add_column('budgets', sa.Column('revision_no', sa.Integer(), nullable=False, server_default='1'))
         if 'revision_reason' not in cols:
             op.add_column('budgets', sa.Column('revision_reason', sa.Text(), nullable=True))
-        inspector = _inspector(bind)
-        existing_constraints = {c.get('name') for c in inspector.get_check_constraints('budgets')}
-        if 'ck_budget_status' not in existing_constraints:
-            op.create_check_constraint('ck_budget_status', 'budgets', "status IN ('DRAFT', 'APPROVED', 'REVISED', 'CLOSED')")
+
+        # SQLite cannot ALTER an existing table to add a CHECK constraint.
+        # The current 0001 bootstrap already creates the constraint from the
+        # SQLAlchemy Budget model, so only ALTER-capable databases need this
+        # explicit operation for legacy schemas missing it.
+        if bind.dialect.name != 'sqlite':
+            inspector = _inspector(bind)
+            existing_constraints = {c.get('name') for c in inspector.get_check_constraints('budgets')}
+            if 'ck_budget_status' not in existing_constraints:
+                op.create_check_constraint(
+                    'ck_budget_status',
+                    'budgets',
+                    "status IN ('DRAFT', 'APPROVED', 'REVISED', 'CLOSED')",
+                )
 
     if 'permissions' in tables:
         permission_table = sa.table(
