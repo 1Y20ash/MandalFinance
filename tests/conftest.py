@@ -17,7 +17,19 @@ def app():
         perm_view = Permission(name='dashboard.view', module='dashboard')
         perm_exp_app = Permission(name='expense.approve', module='expense')
         perm_exp_create = Permission(name='expense.create', module='expense')
-        db.session.add_all([perm_view, perm_exp_app, perm_exp_create])
+        perm_donation_view = Permission(name='donation.view', module='donation')
+        perm_donation_create = Permission(name='donation.create', module='donation')
+        perm_document_view = Permission(name='document.view', module='document')
+        perm_document_upload = Permission(name='document.upload', module='document')
+        db.session.add_all([
+            perm_view,
+            perm_exp_app,
+            perm_exp_create,
+            perm_donation_view,
+            perm_donation_create,
+            perm_document_view,
+            perm_document_upload,
+        ])
         db.session.commit()
 
         role_admin = Role(name='Super Admin', is_system=True)
@@ -25,7 +37,20 @@ def app():
 
         role_user = Role(name='User', is_system=False)
         role_user.permissions = [perm_view, perm_exp_create]
-        db.session.add_all([role_admin, role_user])
+
+        # Registration assigns the Volunteer role. Keep the test fixture aligned
+        # with the production seed so an approved registrant has dashboard access.
+        role_volunteer = Role(name='Volunteer', is_system=True)
+        role_volunteer.permissions = [
+            perm_view,
+            perm_donation_view,
+            perm_donation_create,
+            perm_exp_create,
+            perm_document_view,
+            perm_document_upload,
+        ]
+
+        db.session.add_all([role_admin, role_user, role_volunteer])
         db.session.commit()
 
         admin_user = User(username='admin', email='admin@test.com', full_name='Admin Test', is_admin=True)
