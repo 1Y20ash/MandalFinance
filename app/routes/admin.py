@@ -1,11 +1,16 @@
+from datetime import datetime
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_required
+from flask_login import login_required, current_user
 from app.models.auth import User, Role, Permission
 from app.models.audit import AuditLog
 from app.extensions import db
 from app.utils.decorators import admin_required
+from app.services.audit_service import AuditService
+
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
 
 @admin_bp.route('/users')
 @login_required
@@ -13,7 +18,75 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 def list_users():
     users = User.query.order_by(User.created_at.desc()).all()
     roles = Role.query.all()
-    return render_template('admin/users.html', users=users, roles=roles)
+    pending_users = User.query.filter_by(approval_status=User.APPROVAL_PENDING).order_by(User.requested_at.asc()).all()
+    return render_template('admin/users.html', users=users, roles=roles, pending_users=pending_users)
+
+
+@admin_bp.route('/users/<int:user_id>/approve', methods=['POST'])
+@login_required
+@admin_required
+def approve_user(user_id):
+    user = User.query.get_or_404(user_id)
+
+    if user.approval_status != User.APPROVAL_PENDING:
+        flash(f'User "{user.username}" is not awaiting approval.', 'warning')
+        return redirect(url_for('admin.list_users'))
+
+    try:
+        user.approval_status = User.APPROVAL_APPROVED
+        user.is_active = True
+        user.reviewed_at = datetime.utcnow()
+        user.approved_by_id = current_user.id
+        user.rejection_reason = None
+
+        AuditService.log_action(
+            'APPROVE_REGISTRATION',
+            'USER',
+            user.id,
+            f"Administrator {current_user.username} approved registration for {user.username}.",
+            commit=False,
+        )
+        db.session.commit()
+        flash(f'User "{user.username}" has been approved and can now log in.', 'success')
+    except Exception:
+        db.session.rollback()
+        flash('Unable to approve this registration right now.', 'danger')
+
+    return redirect(url_for('admin.list_users'))
+
+
+@admin_bp.route('/users/<int:user_id>/reject', methods=['POST'])
+@login_required
+@admin_required
+def reject_user(user_id):
+    user = User.query.get_or_404(user_id)
+    reason = request.form.get('rejection_reason', '').strip()
+
+    if user.approval_status != User.APPROVAL_PENDING:
+        flash(f'User "{user.username}" is not awaiting approval.', 'warning')
+        return redirect(url_for('admin.list_users'))
+
+    try:
+        user.approval_status = User.APPROVAL_REJECTED
+        user.is_active = False
+        user.reviewed_at = datetime.utcnow()
+        user.approved_by_id = current_user.id
+        user.rejection_reason = reason or None
+
+        AuditService.log_action(
+            'REJECT_REGISTRATION',
+            'USER',
+            user.id,
+            f"Administrator {current_user.username} rejected registration for {user.username}.",
+            commit=False,
+        )
+        db.session.commit()
+        flash(f'User "{user.username}" registration was rejected.', 'info')
+    except Exception:
+        db.session.rollback()
+        flash('Unable to reject this registration right now.', 'danger')
+
+    return redirect(url_for('admin.list_users'))
 
 
 @admin_bp.route('/users/<int:user_id>/roles', methods=['POST'])
