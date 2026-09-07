@@ -8,6 +8,7 @@ from app.models.vendor import Vendor
 from app.models.ledger import Account
 from app.services.audit_service import AuditService
 from app.services.ledger_service import LedgerService
+from app.services.financial_controls_service import FinancialControlsService
 
 
 class ExpenseService:
@@ -185,6 +186,13 @@ class ExpenseService:
             raise ValueError('Invalid expense payment mode.')
         if payment_mode != 'CASH' and not payment_ref:
             raise ValueError('Payment reference is required for this payment mode.')
+
+        evidence = FinancialControlsService.check_evidence('EXPENSE', expense.id, expense.amount)
+        if not evidence['complete']:
+            missing = sorted({category for failure in evidence['failures'] for category in failure['missing']})
+            raise ValueError(
+                'Required evidence is missing before payment: ' + ', '.join(missing)
+            )
 
         account = db.session.get(Account, account_id)
         if not account or not account.is_active:
