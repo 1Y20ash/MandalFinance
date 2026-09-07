@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from app.config import config_by_name
-from app.extensions import db, migrate, login_manager, csrf
+from app.extensions import db, migrate, login_manager, csrf, limiter
 from app.models.auth import User
 
 
@@ -20,6 +20,7 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)
 
     @login_manager.user_loader
     def load_user(user_id):
