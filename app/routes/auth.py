@@ -25,11 +25,9 @@ def login():
             if user.approval_status == User.APPROVAL_PENDING:
                 flash('Your registration is pending administrator approval. Please try again after your account is approved.', 'warning')
                 return render_template('auth/login.html')
-
             if user.approval_status == User.APPROVAL_REJECTED:
                 flash('Your registration request was rejected. Please contact the Mandal Administrator for further details.', 'danger')
                 return render_template('auth/login.html')
-
             if not user.is_active:
                 flash('Your account has been deactivated. Please contact the Mandal Administrator.', 'danger')
                 return render_template('auth/login.html')
@@ -63,53 +61,33 @@ def register():
         if not full_name or not username or not email or not password:
             flash('Please complete all required fields.', 'warning')
             return render_template('auth/register.html')
-
         if len(password) < 8:
             flash('Password must contain at least 8 characters.', 'warning')
             return render_template('auth/register.html')
-
         if password != confirm_password:
             flash('Passwords do not match. Please try again.', 'warning')
             return render_template('auth/register.html')
-
         if User.query.filter_by(username=username).first():
             flash('Username is already taken. Please choose a different username.', 'warning')
             return render_template('auth/register.html')
-
         if User.query.filter_by(email=email).first():
             flash('An account with this email address already exists.', 'warning')
             return render_template('auth/register.html')
 
         try:
-            new_user = User(
-                full_name=full_name,
-                username=username,
-                email=email,
-                phone=phone or None,
-                is_active=False,
-                is_admin=False,
-                approval_status=User.APPROVAL_PENDING,
-                requested_at=datetime.utcnow(),
-            )
+            new_user = User(full_name=full_name, username=username, email=email, phone=phone or None,
+                            is_active=False, is_admin=False, approval_status=User.APPROVAL_PENDING,
+                            requested_at=datetime.utcnow())
             new_user.set_password(password)
-
             volunteer_role = Role.query.filter_by(name='Volunteer').first()
             if volunteer_role:
                 new_user.roles.append(volunteer_role)
-
             db.session.add(new_user)
             db.session.flush()
-
-            AuditService.log_action(
-                'REGISTER',
-                'USER',
-                new_user.id,
+            AuditService.log_action('REGISTER', 'USER', new_user.id,
                 f"New user {username} submitted a registration request pending administrator approval.",
-                user_override=new_user,
-                commit=False,
-            )
+                user_override=new_user, commit=False)
             db.session.commit()
-
             flash('Registration submitted successfully. Your account is pending administrator approval.', 'success')
             return redirect(url_for('auth.login'))
         except Exception:
@@ -119,7 +97,7 @@ def register():
     return render_template('auth/register.html')
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 @login_required
 def logout():
     AuditService.log_action('LOGOUT', 'USER', current_user.id, f"User {current_user.username} logged out.")
