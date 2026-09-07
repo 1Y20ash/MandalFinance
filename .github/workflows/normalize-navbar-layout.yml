@@ -1,0 +1,69 @@
+name: Normalize Navbar Layout
+on:
+  push:
+    branches: [feat/premium-glass-ui]
+permissions:
+  contents: write
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize navbar structure
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('app/static/css/premium-glass.css')
+          s = p.read_text(encoding='utf-8')
+          marker = '/* FINAL NAVBAR ORIENTATION NORMALIZATION */'
+          css = r'''
+          /* FINAL NAVBAR ORIENTATION NORMALIZATION */
+          .navbar-custom .nav-shell{display:flex;align-items:center;gap:.9rem}
+          .navbar-custom .navbar-brand{flex:0 1 auto;min-width:0;max-width:370px}
+          .navbar-custom .navbar-collapse{display:flex!important;align-items:center;justify-content:flex-start;gap:.55rem;min-width:0;flex:1 1 auto}
+          .navbar-custom .nav-main-zone,.navbar-custom .nav-section-group,.navbar-custom .nav-user-zone{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:.38rem;min-width:0}
+          .navbar-custom .nav-main-zone{flex:1 1 auto}
+          .navbar-custom .nav-user-zone{margin-left:auto;flex:0 0 auto}
+          .navbar-custom .nav-section-label{display:inline-flex;align-items:center;height:32px;margin:0 .08rem 0 .12rem;padding:0 .42rem;border-right:1px solid rgba(255,255,255,.10);font-size:.53rem;letter-spacing:.14em;line-height:1;opacity:.82}
+          .navbar-custom .nav-main-zone>.nav-section-label{color:#d6c28f}
+          .navbar-custom .nav-primary-list,.navbar-custom .nav-group-list,.navbar-custom .nav-user-list{display:flex;flex-direction:row;align-items:center;gap:.12rem;margin:0!important}
+          .navbar-custom .nav-link{min-height:40px;padding:.46rem .62rem!important;font-size:.79rem}
+          .navbar-custom .nav-group-title{min-width:0}
+          .navbar-custom .navbar-brand .brand-copy strong{font-size:.92rem}
+          .navbar-custom .navbar-brand .brand-copy small{font-size:.55rem}
+          .navbar-custom .nav-user-zone .nav-section-label{display:none}
+          @media (max-width:1200px){
+            .navbar-custom .nav-shell{gap:.55rem}
+            .navbar-custom .navbar-brand{max-width:330px}
+            .navbar-custom .nav-section-label{font-size:.49rem;padding:0 .28rem}
+            .navbar-custom .nav-link{padding:.42rem .5rem!important;font-size:.74rem}
+            .navbar-custom .navbar-brand .brand-copy strong{font-size:.84rem}
+          }
+          @media (max-width:991.98px){
+            .navbar-custom .navbar-collapse{display:none!important;flex-basis:100%;flex-direction:column;align-items:stretch;padding-top:.65rem}
+            .navbar-custom .navbar-collapse.show{display:flex!important}
+            .navbar-custom .nav-main-zone,.navbar-custom .nav-section-group,.navbar-custom .nav-user-zone{width:100%;display:flex;flex-direction:column;align-items:stretch;gap:.15rem}
+            .navbar-custom .nav-user-zone{margin-left:0}
+            .navbar-custom .nav-section-label{height:auto;margin:.35rem 0 .15rem .35rem;padding:0;border-right:0;font-size:.56rem}
+            .navbar-custom .nav-primary-list,.navbar-custom .nav-group-list,.navbar-custom .nav-user-list{flex-direction:column;align-items:stretch;width:100%;gap:.12rem}
+            .navbar-custom .nav-link,.navbar-custom .login-pill{width:100%;justify-content:flex-start}
+            .navbar-custom .navbar-brand{max-width:calc(100% - 58px)}
+          }
+          @media (max-width:576px){
+            .navbar-custom .navbar-brand{padding:.35rem .48rem!important;gap:.5rem}
+            .navbar-custom .brand-mark{width:34px;height:34px}
+            .navbar-custom .navbar-brand .brand-copy strong{font-size:.7rem;max-width:195px}
+          }
+          '''
+          if marker not in s:
+              p.write_text(s.rstrip() + '\n\n' + css.strip() + '\n', encoding='utf-8')
+      - name: Commit CSS and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/static/css/premium-glass.css
+          git rm .github/workflows/normalize-navbar-layout.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: clean up navbar structure and orientation"
+          git push
