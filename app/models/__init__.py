@@ -9,6 +9,7 @@ from app.models.budget import BudgetCategory, Budget
 from app.models.document import Document, DocumentVersion, EvidencePack
 from app.models.audit import AuditLog, Setting, Notification
 from app.models.controls import ContributionReceipt, CorrectionRequest, ReconciliationRecord, EvidenceRule
+from app.models.reconciliation import ReconciliationLine
 
 __all__ = [
     'User', 'Role', 'Permission', 'role_permissions', 'user_roles',
@@ -20,5 +21,6 @@ __all__ = [
     'BudgetCategory', 'Budget',
     'Document', 'DocumentVersion', 'EvidencePack',
     'AuditLog', 'Setting', 'Notification',
-    'ContributionReceipt', 'CorrectionRequest', 'ReconciliationRecord', 'EvidenceRule'
+    'ContributionReceipt', 'CorrectionRequest', 'ReconciliationRecord', 'EvidenceRule',
+    'ReconciliationLine'
 ]
