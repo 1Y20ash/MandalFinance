@@ -1,5 +1,6 @@
 from app.models.auth import User
 
+
 def test_user_registration_flow(client, app):
     # Test registration page renders
     res = client.get('/auth/register')
@@ -17,10 +18,13 @@ def test_user_registration_flow(client, app):
     }, follow_redirects=True)
 
     assert post_res.status_code == 200
-    assert b'Registration successful' in post_res.data
+    assert b'Registration submitted successfully' in post_res.data
+    assert b'pending administrator approval' in post_res.data
 
     with app.app_context():
         u = User.query.filter_by(username='ramesh_k').first()
         assert u is not None
         assert u.email == 'ramesh@test.com'
+        assert u.approval_status == User.APPROVAL_PENDING
+        assert u.is_active is False
         assert u.check_password('password123') is True
