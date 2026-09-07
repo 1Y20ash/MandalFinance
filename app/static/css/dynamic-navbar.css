@@ -1,74 +1,38 @@
-/* Dynamic responsive navbar layer. Loaded after the premium theme. */
+/* Collision-proof responsive navbar. */
 .navbar-custom .nav-shell{width:100%;max-width:1600px;margin-inline:auto;display:flex;align-items:center;gap:clamp(.45rem,1vw,1rem);min-width:0}
-.navbar-custom .navbar-brand{flex:0 1 auto;min-width:0;max-width:min(370px,38vw)}
+.navbar-custom .navbar-brand{flex:0 1 auto;min-width:0;max-width:min(370px,34vw)}
 .navbar-custom .navbar-brand .brand-copy{min-width:0;overflow:hidden}
 .navbar-custom .navbar-brand .brand-copy strong{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.navbar-custom .navbar-collapse{flex:1 1 auto;min-width:0;display:flex!important;align-items:center;gap:clamp(.2rem,.55vw,.65rem)}
+.navbar-custom .navbar-collapse{flex:1 1 auto;min-width:0;display:flex!important;align-items:center;gap:clamp(.2rem,.45vw,.6rem);overflow:visible}
 .navbar-custom .nav-main-zone,.navbar-custom .nav-section-group,.navbar-custom .nav-user-zone{min-width:0;flex:0 1 auto}
 .navbar-custom .nav-main-zone{flex:1 1 auto}
 .navbar-custom .nav-user-zone{margin-left:auto;flex:0 0 auto}
-.navbar-custom .nav-primary-list,.navbar-custom .nav-group-list,.navbar-custom .nav-user-list{display:flex;flex-wrap:nowrap;align-items:center;min-width:0;gap:.1rem}
-.navbar-custom .nav-link{white-space:nowrap;min-width:0;padding-inline:clamp(.35rem,.6vw,.7rem)!important;font-size:clamp(.68rem,.72vw,.79rem)}
-.navbar-custom .nav-group-title{min-width:0}
-.navbar-custom .nav-section-label{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.navbar-custom .nav-primary-list,.navbar-custom .nav-group-list,.navbar-custom .nav-user-list{display:flex;flex-wrap:nowrap;align-items:center;min-width:0;gap:.08rem;margin:0!important}
+.navbar-custom .nav-link{white-space:nowrap;min-width:0;padding-inline:clamp(.34rem,.52vw,.68rem)!important;font-size:clamp(.67rem,.68vw,.79rem)}
+.navbar-custom .nav-section-label{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* 1240–1400px: compact desktop mode. */
-@media (max-width:1399.98px) and (min-width:1100px){
-  .navbar-custom .nav-shell{gap:.4rem}
-  .navbar-custom .navbar-brand{max-width:280px}
-  .navbar-custom .brand-copy strong{font-size:.8rem}
-  .navbar-custom .brand-copy small{font-size:.5rem}
-  .navbar-custom .nav-section-label{font-size:.48rem;letter-spacing:.11em;margin-left:.2rem}
-  .navbar-custom .nav-link{font-size:.68rem;padding-inline:.34rem!important;gap:.28rem}
-  .navbar-custom .nav-link i{width:12px;font-size:.68rem}
-  .navbar-custom .nav-group-title{min-width:0}
-  .navbar-custom .user-name{max-width:75px}
+/* Full desktop only: enough room for the complete hierarchy. */
+@media(min-width:1280px){
+ .navbar-custom .nav-shell{gap:.75rem}.navbar-custom .navbar-brand{max-width:340px}.navbar-custom .brand-copy strong{font-size:.88rem}.navbar-custom .nav-link{font-size:.76rem;padding-inline:.52rem!important}
 }
 
-/* Below 1100px, never squeeze/overlap desktop navigation: use one clean
-   Bootstrap collapse panel. This also works when the app shell itself is resized. */
-@media (max-width:1099.98px){
-  body{padding-top:70px}
-  .navbar-custom{min-height:70px;padding-block:.55rem!important}
-  .navbar-custom .nav-shell{flex-wrap:wrap}
-  .navbar-custom .navbar-brand{flex:1 1 auto;max-width:calc(100% - 54px)}
-  .navbar-custom .navbar-toggler{display:block;flex:0 0 44px}
-  .navbar-custom .navbar-collapse{display:none!important;flex-basis:100%;width:100%;flex-direction:column;align-items:stretch;gap:.3rem;margin-top:.45rem;padding:.75rem;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(21,23,27,.985);box-shadow:0 22px 55px rgba(0,0,0,.34);backdrop-filter:blur(24px) saturate(120%);-webkit-backdrop-filter:blur(24px) saturate(120%);overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 82px)}
-  .navbar-custom .navbar-collapse.show{display:flex!important}
-  .navbar-custom .nav-main-zone,.navbar-custom .nav-section-group,.navbar-custom .nav-user-zone{width:100%;display:flex;flex-direction:column;align-items:stretch;gap:.1rem;margin:0}
-  .navbar-custom .nav-primary-list,.navbar-custom .nav-group-list,.navbar-custom .nav-user-list{width:100%;flex-direction:column;align-items:stretch;gap:.12rem}
-  .navbar-custom .nav-section-label{height:auto;margin:.35rem 0 .12rem .3rem;padding:0 0 .3rem;border:0;border-bottom:1px solid rgba(255,255,255,.07);font-size:.56rem;letter-spacing:.13em}
-  .navbar-custom .nav-link,.navbar-custom .login-pill{width:100%;justify-content:flex-start;min-height:44px;padding:.58rem .7rem!important;font-size:.84rem}
-  .navbar-custom .nav-link i{width:19px;font-size:.78rem}
-  .navbar-custom .nav-link.donate-link{justify-content:center;margin:.25rem 0!important}
-  .navbar-custom .nav-group-title{justify-content:space-between!important}
-  .navbar-custom .nav-group-title::after{margin-left:auto}
-  .navbar-custom .nav-user-zone{padding-bottom:.2rem}
-  .navbar-custom .navbar-collapse .dropdown-menu{position:static!important;float:none!important;width:100%;min-width:0;margin:.2rem 0 .35rem!important}
+/* 992-1279px: collapse instead of squeezing controls into each other. */
+@media(min-width:992px) and (max-width:1279.98px){
+ .navbar-custom{min-height:68px;padding-block:.52rem!important}.navbar-custom .nav-shell{flex-wrap:wrap}.navbar-custom .navbar-brand{flex:1 1 auto;max-width:calc(100% - 58px)}
+ .navbar-custom .navbar-toggler{display:block!important;flex:0 0 44px;width:44px;height:44px}
+ .navbar-custom .navbar-collapse{display:none!important;flex-basis:100%;width:100%;flex-direction:column;align-items:stretch;gap:.25rem;margin-top:.45rem;padding:.7rem;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(21,23,27,.985);box-shadow:0 22px 55px rgba(0,0,0,.34);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 80px)}
+ .navbar-custom .navbar-collapse.show{display:flex!important}.navbar-custom .nav-main-zone,.navbar-custom .nav-section-group,.navbar-custom .nav-user-zone{width:100%;display:flex;flex-direction:column;align-items:stretch;gap:.08rem;margin:0}
+ .navbar-custom .nav-primary-list,.navbar-custom .nav-group-list,.navbar-custom .nav-user-list{width:100%;flex-direction:column;align-items:stretch;gap:.1rem}.navbar-custom .nav-section-label{height:auto;margin:.35rem 0 .12rem .3rem;padding:0 0 .3rem;border:0;border-bottom:1px solid rgba(255,255,255,.07);font-size:.55rem;letter-spacing:.13em}
+ .navbar-custom .nav-link,.navbar-custom .login-pill{width:100%;justify-content:flex-start;min-height:44px;padding:.58rem .7rem!important;font-size:.84rem}.navbar-custom .nav-link i{width:19px;font-size:.78rem}.navbar-custom .nav-link.donate-link{justify-content:center;margin:.25rem 0!important}.navbar-custom .nav-group-title{justify-content:space-between!important}.navbar-custom .nav-group-title::after{margin-left:auto}.navbar-custom .navbar-collapse .dropdown-menu{position:static!important;float:none!important;width:100%;min-width:0;margin:.15rem 0 .35rem!important}
 }
 
-@media (max-width:575.98px){
-  body{padding-top:64px}
-  .navbar-custom{min-height:64px;padding:.42rem .55rem!important}
-  .navbar-custom .navbar-brand{padding:.3rem .42rem!important;gap:.45rem}
-  .navbar-custom .brand-mark{width:32px;height:32px;border-radius:9px;font-size:1rem}
-  .navbar-custom .brand-copy strong{font-size:.68rem;line-height:1.1;max-width:calc(100vw - 115px)}
-  .navbar-custom .brand-copy small{font-size:.46rem;letter-spacing:.09em;margin-top:.15rem}
-  .navbar-custom .navbar-toggler{width:40px;height:40px;flex-basis:40px}
-  .navbar-custom .navbar-collapse{padding:.6rem;border-radius:16px;max-height:calc(100vh - 74px)}
-  .navbar-custom .nav-link{min-height:42px;font-size:.8rem}
+/* <=991px: same clean collapse for phones/tablets. */
+@media(max-width:991.98px){
+ body{padding-top:68px}.navbar-custom{min-height:68px;padding-block:.5rem!important}.navbar-custom .nav-shell{flex-wrap:wrap}.navbar-custom .navbar-brand{flex:1 1 auto;max-width:calc(100% - 54px)}.navbar-custom .navbar-toggler{display:block!important;flex:0 0 44px;width:44px;height:44px}
+ .navbar-custom .navbar-collapse{display:none!important;flex-basis:100%;width:100%;flex-direction:column;align-items:stretch;gap:.25rem;margin-top:.45rem;padding:.7rem;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(21,23,27,.985);box-shadow:0 22px 55px rgba(0,0,0,.34);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 80px)}
+ .navbar-custom .navbar-collapse.show{display:flex!important}.navbar-custom .nav-main-zone,.navbar-custom .nav-section-group,.navbar-custom .nav-user-zone{width:100%;display:flex;flex-direction:column;align-items:stretch;gap:.08rem;margin:0}.navbar-custom .nav-primary-list,.navbar-custom .nav-group-list,.navbar-custom .nav-user-list{width:100%;flex-direction:column;align-items:stretch;gap:.1rem}.navbar-custom .nav-section-label{height:auto;margin:.35rem 0 .12rem .3rem;padding:0 0 .3rem;border:0;border-bottom:1px solid rgba(255,255,255,.07);font-size:.55rem;letter-spacing:.13em}.navbar-custom .nav-link,.navbar-custom .login-pill{width:100%;justify-content:flex-start;min-height:44px;padding:.58rem .7rem!important;font-size:.84rem}.navbar-custom .nav-link i{width:19px;font-size:.78rem}.navbar-custom .nav-link.donate-link{justify-content:center;margin:.25rem 0!important}.navbar-custom .nav-group-title{justify-content:space-between!important}.navbar-custom .nav-group-title::after{margin-left:auto}.navbar-custom .navbar-collapse .dropdown-menu{position:static!important;float:none!important;width:100%;min-width:0;margin:.15rem 0 .35rem!important}
 }
-
-@media (max-height:620px) and (min-width:1100px){
-  .navbar-custom .nav-section-label{display:none}
-  .navbar-custom .nav-link{min-height:38px}
-}
-
-/* ResizeObserver state classes allow an embedded/PWA shell to react to its
-   own available width, not just window.innerWidth. */
-.navbar-custom.nav-width-compact .nav-section-label{font-size:.48rem}
-.navbar-custom.nav-width-compact .nav-link{font-size:.68rem;padding-inline:.34rem!important}
-.navbar-custom.nav-width-tight .navbar-collapse{display:none!important}
-.navbar-custom.nav-width-tight .navbar-collapse.show{display:flex!important}
-
+@media(max-width:575.98px){body{padding-top:64px}.navbar-custom{min-height:64px;padding:.4rem .55rem!important}.navbar-custom .navbar-brand{padding:.3rem .42rem!important;gap:.45rem}.navbar-custom .brand-mark{width:32px;height:32px;border-radius:9px}.navbar-custom .brand-copy strong{font-size:.67rem;line-height:1.1;max-width:calc(100vw - 115px)}.navbar-custom .brand-copy small{font-size:.46rem;letter-spacing:.09em;margin-top:.15rem}.navbar-custom .navbar-toggler{width:40px;height:40px;flex-basis:40px}.navbar-custom .navbar-collapse{padding:.58rem;border-radius:16px;max-height:calc(100vh - 74px)}.navbar-custom .nav-link{min-height:42px;font-size:.8rem}}
+@media(max-height:620px) and (min-width:1280px){.navbar-custom .nav-section-label{display:none}.navbar-custom .nav-link{min-height:38px}}
+.navbar-custom.nav-width-compact .nav-section-label{font-size:.5rem}.navbar-custom.nav-width-tight .navbar-collapse{display:none!important}.navbar-custom.nav-width-tight .navbar-collapse.show{display:flex!important}
 @media(prefers-reduced-motion:reduce){.navbar-custom,.navbar-custom *{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
