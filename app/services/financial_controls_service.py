@@ -50,13 +50,20 @@ class FinancialControlsService:
 
     @staticmethod
     def create_contribution_receipt(source_type,source_id,account_id,amount,payment_mode,user,external_ref=None,notes=None):
-        source_type=source_type.upper();amount=money(amount)
+        source_type=source_type.upper();amount=money(amount);payment_mode=payment_mode.upper()
         if amount<=ZERO:raise ValueError('Contribution amount must be greater than zero.')
         if source_type not in ('SPONSORSHIP','MEMBER'):raise ValueError('Unsupported contribution source.')
+        if payment_mode not in {'CASH','UPI','BANK_TRANSFER','CHEQUE','GATEWAY'}:raise ValueError('Invalid contribution payment mode.')
         source=db.session.get(Sponsorship if source_type=='SPONSORSHIP' else MemberContribution,source_id)
         if not source:raise ValueError('Contribution record not found.')
         event=db.session.get(Event,source.event_id);assert_event_open(event)
+        account=db.session.get(Account,account_id)
+        if not account or not account.is_active:raise ValueError('Selected receiving account is not active.')
         if external_ref and Transaction.query.filter_by(external_ref=external_ref).first():raise ValueError('This external payment reference is already recorded.')
+        evidence=FinancialControlsService.check_evidence(source_type,source_id,amount)
+        if not evidence['complete']:
+            missing=sorted({category for failure in evidence['failures'] for category in failure['missing']})
+            raise ValueError('Required evidence is missing before contribution posting: '+', '.join(missing))
         if source_type=='SPONSORSHIP':
             current=money(source.received_amount)
             if current+amount>money(source.committed_amount):raise ValueError('Receipt exceeds the sponsorship commitment.')
@@ -65,9 +72,9 @@ class FinancialControlsService:
             current=money(source.received_amount)
             if money(source.target_amount)>ZERO and current+amount>money(source.target_amount):raise ValueError('Receipt exceeds the member contribution target.')
             source.received_amount=current+amount;source.pending_amount=max(ZERO,money(source.target_amount)-source.received_amount);source.status='RECEIVED' if source.pending_amount==ZERO else 'PARTIAL';source.payment_mode=payment_mode;source.transaction_ref=external_ref
-        receipt=ContributionReceipt(receipt_ref=f'RCPT-{datetime.utcnow().strftime("%Y%m%d%H%M%S%f")}',source_type=source_type,source_id=source_id,event_id=source.event_id,account_id=account_id,amount=amount,payment_mode=payment_mode,external_ref=external_ref,notes=notes,created_by_id=user.id)
+        receipt=ContributionReceipt(receipt_ref=f'RCPT-{datetime.utcnow().strftime("%Y%m%d%H%M%S%f")}',source_type=source_type,source_id=source_id,event_id=source.event_id,account_id=account.id,amount=amount,payment_mode=payment_mode,external_ref=external_ref,notes=notes,created_by_id=user.id)
         db.session.add(receipt);db.session.flush()
-        txn=LedgerService.record_income(account_id,amount,f'{source_type.title()} contribution {receipt.receipt_ref}','CONTRIBUTION_RECEIPT',receipt.id,user.id,payment_mode=payment_mode,external_ref=external_ref or receipt.receipt_ref,event_id=source.event_id,commit=False)
+        txn=LedgerService.record_income(account.id,amount,f'{source_type.title()} contribution {receipt.receipt_ref}','CONTRIBUTION_RECEIPT',receipt.id,user.id,payment_mode=payment_mode,external_ref=external_ref or receipt.receipt_ref,event_id=source.event_id,commit=False)
         receipt.transaction_id=txn.id
         AuditService.log_action('CREATE','CONTRIBUTION_RECEIPT',receipt.id,f'Recorded {source_type} contribution receipt {receipt.receipt_ref} for ₹{amount}',commit=False);db.session.commit();return receipt
 
@@ -94,11 +101,22 @@ class FinancialControlsService:
     @staticmethod
     def reconcile_account(account_id,statement_date,statement_balance,user,event_id=None,period_start=None,period_end=None,external_reference=None,notes=None):
         account=db.session.get(Account,account_id)
-        if not account:raise ValueError('Account not found.')
-        statement_balance=money(statement_balance);opening=money(account.opening_balance);q=Transaction.query.filter(Transaction.account_id==account.id,Transaction.is_reversed.is_(False))
+        if not account or not account.is_active:raise ValueError('Account not found or inactive.')
+        statement_balance=money(statement_balance)
+        if period_start and period_end and period_start>period_end:raise ValueError('Reconciliation period start cannot be after period end.')
+        if period_end and statement_date<period_end:raise ValueError('Statement date cannot precede the reconciliation period end.')
+        duplicate=ReconciliationRecord.query.filter_by(account_id=account.id,statement_date=statement_date).first()
+        if duplicate:raise ValueError('A reconciliation already exists for this account and statement date.')
+        opening=money(account.opening_balance)
+        q=Transaction.query.filter(Transaction.account_id==account.id,Transaction.is_reversed.is_(False))
         if period_start:q=q.filter(func.date(Transaction.transaction_date)>=period_start)
         if period_end:q=q.filter(func.date(Transaction.transaction_date)<=period_end)
-        income=q.filter(Transaction.transaction_type=='INCOME').with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar();expense=q.filter(Transaction.transaction_type=='EXPENSE').with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar();book=opening+money(income)-money(expense);difference=statement_balance-book
+        income=q.filter(Transaction.transaction_type=='INCOME').with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar()
+        expense=q.filter(Transaction.transaction_type.in_(['EXPENSE','REVERSAL'])).with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar()
+        transfers_in=q.filter(Transaction.transaction_type=='TRANSFER').filter(Transaction.description.ilike('%transfer in%')).with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar()
+        transfers_out=q.filter(Transaction.transaction_type=='TRANSFER').filter(Transaction.description.ilike('%transfer out%')).with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar()
+        book=opening+money(income)+money(transfers_in)-money(expense)-money(transfers_out)
+        difference=statement_balance-book
         r=ReconciliationRecord(reconciliation_ref=f'REC-{datetime.utcnow().strftime("%Y%m%d%H%M%S%f")}',event_id=event_id,account_id=account.id,statement_date=statement_date,period_start=period_start,period_end=period_end,book_balance=book,statement_balance=statement_balance,difference=difference,status='MATCHED' if difference==ZERO else 'ADJUSTMENT_REQUIRED',external_reference=external_reference,notes=notes,created_by_id=user.id)
         db.session.add(r);db.session.flush();AuditService.log_action('RECONCILE','ACCOUNT',account.id,f'Reconciliation {r.reconciliation_ref}: book ₹{book}, statement ₹{statement_balance}, difference ₹{difference}',commit=False);db.session.commit();return r
 
@@ -106,6 +124,7 @@ class FinancialControlsService:
     def resolve_reconciliation(record_id,user,note=''):
         r=db.session.get(ReconciliationRecord,record_id)
         if not r or r.status=='RESOLVED':raise ValueError('Reconciliation record not found or already resolved.')
+        if r.difference!=ZERO:raise ValueError('A non-zero reconciliation difference must be corrected before resolution.')
         r.status='RESOLVED';r.resolved_by_id=user.id;r.resolved_at=datetime.utcnow();r.notes=(r.notes+'\n' if r.notes else '')+(note.strip() or 'Resolved after review.')
         AuditService.log_action('RESOLVE','RECONCILIATION',r.id,f'Reconciliation {r.reconciliation_ref} resolved.',commit=False);db.session.commit();return r
 
