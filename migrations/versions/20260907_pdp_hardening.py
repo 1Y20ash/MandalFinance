@@ -1,8 +1,4 @@
-"""Add reconciliation lines and PDP governance fields.
-
-Revision ID: 20260907_pdp_hardening
-Revises: 20260907_financial_controls
-"""
+"""Add reconciliation lines and PDP governance fields."""
 from alembic import op
 import sqlalchemy as sa
 
@@ -61,7 +57,26 @@ def upgrade():
             op.add_column('budgets', sa.Column('revision_no', sa.Integer(), nullable=False, server_default='1'))
         if 'revision_reason' not in cols:
             op.add_column('budgets', sa.Column('revision_reason', sa.Text(), nullable=True))
-        op.create_check_constraint('ck_budget_status', 'budgets', "status IN ('DRAFT', 'APPROVED', 'REVISED', 'CLOSED')")
+        inspector = _inspector(bind)
+        existing_constraints = {c.get('name') for c in inspector.get_check_constraints('budgets')}
+        if 'ck_budget_status' not in existing_constraints:
+            op.create_check_constraint('ck_budget_status', 'budgets', "status IN ('DRAFT', 'APPROVED', 'REVISED', 'CLOSED')")
+
+    if 'permissions' in tables:
+        permission_table = sa.table(
+            'permissions',
+            sa.column('id', sa.Integer), sa.column('name', sa.String),
+            sa.column('description', sa.String), sa.column('module', sa.String),
+        )
+        existing = {row[0] for row in bind.execute(sa.select(permission_table.c.name)).fetchall()}
+        new_permissions = [
+            ('finance.view', 'View financial control data and reconciliation status.', 'finance'),
+            ('finance.manage', 'Create, match, resolve and correct financial control records.', 'finance'),
+            ('budget.approve', 'Approve or reject event budgets.', 'budget'),
+        ]
+        for name, description, module in new_permissions:
+            if name not in existing:
+                bind.execute(permission_table.insert().values(name=name, description=description, module=module))
 
 
 def downgrade():
