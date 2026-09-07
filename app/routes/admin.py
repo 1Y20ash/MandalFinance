@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from app.models.auth import User, Role, Permission
 from app.models.audit import AuditLog
@@ -26,7 +26,9 @@ def list_users():
 @login_required
 @admin_required
 def approve_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.session.get(User, user_id)
+    if user is None:
+        abort(404)
 
     if user.approval_status != User.APPROVAL_PENDING:
         flash(f'User "{user.username}" is not awaiting approval.', 'warning')
@@ -59,7 +61,9 @@ def approve_user(user_id):
 @login_required
 @admin_required
 def reject_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.session.get(User, user_id)
+    if user is None:
+        abort(404)
     reason = request.form.get('rejection_reason', '').strip()
 
     if user.approval_status != User.APPROVAL_PENDING:
@@ -93,7 +97,9 @@ def reject_user(user_id):
 @login_required
 @admin_required
 def assign_user_roles(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.session.get(User, user_id)
+    if user is None:
+        abort(404)
     role_ids = request.form.getlist('role_ids', type=int)
 
     selected_roles = Role.query.filter(Role.id.in_(role_ids)).all() if role_ids else []
