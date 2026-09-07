@@ -1,7 +1,17 @@
+import base64
+import hashlib
+import hmac
+import os
 from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
+
 from flask_login import UserMixin
+from werkzeug.security import check_password_hash
 from app.extensions import db
+
+
+PASSWORD_HASH_ALGORITHM = 'sha256'
+PASSWORD_ITERATIONS = 600_000
+PASSWORD_SALT_BYTES = 32
 
 role_permissions = db.Table(
     'role_permissions',
@@ -14,6 +24,7 @@ user_roles = db.Table(
     db.Column('user_id', db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
     db.Column('role_id', db.Integer, db.ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True)
 )
+
 
 class Permission(db.Model):
     __tablename__ = 'permissions'
@@ -50,24 +61,71 @@ class Role(db.Model):
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
 
+    APPROVAL_PENDING = 'PENDING'
+    APPROVAL_APPROVED = 'APPROVED'
+    APPROVAL_REJECTED = 'REJECTED'
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(20), nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    approval_status = db.Column(db.String(20), nullable=False, default=APPROVAL_APPROVED, index=True)
+    requested_at = db.Column(db.DateTime, nullable=True)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    rejection_reason = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     roles = db.relationship('Role', secondary=user_roles, lazy='subquery',
                             backref=db.backref('users', lazy=True))
+    approved_by = db.relationship('User', remote_side=[id], foreign_keys=[approved_by_id],
+                                  backref=db.backref('approved_users', lazy=True))
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        """Hash a password with a unique cryptographically random 32-byte salt."""
+        if not isinstance(password, str) or len(password) < 8:
+            raise ValueError('Password must be a string with at least 8 characters.')
+
+        salt = os.urandom(PASSWORD_SALT_BYTES)
+        derived_key = hashlib.pbkdf2_hmac(
+            PASSWORD_HASH_ALGORITHM,
+            password.encode('utf-8'),
+            salt,
+            PASSWORD_ITERATIONS,
+        )
+        salt_text = base64.urlsafe_b64encode(salt).decode('ascii').rstrip('=')
+        key_text = base64.urlsafe_b64encode(derived_key).decode('ascii').rstrip('=')
+        self.password_hash = f'pbkdf2_sha256${PASSWORD_ITERATIONS}${salt_text}${key_text}'
 
     def check_password(self, password):
+        """Verify the explicit PBKDF2 format while retaining legacy hash compatibility."""
+        if not isinstance(password, str):
+            return False
+
+        if self.password_hash.startswith('pbkdf2_sha256$'):
+            try:
+                _, iterations_text, salt_text, stored_key_text = self.password_hash.split('$', 3)
+                iterations = int(iterations_text)
+                padding = '=' * (-len(salt_text) % 4)
+                salt = base64.urlsafe_b64decode(salt_text + padding)
+                padding = '=' * (-len(stored_key_text) % 4)
+                stored_key = base64.urlsafe_b64decode(stored_key_text + padding)
+                derived_key = hashlib.pbkdf2_hmac(
+                    PASSWORD_HASH_ALGORITHM,
+                    password.encode('utf-8'),
+                    salt,
+                    iterations,
+                )
+                return hmac.compare_digest(derived_key, stored_key)
+            except (ValueError, TypeError):
+                return False
+
+        # Existing accounts may still contain the previous Werkzeug format.
         return check_password_hash(self.password_hash, password)
 
     def has_permission(self, perm_name):
