@@ -5,13 +5,14 @@ from flask_login import login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import generate_csrf
 from app.models.auth import User, Role
 from app.services.audit_service import AuditService
-from app.extensions import db
+from app.extensions import db, limiter
 
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit('5 per minute', methods=['POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
