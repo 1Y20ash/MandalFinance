@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, render_template_string, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import generate_csrf
+from flask_limiter.util import get_remote_address
 from app.models.auth import User, Role
 from app.services.audit_service import AuditService
 from app.extensions import db, limiter
@@ -11,8 +12,20 @@ from app.extensions import db, limiter
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
+def login_rate_limit_key():
+    """Rate-limit each IP/account combination independently.
+
+    A shared IP-only bucket lets a deliberate test of one account's failed
+    logins lock out every other account from the same network. Combining the
+    remote address with the normalized login identifier preserves brute-force
+    protection without cross-account interference.
+    """
+    username = request.form.get('username', '').strip().lower()
+    return f"{get_remote_address()}:{username}"
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit('5 per minute', methods=['POST'])
+@limiter.limit('5 per minute', methods=['POST'], key_func=login_rate_limit_key)
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
@@ -97,8 +110,7 @@ def logout_get():
 <body><form id="logout-form" method="post" action="{{ action }}">
 <input type="hidden" name="csrf_token" value="{{ token }}"></form>
 <script>document.getElementById('logout-form').submit();</script>
-<noscript><p>JavaScript is disabled. Submit the form to sign out.</p><button form="logout-form" type="submit">Sign out</button></noscript>
-</body></html>''', action=url_for('auth.logout'), token=generate_csrf())
+<noscript><p>JavaScript is disabled. Submit the form to sign out.</p><button form="logout-form" type="submit">Sign out</button></noscript></body></html>''', action=url_for('auth.logout'), token=generate_csrf())
 
 
 @auth_bp.route('/logout', methods=['POST'])
