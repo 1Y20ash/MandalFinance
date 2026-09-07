@@ -1,11 +1,11 @@
 import os
 from flask import Flask
 from app.config import config_by_name
-from app.extensions import db, migrate, login_manager, csrf, limiter
+from app.extensions import db,migrate,login_manager,csrf,limiter
 from app.models.auth import User
 
 def create_app(config_name=None):
-    if config_name is None: config_name=os.environ.get('FLASK_ENV','development')
+    if config_name is None:config_name=os.environ.get('FLASK_ENV','development')
     config_class=config_by_name.get(config_name,config_by_name['default'])
     if config_name=='production':config_class.validate()
     app=Flask(__name__);app.config.from_object(config_class);app.config['APP_ENV']=config_name
@@ -14,6 +14,11 @@ def create_app(config_name=None):
     install_financial_guard()
     @login_manager.user_loader
     def load_user(user_id):return db.session.get(User,int(user_id))
+    @app.after_request
+    def security_headers(response):
+        response.headers.setdefault('X-Content-Type-Options','nosniff');response.headers.setdefault('X-Frame-Options','DENY');response.headers.setdefault('Referrer-Policy','strict-origin-when-cross-origin');response.headers.setdefault('Permissions-Policy','camera=(), microphone=(), geolocation=()')
+        if config_name=='production':response.headers.setdefault('Strict-Transport-Security','max-age=31536000; includeSubDomains')
+        return response
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
