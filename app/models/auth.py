@@ -1,7 +1,17 @@
+import base64
+import hashlib
+import hmac
+import os
 from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
+
 from flask_login import UserMixin
+from werkzeug.security import check_password_hash
 from app.extensions import db
+
+
+PASSWORD_HASH_ALGORITHM = 'sha256'
+PASSWORD_ITERATIONS = 600_000
+PASSWORD_SALT_BYTES = 32
 
 role_permissions = db.Table(
     'role_permissions',
@@ -77,13 +87,45 @@ class User(UserMixin, db.Model):
                                   backref=db.backref('approved_users', lazy=True))
 
     def set_password(self, password):
-        # Explicit PBKDF2-HMAC-SHA256 configuration for password storage.
-        self.password_hash = generate_password_hash(
-            password,
-            method='pbkdf2:sha256:600000'
+        """Hash a password with a unique cryptographically random 32-byte salt."""
+        if not isinstance(password, str) or len(password) < 8:
+            raise ValueError('Password must be a string with at least 8 characters.')
+
+        salt = os.urandom(PASSWORD_SALT_BYTES)
+        derived_key = hashlib.pbkdf2_hmac(
+            PASSWORD_HASH_ALGORITHM,
+            password.encode('utf-8'),
+            salt,
+            PASSWORD_ITERATIONS,
         )
+        salt_text = base64.urlsafe_b64encode(salt).decode('ascii').rstrip('=')
+        key_text = base64.urlsafe_b64encode(derived_key).decode('ascii').rstrip('=')
+        self.password_hash = f'pbkdf2_sha256${PASSWORD_ITERATIONS}${salt_text}${key_text}'
 
     def check_password(self, password):
+        """Verify the explicit PBKDF2 format while retaining legacy hash compatibility."""
+        if not isinstance(password, str):
+            return False
+
+        if self.password_hash.startswith('pbkdf2_sha256$'):
+            try:
+                _, iterations_text, salt_text, stored_key_text = self.password_hash.split('$', 3)
+                iterations = int(iterations_text)
+                padding = '=' * (-len(salt_text) % 4)
+                salt = base64.urlsafe_b64decode(salt_text + padding)
+                padding = '=' * (-len(stored_key_text) % 4)
+                stored_key = base64.urlsafe_b64decode(stored_key_text + padding)
+                derived_key = hashlib.pbkdf2_hmac(
+                    PASSWORD_HASH_ALGORITHM,
+                    password.encode('utf-8'),
+                    salt,
+                    iterations,
+                )
+                return hmac.compare_digest(derived_key, stored_key)
+            except (ValueError, TypeError):
+                return False
+
+        # Existing accounts may still contain the previous Werkzeug format.
         return check_password_hash(self.password_hash, password)
 
     def has_permission(self, perm_name):
