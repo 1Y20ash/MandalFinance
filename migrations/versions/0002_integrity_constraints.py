@@ -5,6 +5,7 @@ Revises: 0001_bootstrap
 """
 
 from alembic import op
+from sqlalchemy import inspect
 
 
 revision = "0002_integrity_constraints"
@@ -14,7 +15,7 @@ depends_on = None
 
 
 def _constraint_exists(bind, table_name, constraint_name):
-    inspector = op.get_context().connection.dialect.get_inspector(bind)
+    inspector = inspect(bind)
     return any(
         constraint.get("name") == constraint_name
         for constraint in inspector.get_check_constraints(table_name)
@@ -25,7 +26,7 @@ def _constraint_exists(bind, table_name, constraint_name):
 
 
 def _index_exists(bind, table_name, index_name):
-    inspector = op.get_context().connection.dialect.get_inspector(bind)
+    inspector = inspect(bind)
     return any(index.get("name") == index_name for index in inspector.get_indexes(table_name))
 
 
