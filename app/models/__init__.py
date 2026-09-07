@@ -8,6 +8,7 @@ from app.models.expense import ExpenseCategory, Expense, Approval
 from app.models.budget import BudgetCategory, Budget
 from app.models.document import Document, DocumentVersion, EvidencePack
 from app.models.audit import AuditLog, Setting, Notification
+from app.models.controls import ContributionReceipt, CorrectionRequest, ReconciliationRecord, EvidenceRule
 
 __all__ = [
     'User', 'Role', 'Permission', 'role_permissions', 'user_roles',
@@ -18,5 +19,6 @@ __all__ = [
     'ExpenseCategory', 'Expense', 'Approval',
     'BudgetCategory', 'Budget',
     'Document', 'DocumentVersion', 'EvidencePack',
-    'AuditLog', 'Setting', 'Notification'
+    'AuditLog', 'Setting', 'Notification',
+    'ContributionReceipt', 'CorrectionRequest', 'ReconciliationRecord', 'EvidenceRule'
 ]
