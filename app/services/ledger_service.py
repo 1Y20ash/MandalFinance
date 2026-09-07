@@ -1,5 +1,5 @@
 import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from sqlalchemy import func
 
@@ -7,6 +7,9 @@ from app.extensions import db
 from app.models.ledger import Account, Transaction
 from app.models.mandal import FinancialYear
 from app.services.audit_service import AuditService
+
+
+MONEY_ZERO = Decimal('0.00')
 
 
 class LedgerService:
@@ -18,12 +21,18 @@ class LedgerService:
     @staticmethod
     def _normalize_amount(amount):
         try:
-            decimal_amount = Decimal(str(amount)).quantize(Decimal('0.01'))
+            decimal_amount = Decimal(str(amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         except (InvalidOperation, ValueError, TypeError):
             raise ValueError('Amount must be a valid monetary value.')
-        if decimal_amount <= Decimal('0.00'):
+        if decimal_amount <= MONEY_ZERO:
             raise ValueError('Amount must be greater than zero.')
         return decimal_amount
+
+    @staticmethod
+    def _to_money(value):
+        if value is None:
+            return MONEY_ZERO
+        return Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     @staticmethod
     def _lock_account(account_id):
@@ -76,9 +85,9 @@ class LedgerService:
                 created_by_id=created_by_id,
             )
             if transaction_type == 'INCOME':
-                account.current_balance = (account.current_balance or Decimal('0.00')) + decimal_amount
+                account.current_balance = LedgerService._to_money(account.current_balance) + decimal_amount
             else:
-                account.current_balance = (account.current_balance or Decimal('0.00')) - decimal_amount
+                account.current_balance = LedgerService._to_money(account.current_balance) - decimal_amount
             db.session.add(transaction)
             db.session.flush()
             AuditService.log_action(
@@ -132,9 +141,9 @@ class LedgerService:
             if existing_reversal:
                 raise ValueError('A reversal already exists for this transaction.')
             if orig_txn.transaction_type == 'INCOME':
-                account.current_balance -= orig_txn.amount
+                account.current_balance = LedgerService._to_money(account.current_balance) - orig_txn.amount
             else:
-                account.current_balance += orig_txn.amount
+                account.current_balance = LedgerService._to_money(account.current_balance) + orig_txn.amount
             reversal_txn = Transaction(
                 transaction_ref=LedgerService._generate_txn_ref(), event_id=orig_txn.event_id,
                 account_id=orig_txn.account_id, category_id=orig_txn.category_id, transaction_type='REVERSAL',
@@ -163,7 +172,7 @@ class LedgerService:
     @staticmethod
     def get_ledger_summary(event_id=None):
         fy = FinancialYear.query.filter_by(is_active=True).first()
-        opening_balance = fy.opening_balance if fy else Decimal('0.00')
+        opening_balance = LedgerService._to_money(fy.opening_balance if fy else MONEY_ZERO)
         query = Transaction.query.filter_by(is_reversed=False)
         if event_id:
             query = query.filter_by(event_id=event_id)
@@ -171,8 +180,8 @@ class LedgerService:
             func.coalesce(func.sum(Transaction.amount).filter(Transaction.transaction_type == 'INCOME'), 0),
             func.coalesce(func.sum(Transaction.amount).filter(Transaction.transaction_type == 'EXPENSE'), 0),
         ).first()
-        total_income = Decimal(str(totals[0])).quantize(Decimal('0.01'))
-        total_expense = Decimal(str(totals[1])).quantize(Decimal('0.01'))
+        total_income = LedgerService._to_money(totals[0])
+        total_expense = LedgerService._to_money(totals[1])
         return {
             'opening_balance': opening_balance,
             'total_income': total_income,
@@ -180,3 +189,47 @@ class LedgerService:
             'current_balance': opening_balance + total_income - total_expense,
             'transaction_count': query.count(),
         }
+
+    @staticmethod
+    def get_account_reconciliation():
+        """Compare stored account balances with balances derivable from the immutable ledger."""
+        accounts = Account.query.order_by(Account.is_active.desc(), Account.name.asc()).all()
+        results = []
+        for account in accounts:
+            opening = LedgerService._to_money(account.opening_balance)
+            income = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+                Transaction.account_id == account.id,
+                Transaction.transaction_type == 'INCOME',
+                Transaction.is_reversed.is_(False),
+            ).scalar()
+            expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+                Transaction.account_id == account.id,
+                Transaction.transaction_type == 'EXPENSE',
+                Transaction.is_reversed.is_(False),
+            ).scalar()
+            expected = opening + LedgerService._to_money(income) - LedgerService._to_money(expense)
+            stored = LedgerService._to_money(account.current_balance)
+            difference = stored - expected
+            results.append({
+                'account': account,
+                'opening_balance': opening,
+                'income': LedgerService._to_money(income),
+                'expense': LedgerService._to_money(expense),
+                'expected_balance': expected,
+                'stored_balance': stored,
+                'difference': difference,
+                'is_balanced': difference == MONEY_ZERO,
+            })
+        return results
+
+    @staticmethod
+    def get_recent_transactions(limit=100, account_id=None, event_id=None, include_reversed=True):
+        limit = max(1, min(int(limit), 500))
+        query = Transaction.query
+        if account_id:
+            query = query.filter_by(account_id=account_id)
+        if event_id:
+            query = query.filter_by(event_id=event_id)
+        if not include_reversed:
+            query = query.filter_by(is_reversed=False)
+        return query.order_by(Transaction.transaction_date.desc(), Transaction.id.desc()).limit(limit).all()
