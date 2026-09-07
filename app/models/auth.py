@@ -15,6 +15,7 @@ user_roles = db.Table(
     db.Column('role_id', db.Integer, db.ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True)
 )
 
+
 class Permission(db.Model):
     __tablename__ = 'permissions'
 
@@ -50,22 +51,37 @@ class Role(db.Model):
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
 
+    APPROVAL_PENDING = 'PENDING'
+    APPROVAL_APPROVED = 'APPROVED'
+    APPROVAL_REJECTED = 'REJECTED'
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(20), nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    approval_status = db.Column(db.String(20), nullable=False, default=APPROVAL_APPROVED, index=True)
+    requested_at = db.Column(db.DateTime, nullable=True)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    rejection_reason = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     roles = db.relationship('Role', secondary=user_roles, lazy='subquery',
                             backref=db.backref('users', lazy=True))
+    approved_by = db.relationship('User', remote_side=[id], foreign_keys=[approved_by_id],
+                                  backref=db.backref('approved_users', lazy=True))
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        # Explicit PBKDF2-HMAC-SHA256 configuration for password storage.
+        self.password_hash = generate_password_hash(
+            password,
+            method='pbkdf2:sha256:600000'
+        )
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
