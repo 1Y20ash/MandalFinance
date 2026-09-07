@@ -1,7 +1,7 @@
 import pytest
 from decimal import Decimal
 from app import create_app
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models.auth import User, Role, Permission
 from app.models.mandal import Mandal, FinancialYear, Event
 from app.models.ledger import Account, TransactionCategory
@@ -90,6 +90,10 @@ def app():
 
         db.session.remove()
         db.drop_all()
+        # The rate-limit test intentionally consumes a full login bucket. Its
+        # Redis state must not leak into later tests that also authenticate as
+        # the shared fixture users. Production rate-limit state is unaffected.
+        limiter.limiter.storage.reset()
 
 @pytest.fixture
 def client(app):
