@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, render_template_string, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
+from flask_wtf.csrf import generate_csrf
 from app.models.auth import User, Role
 from app.services.audit_service import AuditService
 from app.extensions import db
@@ -14,12 +15,10 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
-
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         remember = bool(request.form.get('remember'))
-
         user = User.query.filter((User.username == username) | (User.email == username)).first()
         if user and user.check_password(password):
             if user.approval_status == User.APPROVAL_PENDING:
@@ -31,17 +30,13 @@ def login():
             if not user.is_active:
                 flash('Your account has been deactivated. Please contact the Mandal Administrator.', 'danger')
                 return render_template('auth/login.html')
-
             login_user(user, remember=remember)
             AuditService.log_action('LOGIN', 'USER', user.id, f"User {user.username} logged in successfully.")
-
             next_page = request.args.get('next')
             if not next_page or not next_page.startswith('/'):
                 next_page = url_for('dashboard.index')
             return redirect(next_page)
-
         flash('Invalid username or password.', 'danger')
-
     return render_template('auth/login.html')
 
 
@@ -49,7 +44,6 @@ def login():
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
-
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
         username = request.form.get('username', '').strip()
@@ -57,7 +51,6 @@ def register():
         phone = request.form.get('phone', '').strip()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
-
         if not full_name or not username or not email or not password:
             flash('Please complete all required fields.', 'warning')
             return render_template('auth/register.html')
@@ -73,7 +66,6 @@ def register():
         if User.query.filter_by(email=email).first():
             flash('An account with this email address already exists.', 'warning')
             return render_template('auth/register.html')
-
         try:
             new_user = User(full_name=full_name, username=username, email=email, phone=phone or None,
                             is_active=False, is_admin=False, approval_status=User.APPROVAL_PENDING,
@@ -93,13 +85,24 @@ def register():
         except Exception:
             db.session.rollback()
             flash('Registration failed. Please try again later.', 'danger')
-
     return render_template('auth/register.html')
+
+
+@auth_bp.route('/logout', methods=['GET'])
+@login_required
+def logout_get():
+    """Render a CSRF-protected POST form for legacy/navbar logout links."""
+    return render_template_string('''<!doctype html><html><head><title>Signing out…</title></head>
+<body><form id="logout-form" method="post" action="{{ action }}">
+<input type="hidden" name="csrf_token" value="{{ token }}"></form>
+<script>document.getElementById('logout-form').submit();</script>
+<noscript><p>JavaScript is disabled. Submit the form to sign out.</p><button form="logout-form" type="submit">Sign out</button></noscript>
+</body></html>''', action=url_for('auth.logout_post'), token=generate_csrf())
 
 
 @auth_bp.route('/logout', methods=['POST'])
 @login_required
-def logout():
+def logout_post():
     AuditService.log_action('LOGOUT', 'USER', current_user.id, f"User {current_user.username} logged out.")
     logout_user()
     flash('You have been logged out successfully.', 'info')
