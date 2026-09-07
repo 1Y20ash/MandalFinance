@@ -31,6 +31,8 @@ def test_registration_creates_pending_inactive_user(client, app):
         assert len(user.password_hash.split('$')) == 4
         assert user.check_password('StrongPass123')
         assert user.check_password('WrongPassword') is False
+        assert [role.name for role in user.roles] == ['Volunteer']
+        assert user.has_permission('dashboard.view') is True
 
 
 def test_each_password_gets_a_unique_random_salt(app):
@@ -74,6 +76,8 @@ def test_admin_can_approve_registration(client, app):
         assert user.is_active is True
         assert user.approved_by_id is not None
         assert user.reviewed_at is not None
+        assert [role.name for role in user.roles] == ['Volunteer']
+        assert user.has_permission('dashboard.view') is True
 
     # The admin session must be cleared before testing the newly approved user's login.
     client.get('/auth/logout', follow_redirects=True)
