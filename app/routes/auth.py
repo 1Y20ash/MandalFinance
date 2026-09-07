@@ -91,18 +91,18 @@ def register():
 @auth_bp.route('/logout', methods=['GET'])
 @login_required
 def logout_get():
-    """Render a CSRF-protected POST form for legacy/navbar logout links."""
+    """Render a CSRF-protected POST form for the existing navbar logout link."""
     return render_template_string('''<!doctype html><html><head><title>Signing out…</title></head>
 <body><form id="logout-form" method="post" action="{{ action }}">
 <input type="hidden" name="csrf_token" value="{{ token }}"></form>
 <script>document.getElementById('logout-form').submit();</script>
 <noscript><p>JavaScript is disabled. Submit the form to sign out.</p><button form="logout-form" type="submit">Sign out</button></noscript>
-</body></html>''', action=url_for('auth.logout_post'), token=generate_csrf())
+</body></html>''', action=url_for('auth.logout'), token=generate_csrf())
 
 
 @auth_bp.route('/logout', methods=['POST'])
 @login_required
-def logout_post():
+def logout():
     AuditService.log_action('LOGOUT', 'USER', current_user.id, f"User {current_user.username} logged out.")
     logout_user()
     flash('You have been logged out successfully.', 'info')
