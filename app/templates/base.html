@@ -228,5 +228,26 @@
     window.addEventListener('online', () => { const banner = document.getElementById('offlineBanner'); if (banner) banner.style.display = 'none'; });
 })();
 </script>
+<script>
+/* Width-aware navbar guard: CSS media queries handle viewport changes, while
+   ResizeObserver also handles embedded/app-shell resizing without reloads. */
+(() => {
+  const nav = document.querySelector('.navbar-custom');
+  const shell = nav?.querySelector('.nav-shell');
+  if (!nav || !shell || !window.ResizeObserver) return;
+
+  const apply = width => {
+    nav.classList.toggle('nav-width-tight', width < 1100);
+    nav.classList.toggle('nav-width-compact', width >= 1100 && width < 1240);
+  };
+
+  const observer = new ResizeObserver(entries => {
+    const width = entries[0]?.contentRect?.width || shell.getBoundingClientRect().width;
+    apply(width);
+  });
+  observer.observe(shell);
+  apply(shell.getBoundingClientRect().width);
+})();
+</script>
 {% block extra_js %}{% endblock %}
 </body></html>
