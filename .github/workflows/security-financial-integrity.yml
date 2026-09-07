@@ -1,16 +1,26 @@
 name: Security and Financial Integrity
-
 on:
   push:
     branches: ['**']
   pull_request:
-
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mandalfinance_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mandalfinance_ci"
+          --health-interval 10s --health-timeout 5s --health-retries 5
     env:
       FLASK_ENV: testing
       SECRET_KEY: ci-test-secret
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mandalfinance_ci
       PYTHONWARNINGS: error
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +33,7 @@ jobs:
         run: python -m compileall -q app api app.py
       - name: Check migration heads
         run: flask --app app.py db heads
-      - name: Apply migrations on clean SQLite
+      - name: Apply migrations on clean PostgreSQL
         run: flask --app app.py db upgrade
       - name: Run regression and security tests
         run: python -m pytest -q
