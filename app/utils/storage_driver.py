@@ -1,71 +1,98 @@
 import os
-import requests
-from pathlib import Path
+import re
+from pathlib import Path, PurePosixPath
 from flask import current_app
+import requests
+
 
 class StorageDriver:
-    @staticmethod
-    def upload_file(file_bytes, destination_path, mime_type="application/octet-stream"):
-        """
-        Uploads a file to Supabase Storage if configured; otherwise saves to local UPLOAD_FOLDER.
-        Returns tuple: (storage_provider, storage_path)
-        """
-        supabase_url = current_app.config.get('SUPABASE_URL')
-        supabase_key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
-        bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET', 'mandal-financial-documents')
+    ALLOWED_MIME_PREFIXES = ('application/', 'image/', 'text/', 'audio/', 'video/')
 
+    @staticmethod
+    def sanitize_filename(filename):
+        filename = os.path.basename(str(filename or '').replace('\\', '/')).strip()
+        filename = re.sub(r'[^A-Za-z0-9._() -]', '_', filename)
+        filename = re.sub(r'\.{2,}', '.', filename).strip(' .')
+        if not filename:
+            raise ValueError('A safe filename is required.')
+        return filename[:180]
+
+    @staticmethod
+    def safe_relative_path(destination_path):
+        raw = str(destination_path or '').replace('\\', '/')
+        path = PurePosixPath(raw.lstrip('/'))
+        if not raw or any(part in ('', '.', '..') for part in path.parts):
+            raise ValueError('Unsafe storage path.')
+        return '/'.join(path.parts)
+
+    @staticmethod
+    def _supabase_config():
+        return (
+            current_app.config.get('SUPABASE_URL'),
+            current_app.config.get('SUPABASE_SERVICE_ROLE_KEY'),
+            current_app.config.get('SUPABASE_STORAGE_BUCKET', 'mandal-financial-documents'),
+        )
+
+    @staticmethod
+    def upload_file(file_bytes, destination_path, mime_type='application/octet-stream'):
+        if file_bytes is None:
+            raise ValueError('File content is required.')
+        max_size = current_app.config.get('MAX_DOCUMENT_SIZE', 10 * 1024 * 1024)
+        if len(file_bytes) > max_size:
+            raise ValueError(f'Document exceeds the {max_size // (1024 * 1024)} MB limit.')
+        destination_path = StorageDriver.safe_relative_path(destination_path)
+        supabase_url, supabase_key, bucket = StorageDriver._supabase_config()
         if supabase_url and supabase_key:
-            # Use Supabase Storage REST API
-            endpoint = f"{supabase_url.rstrip('/')}/storage/v1/object/{bucket}/{destination_path.lstrip('/')}"
+            endpoint = f"{supabase_url.rstrip('/')}/storage/v1/object/{bucket}/{destination_path}"
             headers = {
-                "Authorization": f"Bearer {supabase_key}",
-                "apikey": supabase_key,
-                "Content-Type": mime_type,
-                "x-upsert": "true"
+                'Authorization': f'Bearer {supabase_key}',
+                'apikey': supabase_key,
+                'Content-Type': mime_type,
+                'x-upsert': 'false',
             }
             try:
-                response = requests.post(endpoint, data=file_bytes, headers=headers, timeout=10)
+                response = requests.post(endpoint, data=file_bytes, headers=headers, timeout=20)
                 if response.status_code in (200, 201):
                     return ('SUPABASE', destination_path)
-            except Exception as e:
-                current_app.logger.warning(f"Supabase Storage upload failed, falling back to local: {e}")
+                if response.status_code == 409:
+                    raise ValueError('Storage object already exists; overwrite is forbidden.')
+                raise RuntimeError(f'Supabase Storage upload rejected ({response.status_code}).')
+            except requests.RequestException as exc:
+                if current_app.config.get('ENV') == 'production' or not current_app.config.get('TESTING'):
+                    if current_app.config.get('SUPABASE_URL'):
+                        raise RuntimeError('Secure object storage is unavailable.') from exc
+                current_app.logger.warning('Supabase Storage unavailable; using local storage only outside production: %s', exc)
 
-        # Local storage fallback
-        local_base = Path(current_app.config.get('UPLOAD_FOLDER'))
-        full_path = local_base / destination_path
+        if current_app.config.get('ENV') == 'production':
+            raise RuntimeError('Production requires configured private Supabase object storage.')
+        local_base = Path(current_app.config.get('UPLOAD_FOLDER')).resolve()
+        full_path = (local_base / destination_path).resolve()
+        if local_base not in full_path.parents:
+            raise ValueError('Unsafe local storage path.')
         full_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(full_path, 'wb') as f:
-            f.write(file_bytes)
-            
-        return ('LOCAL', str(destination_path))
+        if full_path.exists():
+            raise ValueError('Storage object already exists; overwrite is forbidden.')
+        full_path.write_bytes(file_bytes)
+        return ('LOCAL', destination_path)
 
     @staticmethod
     def get_file(storage_provider, storage_path):
-        """
-        Retrieves raw file bytes from Supabase Storage or local storage.
-        """
+        storage_path = StorageDriver.safe_relative_path(storage_path)
         if storage_provider == 'SUPABASE':
-            supabase_url = current_app.config.get('SUPABASE_URL')
-            supabase_key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
-            bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET', 'mandal-financial-documents')
-            
-            endpoint = f"{supabase_url.rstrip('/')}/storage/v1/object/{bucket}/{storage_path.lstrip('/')}"
-            headers = {
-                "Authorization": f"Bearer {supabase_key}",
-                "apikey": supabase_key
-            }
+            supabase_url, supabase_key, bucket = StorageDriver._supabase_config()
+            if not supabase_url or not supabase_key:
+                raise RuntimeError('Supabase storage configuration is missing.')
+            endpoint = f"{supabase_url.rstrip('/')}/storage/v1/object/{bucket}/{storage_path}"
+            headers = {'Authorization': f'Bearer {supabase_key}', 'apikey': supabase_key}
             try:
-                response = requests.get(endpoint, headers=headers, timeout=10)
+                response = requests.get(endpoint, headers=headers, timeout=20)
                 if response.status_code == 200:
                     return response.content
-            except Exception as e:
-                current_app.logger.warning(f"Supabase Storage download failed: {e}")
-
-        # Fallback local
-        local_base = Path(current_app.config.get('UPLOAD_FOLDER'))
-        full_path = local_base / storage_path
-        if full_path.exists():
-            with open(full_path, 'rb') as f:
-                return f.read()
-        return None
+            except requests.RequestException as exc:
+                current_app.logger.warning('Supabase Storage download failed: %s', exc)
+            return None
+        local_base = Path(current_app.config.get('UPLOAD_FOLDER')).resolve()
+        full_path = (local_base / storage_path).resolve()
+        if local_base not in full_path.parents or not full_path.is_file():
+            return None
+        return full_path.read_bytes()
