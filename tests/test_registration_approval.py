@@ -75,6 +75,8 @@ def test_admin_can_approve_registration(client, app):
         assert user.approved_by_id is not None
         assert user.reviewed_at is not None
 
+    # The admin session must be cleared before testing the newly approved user's login.
+    client.get('/auth/logout', follow_redirects=True)
     response = _login(client, 'newuser', 'StrongPass123')
     assert response.status_code == 200
 
@@ -101,6 +103,8 @@ def test_admin_can_reject_registration_and_record_reason(client, app):
         assert user.approved_by_id is not None
         assert user.reviewed_at is not None
 
+    # The admin session must be cleared before testing the rejected user's login.
+    client.get('/auth/logout', follow_redirects=True)
     response = _login(client, 'newuser', 'StrongPass123')
     assert response.status_code == 200
     assert b'registration request was rejected' in response.data
