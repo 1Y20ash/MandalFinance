@@ -6,19 +6,16 @@ from app.models.auth import User
 
 
 def create_app(config_name=None):
-    if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'development')
+    if config_name is None: config_name = os.environ.get('FLASK_ENV', 'development')
     config_class = config_by_name.get(config_name, config_by_name['default'])
-    if config_name == 'production':
-        config_class.validate()
-    app = Flask(__name__)
-    app.config.from_object(config_class)
-    app.config['APP_ENV'] = config_name
+    if config_name == 'production': config_class.validate()
+    app = Flask(__name__); app.config.from_object(config_class); app.config['APP_ENV'] = config_name
     db.init_app(app); migrate.init_app(app, db); login_manager.init_app(app); csrf.init_app(app); limiter.init_app(app)
+    from app.services.financial_guard import install_financial_guard
+    install_financial_guard()
 
     @login_manager.user_loader
-    def load_user(user_id):
-        return db.session.get(User, int(user_id))
+    def load_user(user_id): return db.session.get(User, int(user_id))
 
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
@@ -33,10 +30,7 @@ def create_app(config_name=None):
     from app.routes.admin import admin_bp
     from app.routes.public import public_bp
     from app.routes.financial_controls import controls_bp
-    app.register_blueprint(main_bp); app.register_blueprint(auth_bp); app.register_blueprint(dashboard_bp); app.register_blueprint(donations_bp)
-    app.register_blueprint(income_bp); app.register_blueprint(expenses_bp); app.register_blueprint(vendors_bp); app.register_blueprint(budgets_bp)
-    app.register_blueprint(documents_bp); app.register_blueprint(reports_bp); app.register_blueprint(admin_bp); app.register_blueprint(public_bp)
-    app.register_blueprint(controls_bp)
+    for bp in (main_bp, auth_bp, dashboard_bp, donations_bp, income_bp, expenses_bp, vendors_bp, budgets_bp, documents_bp, reports_bp, admin_bp, public_bp, controls_bp): app.register_blueprint(bp)
 
     @app.template_filter('currency')
     def currency_filter(amount):
