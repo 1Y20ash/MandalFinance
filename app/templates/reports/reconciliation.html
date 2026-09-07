@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Ledger Reconciliation - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="fa-solid fa-scale-balanced me-2 text-primary"></i>Ledger Reconciliation</h3>
+        <p class="text-muted mb-0">Compare stored account balances with balances independently derived from the central ledger.</p>
+    </div>
+    <a href="{{ url_for('reports.export_csv', report_type='reconciliation') }}" class="btn btn-outline-primary">
+        <i class="fa-solid fa-file-csv me-2"></i>Export Reconciliation
+    </a>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-semibold" for="account_id">Account</label>
+                <select class="form-select" id="account_id" name="account_id">
+                    <option value="">All accounts</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}" {% if selected_account_id == account.id %}selected{% endif %}>
+                        {{ account.name }} ({{ account.account_type|upper }}){% if not account.is_active %} — Inactive{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" type="submit"><i class="fa-solid fa-filter me-2"></i>Apply</button>
+            </div>
+            <div class="col-auto">
+                <a class="btn btn-outline-secondary" href="{{ url_for('reports.reconciliation') }}">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set balanced_count = rows|selectattr('is_balanced')|list|length %}
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <div class="text-muted small">Accounts checked</div><div class="fs-3 fw-bold">{{ rows|length }}</div>
+        </div></div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <div class="text-muted small">Balanced</div><div class="fs-3 fw-bold text-success">{{ balanced_count }}</div>
+        </div></div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <div class="text-muted small">Exceptions</div><div class="fs-3 fw-bold {% if rows|length - balanced_count %}text-danger{% else %}text-success{% endif %}">{{ rows|length - balanced_count }}</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white fw-bold">Account Balance Integrity</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr>
+                <th>Account</th><th>Opening</th><th>Ledger Income</th><th>Ledger Expense</th>
+                <th>Expected</th><th>Stored</th><th>Difference</th><th>Status</th>
+            </tr></thead>
+            <tbody>
+            {% for row in rows %}
+            <tr>
+                <td><strong>{{ row.account.name }}</strong><div class="small text-muted">{{ row.account.account_type|upper }}</div></td>
+                <td>{{ row.opening_balance|currency }}</td>
+                <td class="text-success">+ {{ row.income|currency }}</td>
+                <td class="text-danger">- {{ row.expense|currency }}</td>
+                <td class="fw-semibold">{{ row.expected_balance|currency }}</td>
+                <td class="fw-semibold">{{ row.stored_balance|currency }}</td>
+                <td class="{% if row.is_balanced %}text-success{% else %}text-danger fw-bold{% endif %}">{{ row.difference|currency }}</td>
+                <td>
+                    {% if row.is_balanced %}<span class="badge text-bg-success">BALANCED</span>
+                    {% else %}<span class="badge text-bg-danger">EXCEPTION</span>{% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No accounts found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white fw-bold">Recent Ledger Activity</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Transaction</th><th>Account</th><th>Type</th><th>Amount</th><th>Source</th><th>Reference</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for txn in transactions %}
+            <tr>
+                <td><code>{{ txn.transaction_ref }}</code></td>
+                <td>{{ txn.account.name if txn.account else '—' }}</td>
+                <td><span class="badge {% if txn.transaction_type == 'INCOME' %}text-bg-success{% elif txn.transaction_type == 'EXPENSE' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">{{ txn.transaction_type }}</span></td>
+                <td class="fw-semibold">{{ txn.amount|currency }}</td>
+                <td>{{ txn.source_module }}{% if txn.source_id %} #{{ txn.source_id }}{% endif %}</td>
+                <td>{{ txn.external_ref or '—' }}</td>
+                <td>{{ txn.transaction_date.strftime('%d %b %Y %H:%M') }}</td>
+                <td>{% if txn.is_reversed %}<span class="badge text-bg-warning">REVERSED</span>{% else %}<span class="badge text-bg-success">POSTED</span>{% endif %}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No ledger transactions found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
