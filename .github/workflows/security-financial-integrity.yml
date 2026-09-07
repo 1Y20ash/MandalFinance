@@ -21,6 +21,7 @@ jobs:
       FLASK_ENV: testing
       SECRET_KEY: ci-test-secret
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mandalfinance_ci
+      RATELIMIT_STORAGE_URI: postgresql://postgres:postgres@localhost:5432/mandalfinance_ci
       PYTHONWARNINGS: error
     steps:
       - uses: actions/checkout@v4
