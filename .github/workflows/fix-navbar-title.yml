@@ -1,0 +1,35 @@
+name: Fix navbar title visibility
+
+on:
+  push:
+    branches:
+      - fix/navbar-title-visibility-final
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix transparent navbar brand text
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/templates/base.html')
+          s = p.read_text(encoding='utf-8')
+          old = '''            text-overflow: clip;\n            font-size: .98rem;'''
+          new = '''            text-overflow: clip;\n            font-size: .98rem;\n            color: #fff !important;\n            -webkit-text-fill-color: #fff !important;'''
+          if old not in s:
+              raise SystemExit('Expected navbar CSS block was not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Commit fix and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/templates/base.html
+          git rm .github/workflows/fix-navbar-title.yml
+          git commit -m "fix: make full mandal navbar title visible"
+          git push
