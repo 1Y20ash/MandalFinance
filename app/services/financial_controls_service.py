@@ -107,15 +107,33 @@ class FinancialControlsService:
         if period_end and statement_date<period_end:raise ValueError('Statement date cannot precede the reconciliation period end.')
         duplicate=ReconciliationRecord.query.filter_by(account_id=account.id,statement_date=statement_date).first()
         if duplicate:raise ValueError('A reconciliation already exists for this account and statement date.')
+
         opening=money(account.opening_balance)
-        q=Transaction.query.filter(Transaction.account_id==account.id,Transaction.is_reversed.is_(False))
-        if period_start:q=q.filter(func.date(Transaction.transaction_date)>=period_start)
-        if period_end:q=q.filter(func.date(Transaction.transaction_date)<=period_end)
-        income=q.filter(Transaction.transaction_type=='INCOME').with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar()
-        expense=q.filter(Transaction.transaction_type.in_(['EXPENSE','REVERSAL'])).with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar()
-        transfers_in=q.filter(Transaction.transaction_type=='TRANSFER').filter(Transaction.description.ilike('%transfer in%')).with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar()
-        transfers_out=q.filter(Transaction.transaction_type=='TRANSFER').filter(Transaction.description.ilike('%transfer out%')).with_entities(func.coalesce(func.sum(Transaction.amount),0)).scalar()
-        book=opening+money(income)+money(transfers_in)-money(expense)-money(transfers_out)
+        start=period_start
+        end=period_end
+        transactions=Transaction.query.filter(Transaction.account_id==account.id).all()
+        originals={tx.id:tx for tx in transactions}
+        book=opening
+        for tx in transactions:
+            tx_date=tx.transaction_date.date()
+            if start and tx_date<start:continue
+            if end and tx_date>end:continue
+            if tx.transaction_type=='REVERSAL':
+                original=originals.get(tx.reversed_by_txn_id)
+                if not original:continue
+                sign=-1 if original.transaction_type=='INCOME' else 1 if original.transaction_type=='EXPENSE' else 0
+            elif tx.is_reversed:
+                continue
+            elif tx.transaction_type=='INCOME':
+                sign=1
+            elif tx.transaction_type=='EXPENSE':
+                sign=-1
+            elif tx.transaction_type=='TRANSFER':
+                sign=1 if 'transfer in' in (tx.description or '').lower() else -1 if 'transfer out' in (tx.description or '').lower() else 0
+            else:
+                sign=0
+            book += money(tx.amount)*sign
+
         difference=statement_balance-book
         r=ReconciliationRecord(reconciliation_ref=f'REC-{datetime.utcnow().strftime("%Y%m%d%H%M%S%f")}',event_id=event_id,account_id=account.id,statement_date=statement_date,period_start=period_start,period_end=period_end,book_balance=book,statement_balance=statement_balance,difference=difference,status='MATCHED' if difference==ZERO else 'ADJUSTMENT_REQUIRED',external_reference=external_reference,notes=notes,created_by_id=user.id)
         db.session.add(r);db.session.flush();AuditService.log_action('RECONCILE','ACCOUNT',account.id,f'Reconciliation {r.reconciliation_ref}: book ₹{book}, statement ₹{statement_balance}, difference ₹{difference}',commit=False);db.session.commit();return r
