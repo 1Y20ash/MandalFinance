@@ -1,9 +1,9 @@
-from datetime import date
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from app.services.reconciliation_service import ReconciliationService
 from app.models.controls import ReconciliationRecord
 from app.models.reconciliation import ReconciliationLine
+from app.utils.decorators import permission_required
 
 reconciliation_bp = Blueprint('reconciliation', __name__, url_prefix='/finance-controls/reconciliation')
 
@@ -28,6 +28,7 @@ def _line_json(line):
 
 @reconciliation_bp.get('/<int:record_id>/lines')
 @login_required
+@permission_required('finance.view')
 def list_lines(record_id):
     record = ReconciliationRecord.query.get_or_404(record_id)
     return jsonify([_line_json(x) for x in ReconciliationLine.query.filter_by(reconciliation_id=record.id).order_by(ReconciliationLine.id).all()])
@@ -35,12 +36,16 @@ def list_lines(record_id):
 
 @reconciliation_bp.post('/<int:record_id>/import')
 @login_required
+@permission_required('finance.manage')
 def import_lines(record_id):
     p = payload()
     rows = p.get('lines', [])
     if isinstance(rows, str):
         import json
-        rows = json.loads(rows)
+        try:
+            rows = json.loads(rows)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'lines must contain valid JSON.'}), 400
     try:
         lines = ReconciliationService.import_lines(record_id, rows, current_user)
         return jsonify({'ok': True, 'count': len(lines), 'lines': [_line_json(x) for x in lines]}), 201
@@ -50,6 +55,7 @@ def import_lines(record_id):
 
 @reconciliation_bp.post('/lines/<int:line_id>/match')
 @login_required
+@permission_required('finance.manage')
 def match_line(line_id):
     try:
         line = ReconciliationService.match_line(line_id, current_user)
@@ -60,6 +66,7 @@ def match_line(line_id):
 
 @reconciliation_bp.post('/<int:record_id>/finalize')
 @login_required
+@permission_required('finance.manage')
 def finalize(record_id):
     try:
         record = ReconciliationService.finalize(record_id, current_user)
