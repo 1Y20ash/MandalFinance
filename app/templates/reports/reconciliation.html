@@ -7,9 +7,11 @@
         <h3 class="fw-bold mb-1"><i class="fa-solid fa-scale-balanced me-2 text-primary"></i>Ledger Reconciliation</h3>
         <p class="text-muted mb-0">Compare stored account balances with balances independently derived from the central ledger.</p>
     </div>
+    {% if current_user.is_admin or current_user.has_permission('report.export') %}
     <a href="{{ url_for('reports.export_csv', report_type='reconciliation') }}" class="btn btn-outline-primary">
         <i class="fa-solid fa-file-csv me-2"></i>Export Reconciliation
     </a>
+    {% endif %}
 </div>
 
 <div class="card shadow-sm border-0 mb-4">
@@ -56,12 +58,18 @@
 </div>
 
 <div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-dark text-white fw-bold">Account Balance Integrity</div>
+    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+        <span>Account Balance Integrity</span>
+        {% if current_user.is_admin or current_user.has_permission('finance.manage') %}
+        <span class="small fw-normal opacity-75"><i class="fa-solid fa-lock me-1"></i>Opening balance adjustments require a reason and are audited</span>
+        {% endif %}
+    </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead><tr>
                 <th>Account</th><th>Opening</th><th>Ledger Income</th><th>Ledger Expense</th>
                 <th>Expected</th><th>Stored</th><th>Difference</th><th>Status</th>
+                {% if current_user.is_admin or current_user.has_permission('finance.manage') %}<th>Actions</th>{% endif %}
             </tr></thead>
             <tbody>
             {% for row in rows %}
@@ -77,9 +85,47 @@
                     {% if row.is_balanced %}<span class="badge text-bg-success">BALANCED</span>
                     {% else %}<span class="badge text-bg-danger">EXCEPTION</span>{% endif %}
                 </td>
+                {% if current_user.is_admin or current_user.has_permission('finance.manage') %}
+                <td>
+                    {% if row.account.is_active %}
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleOpeningBalanceForm({{ row.account.id }})" aria-controls="openingBalanceForm{{ row.account.id }}" aria-expanded="false">
+                        <i class="fa-solid fa-pen-to-square me-1"></i>Edit Opening Balance
+                    </button>
+                    {% else %}
+                    <span class="badge text-bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
             </tr>
+            {% if row.account.is_active %}
+            <tr id="openingBalanceForm{{ row.account.id }}" class="d-none bg-body-secondary">
+                <td colspan="9">
+                    <div class="p-3">
+                        <form method="post" action="{{ url_for('account_balances.adjust_opening_balance', account_id=row.account.id) }}" class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="openingBalance{{ row.account.id }}">New opening balance</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" class="form-control" id="openingBalance{{ row.account.id }}" name="opening_balance" min="0" step="0.01" value="{{ row.opening_balance }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-semibold" for="openingReason{{ row.account.id }}">Reason <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="openingReason{{ row.account.id }}" name="reason" rows="2" maxlength="1000" required placeholder="Explain why the opening balance needs adjustment"></textarea>
+                            </div>
+                            <div class="col-md-3 d-flex gap-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="button" class="btn btn-outline-secondary" onclick="toggleOpeningBalanceForm({{ row.account.id }})">Cancel</button>
+                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check me-1"></i>Save Adjustment</button>
+                            </div>
+                        </form>
+                        <div class="form-text mt-2"><i class="fa-solid fa-circle-info me-1"></i>This changes opening and current balance by the same delta and creates a permanent audit record.</div>
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+            {% endif %}
             {% else %}
-            <tr><td colspan="8" class="text-center text-muted py-4">No accounts found.</td></tr>
+            <tr><td colspan="{% if current_user.is_admin or current_user.has_permission('finance.manage') %}9{% else %}8{% endif %}" class="text-center text-muted py-4">No accounts found.</td></tr>
             {% endfor %}
             </tbody>
         </table>
@@ -110,4 +156,20 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleOpeningBalanceForm(accountId) {
+    const formRow = document.getElementById('openingBalanceForm' + accountId);
+    if (!formRow) return;
+    const hidden = formRow.classList.toggle('d-none');
+    const button = document.querySelector('[aria-controls="openingBalanceForm' + accountId + '"]');
+    if (button) button.setAttribute('aria-expanded', String(!hidden));
+    if (!hidden) {
+        const input = document.getElementById('openingBalance' + accountId);
+        if (input) input.focus();
+    }
+}
+</script>
 {% endblock %}

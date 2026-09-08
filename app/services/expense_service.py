@@ -6,6 +6,7 @@ from app.extensions import db
 from app.models.expense import Expense, Approval, ExpenseCategory
 from app.models.vendor import Vendor
 from app.models.ledger import Account
+from app.models.mandal import Event
 from app.services.audit_service import AuditService
 from app.services.ledger_service import LedgerService
 from app.services.financial_controls_service import FinancialControlsService
@@ -46,6 +47,11 @@ class ExpenseService:
             raise ValueError('Expense date is required.')
         if not created_by_user or not getattr(created_by_user, 'id', None):
             raise ValueError('A valid creator is required.')
+
+        event = db.session.get(Event, event_id)
+        if not event:
+            raise ValueError('Target event was not found.')
+        event.assert_editable()
 
         category = db.session.get(ExpenseCategory, category_id)
         if not category or not category.is_active:
@@ -118,8 +124,12 @@ class ExpenseService:
             raise ValueError('Expense not found.')
         if expense.status not in ('SUBMITTED', 'UNDER_REVIEW'):
             raise ValueError(f"Cannot approve expense with status '{expense.status}'.")
-        if expense.created_by_id == approver_user.id and not approver_user.is_admin:
+        if expense.created_by_id == approver_user.id:
             raise ValueError('Self-approval is not allowed. Another authorized reviewer must approve this expense.')
+        event = db.session.get(Event, expense.event_id)
+        if not event:
+            raise ValueError('Expense event was not found.')
+        event.assert_editable()
 
         previous_status = expense.status
         try:
@@ -149,6 +159,12 @@ class ExpenseService:
             raise ValueError(f"Cannot reject expense in status '{expense.status}'.")
         if not rejection_reason or len(rejection_reason.strip()) < 3:
             raise ValueError('A meaningful rejection reason is required.')
+        if expense.created_by_id == reviewer_user.id:
+            raise ValueError('Self-review is not allowed. Another authorized reviewer must reject this expense.')
+        event = db.session.get(Event, expense.event_id)
+        if not event:
+            raise ValueError('Expense event was not found.')
+        event.assert_editable()
 
         previous_status = expense.status
         try:
@@ -186,6 +202,10 @@ class ExpenseService:
             raise ValueError('Invalid expense payment mode.')
         if payment_mode != 'CASH' and not payment_ref:
             raise ValueError('Payment reference is required for this payment mode.')
+        event = db.session.get(Event, expense.event_id)
+        if not event:
+            raise ValueError('Expense event was not found.')
+        event.assert_editable()
 
         evidence = FinancialControlsService.check_evidence('EXPENSE', expense.id, expense.amount)
         if not evidence['complete']:

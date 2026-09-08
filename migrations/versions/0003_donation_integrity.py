@@ -2,6 +2,11 @@
 
 Revision ID: 0003_donation_integrity
 Revises: 0002_integrity_constraints
+
+The 0001 bootstrap revision creates the current SQLAlchemy metadata. The
+Donation model already contains these CHECK/UNIQUE constraints, so a clean
+SQLite database has them before this revision runs. SQLite cannot add these
+constraints to an existing table with normal ALTER TABLE operations.
 """
 
 from alembic import op
@@ -20,14 +25,17 @@ def _constraint_exists(bind, table_name, constraint_name):
     return any(c.get('name') == constraint_name for c in checks + uniques)
 
 
-def _index_exists(bind, table_name, index_name):
-    from sqlalchemy import inspect
-    inspector = inspect(bind)
-    return any(i.get('name') == index_name for i in inspector.get_indexes(table_name))
-
-
 def upgrade():
     bind = op.get_bind()
+
+    # The 0001 metadata baseline already creates these constraints on clean
+    # SQLite databases. SQLite cannot ALTER an existing table to add CHECK or
+    # UNIQUE constraints, so do not issue unsupported constraint operations.
+    # PostgreSQL and other ALTER-capable databases still receive the explicit
+    # constraints for historical schemas that may not have them.
+    if bind.dialect.name == 'sqlite':
+        return
+
     constraints = [
         ('ck_donations_amount_positive', 'amount > 0'),
         ('ck_donations_type', "donation_type IN ('ONLINE', 'OFFLINE')"),
@@ -39,11 +47,20 @@ def upgrade():
             op.create_check_constraint(name, 'donations', condition)
 
     if not _constraint_exists(bind, 'donations', 'uq_donations_gateway_payment_id'):
-        op.create_unique_constraint('uq_donations_gateway_payment_id', 'donations', ['gateway_payment_id'])
+        op.create_unique_constraint(
+            'uq_donations_gateway_payment_id',
+            'donations',
+            ['gateway_payment_id'],
+        )
 
 
 def downgrade():
     bind = op.get_bind()
+
+    # SQLite cannot safely remove these constraints without table recreation.
+    if bind.dialect.name == 'sqlite':
+        return
+
     if _constraint_exists(bind, 'donations', 'uq_donations_gateway_payment_id'):
         op.drop_constraint('uq_donations_gateway_payment_id', 'donations', type_='unique')
     for name in (

@@ -1,34 +1,44 @@
 from decimal import Decimal
+from sqlalchemy import func
 from app.extensions import db
 from app.models.budget import Budget, BudgetCategory
+from app.models.ledger import Transaction
 from app.models.expense import Expense
+
 
 class BudgetService:
     @staticmethod
     def recalculate_event_budget(event_id):
-        """
-        Recalculates spent amounts for budget categories from paid/approved expenses.
-        """
+        """Derive budget actuals from finalized central-ledger transactions."""
         budget = Budget.query.filter_by(event_id=event_id).first()
         if not budget:
             return None
-
         categories = BudgetCategory.query.filter_by(event_id=event_id).all()
-        total_actual_expense = Decimal('0.00')
-
         for bcat in categories:
-            # Sum paid expenses for this category
-            paid_expenses = Expense.query.filter(
+            expense_ids = db.session.query(Expense.id).filter(
                 Expense.event_id == event_id,
                 Expense.category_id == bcat.expense_category_id,
-                Expense.status == 'PAID'
-            ).all()
-
-            spent = sum(e.amount for e in paid_expenses)
-            bcat.spent_amount = spent
-            total_actual_expense += spent
-
-        budget.actual_expense = total_actual_expense
+                Expense.status == 'PAID',
+            ).subquery()
+            spent = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+                Transaction.event_id == event_id,
+                Transaction.source_module == 'EXPENSE',
+                Transaction.source_id.in_(expense_ids),
+                Transaction.transaction_type == 'EXPENSE',
+                Transaction.is_reversed.is_(False),
+            ).scalar()
+            bcat.spent_amount = Decimal(str(spent or '0')).quantize(Decimal('0.01'))
+        income = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+            Transaction.event_id == event_id,
+            Transaction.transaction_type == 'INCOME',
+            Transaction.is_reversed.is_(False),
+        ).scalar()
+        expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+            Transaction.event_id == event_id,
+            Transaction.transaction_type == 'EXPENSE',
+            Transaction.is_reversed.is_(False),
+        ).scalar()
+        budget.actual_income = Decimal(str(income or '0')).quantize(Decimal('0.01'))
+        budget.actual_expense = Decimal(str(expense or '0')).quantize(Decimal('0.01'))
         db.session.commit()
-
         return budget

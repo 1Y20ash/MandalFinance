@@ -170,24 +170,49 @@ class LedgerService:
             raise
 
     @staticmethod
+    def _effective_transaction_totals(query):
+        """Calculate economic totals without double-counting preserved reversals.
+
+        Originals remain in the immutable ledger even after reversal. The original
+        contributes its normal economic effect, while its REVERSAL row removes that
+        exact effect. This keeps derived totals aligned with the stored account
+        balance while preserving the complete audit trail.
+        """
+        income = MONEY_ZERO
+        expense = MONEY_ZERO
+        transactions = query.all()
+        for txn in transactions:
+            amount = LedgerService._to_money(txn.amount)
+            if txn.transaction_type == 'INCOME':
+                income += amount
+            elif txn.transaction_type == 'EXPENSE':
+                expense += amount
+            elif txn.transaction_type == 'REVERSAL':
+                original = Transaction.query.filter_by(reversed_by_txn_id=txn.id).first()
+                if original and original.transaction_type == 'INCOME':
+                    income -= amount
+                elif original and original.transaction_type == 'EXPENSE':
+                    expense -= amount
+        return income, expense
+
+    @staticmethod
     def get_ledger_summary(event_id=None):
         fy = FinancialYear.query.filter_by(is_active=True).first()
         opening_balance = LedgerService._to_money(fy.opening_balance if fy else MONEY_ZERO)
-        query = Transaction.query.filter_by(is_reversed=False)
+        query = Transaction.query
         if event_id:
             query = query.filter_by(event_id=event_id)
-        totals = query.with_entities(
-            func.coalesce(func.sum(Transaction.amount).filter(Transaction.transaction_type == 'INCOME'), 0),
-            func.coalesce(func.sum(Transaction.amount).filter(Transaction.transaction_type == 'EXPENSE'), 0),
-        ).first()
-        total_income = LedgerService._to_money(totals[0])
-        total_expense = LedgerService._to_money(totals[1])
+        total_income, total_expense = LedgerService._effective_transaction_totals(query)
+        effective_count = query.filter(
+            ((Transaction.transaction_type.in_(['INCOME', 'EXPENSE'])) & Transaction.is_reversed.is_(False)) |
+            (Transaction.transaction_type == 'REVERSAL')
+        ).count()
         return {
             'opening_balance': opening_balance,
             'total_income': total_income,
             'total_expense': total_expense,
             'current_balance': opening_balance + total_income - total_expense,
-            'transaction_count': query.count(),
+            'transaction_count': effective_count,
         }
 
     @staticmethod
@@ -197,24 +222,16 @@ class LedgerService:
         results = []
         for account in accounts:
             opening = LedgerService._to_money(account.opening_balance)
-            income = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-                Transaction.account_id == account.id,
-                Transaction.transaction_type == 'INCOME',
-                Transaction.is_reversed.is_(False),
-            ).scalar()
-            expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-                Transaction.account_id == account.id,
-                Transaction.transaction_type == 'EXPENSE',
-                Transaction.is_reversed.is_(False),
-            ).scalar()
-            expected = opening + LedgerService._to_money(income) - LedgerService._to_money(expense)
+            query = Transaction.query.filter(Transaction.account_id == account.id)
+            income, expense = LedgerService._effective_transaction_totals(query)
+            expected = opening + income - expense
             stored = LedgerService._to_money(account.current_balance)
             difference = stored - expected
             results.append({
                 'account': account,
                 'opening_balance': opening,
-                'income': LedgerService._to_money(income),
-                'expense': LedgerService._to_money(expense),
+                'income': income,
+                'expense': expense,
                 'expected_balance': expected,
                 'stored_balance': stored,
                 'difference': difference,

@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Sponsorships & Member Contributions{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div><h2>Sponsorships & Member Contributions</h2><p class="text-muted mb-0">{{ active_event.title if active_event else 'No active event' }}</p></div>
+  </div>
+  {% if not active_event %}<div class="alert alert-warning">Create or activate an event before recording commitments.</div>{% endif %}
+
+  {% if active_event %}
+  {% set can_manage_finance = current_user.is_admin or current_user.has_permission('finance.manage') %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card h-100"><div class="card-body"><small class="text-muted">Sponsorship committed</small><h4>{{ sponsorship_summary.committed|currency }}</h4></div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body"><small class="text-muted">Sponsorship received</small><h4>{{ sponsorship_summary.received|currency }}</h4><small>Pending {{ sponsorship_summary.pending|currency }}</small></div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body"><small class="text-muted">Member targets</small><h4>{{ member_summary.target|currency }}</h4></div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body"><small class="text-muted">Member received</small><h4>{{ member_summary.received|currency }}</h4><small>Pending {{ member_summary.pending|currency }}</small></div></div></div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card"><div class="card-header d-flex justify-content-between"><strong>Sponsorship commitments</strong>{% if can_manage_finance %}<button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#sponsorForm" aria-controls="sponsorForm" aria-expanded="false">Add</button>{% endif %}</div>
+      {% if can_manage_finance %}<div id="sponsorForm" class="collapse"><div class="card-body border-bottom"><form method="post" action="{{ url_for('contributions.create_sponsorship') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-2"><div class="col-md-6"><label class="form-label" for="sponsorName">Sponsor name</label><input id="sponsorName" name="sponsor_name" class="form-control" required></div><div class="col-md-6"><label class="form-label" for="sponsorshipType">Type/package</label><input id="sponsorshipType" name="sponsorship_type" class="form-control" required></div>
+        <div class="col-md-6"><label class="form-label" for="sponsorAmount">Committed amount</label><input id="sponsorAmount" name="committed_amount" type="number" step="0.01" min="0.01" class="form-control" required></div><div class="col-md-6"><label class="form-label" for="contactPerson">Contact person</label><input id="contactPerson" name="contact_person" class="form-control"></div>
+        <div class="col-md-6"><label class="visually-hidden" for="contactPhone">Phone</label><input id="contactPhone" name="contact_phone" class="form-control" placeholder="Phone"></div><div class="col-md-6"><label class="visually-hidden" for="contactEmail">Email</label><input id="contactEmail" name="contact_email" type="email" class="form-control" placeholder="Email"></div><div class="col-12"><label class="visually-hidden" for="sponsorNotes">Notes</label><input id="sponsorNotes" name="notes" class="form-control" placeholder="Notes"></div>
+        <div class="col-12"><button class="btn btn-primary" type="submit">Save commitment</button></div></div></form></div></div>{% endif %}
+      <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Ref</th><th>Sponsor</th><th>Committed</th><th>Received</th><th>Pending</th>{% if can_manage_finance %}<th>Payment</th>{% endif %}</tr></thead><tbody>
+      {% for s in sponsorships %}
+      <tr><td>{{ s.sponsorship_ref }}</td><td>{{ s.sponsor_name }}<br><small>{{ s.sponsorship_type }}</small></td><td>{{ s.committed_amount|currency }}</td><td>{{ s.received_amount|currency }}</td><td>{{ s.pending_amount|currency }}</td>
+      {% if can_manage_finance %}<td>
+        {% if s.pending_amount > 0 %}
+        <form method="post" action="{{ url_for('contributions.record_sponsorship_payment', sponsorship_id=s.id) }}" class="border rounded-3 p-2 bg-body-secondary">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-2">
+            <div class="col-12"><label class="form-label small fw-semibold mb-1" for="sponsorAmount{{ s.id }}">Payment amount</label><div class="input-group input-group-sm"><span class="input-group-text">₹</span><input id="sponsorAmount{{ s.id }}" name="amount" type="number" step="0.01" min="0.01" max="{{ s.pending_amount }}" class="form-control" placeholder="Amount" required></div></div>
+            <div class="col-12"><label class="form-label small fw-semibold mb-1" for="sponsorAccount{{ s.id }}">Receive into account</label><select id="sponsorAccount{{ s.id }}" name="account_id" class="form-select form-select-sm" required><option value="" selected disabled>Select account</option>{% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
+            <div class="col-12"><label class="form-label small fw-semibold mb-1" for="sponsorMode{{ s.id }}">Payment mode</label><select id="sponsorMode{{ s.id }}" name="payment_mode" class="form-select form-select-sm" required><option value="" selected disabled>Select payment mode</option><option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank transfer</option><option value="CHEQUE">Cheque</option><option value="GATEWAY">Payment gateway</option></select></div>
+            <div class="col-12"><label class="form-label small fw-semibold mb-1" for="sponsorRef{{ s.id }}">Transaction reference <span class="text-muted fw-normal">(optional)</span></label><input id="sponsorRef{{ s.id }}" name="transaction_ref" class="form-control form-control-sm" placeholder="UTR / cheque no. / gateway ref"></div>
+            <div class="col-12 d-flex justify-content-end"><button class="btn btn-sm btn-success" type="submit"><i class="fa-solid fa-check me-1"></i>Post payment</button></div>
+          </div>
+        </form>
+        {% else %}<span class="badge text-bg-success">Complete</span>{% endif %}
+      </td>{% endif %}</tr>
+      {% else %}<tr><td colspan="{% if can_manage_finance %}6{% else %}5{% endif %}" class="text-muted text-center">No sponsorships recorded.</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card"><div class="card-header d-flex justify-content-between"><strong>Member contributions</strong>{% if can_manage_finance %}<button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#memberForm" aria-controls="memberForm" aria-expanded="false">Add</button>{% endif %}</div>
+      {% if can_manage_finance %}<div id="memberForm" class="collapse"><div class="card-body border-bottom"><form method="post" action="{{ url_for('contributions.create_member_contribution') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="row g-2"><div class="col-md-6"><label class="form-label" for="memberName">Member name</label><input id="memberName" name="member_name" class="form-control" required></div><div class="col-md-6"><label class="form-label" for="memberTarget">Target amount</label><input id="memberTarget" name="target_amount" type="number" step="0.01" min="0.01" class="form-control" required></div><div class="col-md-6"><label class="visually-hidden" for="memberPhone">Phone</label><input id="memberPhone" name="member_phone" class="form-control" placeholder="Phone"></div><div class="col-md-6"><label class="visually-hidden" for="memberDesignation">Designation</label><input id="memberDesignation" name="designation" class="form-control" placeholder="Designation"></div><div class="col-12"><label class="visually-hidden" for="memberNotes">Notes</label><input id="memberNotes" name="notes" class="form-control" placeholder="Notes"></div><div class="col-12"><button class="btn btn-primary" type="submit">Save target</button></div></div></form></div></div>{% endif %}
+      <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Member</th><th>Target</th><th>Received</th><th>Pending{% if can_manage_finance %} / Payment{% endif %}</th></tr></thead><tbody>
+      {% for m in members %}<tr><td>{{ m.member_name }}<br><small>{{ m.designation or '' }}</small></td><td>{{ m.target_amount|currency }}</td><td>{{ m.received_amount|currency }}</td><td>{{ m.pending_amount|currency }}{% if can_manage_finance %}{% if m.pending_amount > 0 %}
+        <form method="post" action="{{ url_for('contributions.record_member_payment', contribution_id=m.id) }}" class="border rounded-3 p-2 mt-2 bg-body-secondary">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-2">
+            <div class="col-12"><label class="form-label small fw-semibold mb-1" for="memberAmount{{ m.id }}">Payment amount</label><div class="input-group input-group-sm"><span class="input-group-text">₹</span><input id="memberAmount{{ m.id }}" name="amount" type="number" step="0.01" min="0.01" max="{{ m.pending_amount }}" class="form-control" required aria-label="Payment amount"></div></div>
+            <div class="col-12"><label class="form-label small fw-semibold mb-1" for="memberAccount{{ m.id }}">Receive into account</label><select id="memberAccount{{ m.id }}" name="account_id" class="form-select form-select-sm" required><option value="" selected disabled>Select account</option>{% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
+            <div class="col-12"><label class="form-label small fw-semibold mb-1" for="memberMode{{ m.id }}">Payment mode</label><select id="memberMode{{ m.id }}" name="payment_mode" class="form-select form-select-sm" required><option value="" selected disabled>Select payment mode</option><option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank transfer</option><option value="CHEQUE">Cheque</option><option value="GATEWAY">Payment gateway</option></select></div>
+            <div class="col-12"><label class="form-label small fw-semibold mb-1" for="memberRef{{ m.id }}">Transaction reference <span class="text-muted fw-normal">(optional)</span></label><input id="memberRef{{ m.id }}" name="transaction_ref" class="form-control form-control-sm" placeholder="UTR / cheque no. / gateway ref" aria-label="Transaction reference"></div>
+            <div class="col-12 d-flex justify-content-end"><button class="btn btn-sm btn-success" type="submit"><i class="fa-solid fa-check me-1"></i>Post payment</button></div>
+          </div>
+        </form>
+      {% else %}<span class="badge text-bg-success">Complete</span>{% endif %}{% endif %}</td></tr>{% else %}<tr><td colspan="4" class="text-muted text-center">No member contributions recorded.</td></tr>{% endfor %}</tbody></table></div></div>
+  </div></div>
+  {% endif %}
+</div>
+{% endblock %}

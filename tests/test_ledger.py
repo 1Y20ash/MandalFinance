@@ -16,20 +16,11 @@ def test_ledger_income_and_expense_precision(app):
         user = User.query.filter_by(username='admin').first()
         initial_bal = account.current_balance
         assert isinstance(initial_bal, Decimal)
-
-        txn_inc = LedgerService.record_income(
-            account_id=account.id, amount='1500.50', description='Test Income',
-            source_module='DONATION', source_id=1, created_by_id=user.id
-        )
+        txn_inc = LedgerService.record_income(account.id, '1500.50', 'Test Income', 'DONATION', 1, user.id)
         assert account.current_balance == initial_bal + Decimal('1500.50')
         assert txn_inc.amount == Decimal('1500.50')
-
-        txn_exp = LedgerService.record_expense(
-            account_id=account.id, amount='500.25', description='Test Expense',
-            source_module='EXPENSE', source_id=1, created_by_id=user.id
-        )
+        txn_exp = LedgerService.record_expense(account.id, '500.25', 'Test Expense', 'EXPENSE', 1, user.id)
         assert account.current_balance == initial_bal + Decimal('1500.50') - Decimal('500.25')
-
         rev_txn = LedgerService.reverse_transaction(txn_exp.id, user.id, 'Duplicate entry error')
         assert txn_exp.is_reversed is True
         assert txn_exp.reversed_by_txn_id == rev_txn.id
@@ -40,10 +31,8 @@ def test_ledger_summary_calculation(app):
     with app.app_context():
         user = User.query.filter_by(username='admin').first()
         account = Account.query.filter_by(name='Main Cash').first()
-
         LedgerService.record_income(account.id, '2000.00', 'Inc', 'TEST', 1, user.id)
         LedgerService.record_expense(account.id, '500.00', 'Exp', 'TEST', 2, user.id)
-
         summary = LedgerService.get_ledger_summary()
         assert summary['opening_balance'] == Decimal('10000.00')
         assert summary['total_income'] == Decimal('2000.00')
@@ -56,13 +45,10 @@ def test_duplicate_source_is_rejected_without_balance_change(app):
         user = User.query.filter_by(username='admin').first()
         account = Account.query.filter_by(name='Main Cash').first()
         before = account.current_balance
-
         LedgerService.record_income(account.id, '100.00', 'First', 'TEST_DUP', 999, user.id)
         after_first = account.current_balance
-
         with pytest.raises(ValueError, match='already exists'):
             LedgerService.record_income(account.id, '100.00', 'Duplicate', 'TEST_DUP', 999, user.id)
-
         db_account = db.session.get(Account, account.id)
         assert db_account.current_balance == after_first
         assert db_account.current_balance == before + Decimal('100.00')
@@ -72,16 +58,9 @@ def test_duplicate_external_ref_is_rejected(app):
     with app.app_context():
         user = User.query.filter_by(username='admin').first()
         account = Account.query.filter_by(name='Main Cash').first()
-        LedgerService.record_income(
-            account.id, '75.00', 'Gateway payment', 'PAYMENT', 1, user.id,
-            external_ref='gateway-unique-1'
-        )
-
+        LedgerService.record_income(account.id, '75.00', 'Gateway payment', 'PAYMENT', 1, user.id, external_ref='gateway-unique-1')
         with pytest.raises(ValueError, match='external reference'):
-            LedgerService.record_income(
-                account.id, '75.00', 'Duplicate gateway payment', 'PAYMENT', 2, user.id,
-                external_ref='gateway-unique-1'
-            )
+            LedgerService.record_income(account.id, '75.00', 'Duplicate gateway payment', 'PAYMENT', 2, user.id, external_ref='gateway-unique-1')
 
 
 def test_reversal_requires_reason_and_cannot_reverse_reversal(app):
@@ -89,10 +68,8 @@ def test_reversal_requires_reason_and_cannot_reverse_reversal(app):
         user = User.query.filter_by(username='admin').first()
         account = Account.query.filter_by(name='Main Cash').first()
         txn = LedgerService.record_income(account.id, '50.00', 'Reversible', 'REV_TEST', 1, user.id)
-
         with pytest.raises(ValueError, match='reason is required'):
             LedgerService.reverse_transaction(txn.id, user.id, '   ')
-
         reversal = LedgerService.reverse_transaction(txn.id, user.id, 'Correction')
         with pytest.raises(ValueError, match='already been reversed'):
             LedgerService.reverse_transaction(txn.id, user.id, 'Again')
@@ -105,19 +82,41 @@ def test_ledger_rolls_back_when_audit_logging_fails(app, monkeypatch):
         user = User.query.filter_by(username='admin').first()
         account = Account.query.filter_by(name='Main Cash').first()
         before = account.current_balance
-
         def failing_audit(*args, **kwargs):
             raise RuntimeError('simulated audit failure')
-
         monkeypatch.setattr(AuditService, 'log_action', failing_audit)
-
         with pytest.raises(RuntimeError, match='simulated audit failure'):
-            LedgerService.record_income(
-                account.id, '125.00', 'Atomicity test', 'ATOMICITY_TEST', 1, user.id
-            )
-
+            LedgerService.record_income(account.id, '125.00', 'Atomicity test', 'ATOMICITY_TEST', 1, user.id)
         db.session.expire_all()
         db_account = db.session.get(Account, account.id)
         assert db_account.current_balance == before
         assert Transaction.query.filter_by(source_module='ATOMICITY_TEST', source_id=1).first() is None
-        assert AuditLog.query.filter_by(entity_type='TRANSACTION', description='Recorded INCOME of ₹125.00 to account \'Main Cash\'').first() is None
+        assert AuditLog.query.filter_by(entity_type='TRANSACTION', description="Recorded INCOME of ₹125.00 to account 'Main Cash'").first() is None
+
+
+def test_reversal_keeps_derived_account_balance_consistent(app):
+    with app.app_context():
+        user = User.query.filter_by(username='admin').first()
+        account = Account.query.filter_by(name='Main Cash').first()
+        before = account.current_balance
+        income = LedgerService.record_income(account.id, '400.00', 'Reversal reconciliation income', 'REV_RECON', 1, user.id)
+        LedgerService.record_expense(account.id, '150.00', 'Reversal reconciliation expense', 'REV_RECON', 2, user.id)
+        LedgerService.reverse_transaction(income.id, user.id, 'Income correction')
+        result = next(item for item in LedgerService.get_account_reconciliation() if item['account'].id == account.id)
+        assert result['stored_balance'] == before - Decimal('150.00')
+        assert result['expected_balance'] == result['stored_balance']
+        assert result['difference'] == Decimal('0.00')
+        assert result['is_balanced'] is True
+
+
+def test_ledger_summary_excludes_reversed_income(app):
+    with app.app_context():
+        user = User.query.filter_by(username='admin').first()
+        account = Account.query.filter_by(name='Main Cash').first()
+        income = LedgerService.record_income(account.id, '1000.00', 'Summary reversal income', 'SUMMARY_REV', 1, user.id)
+        LedgerService.record_expense(account.id, '250.00', 'Summary expense', 'SUMMARY_REV', 2, user.id)
+        LedgerService.reverse_transaction(income.id, user.id, 'Incorrect income')
+        summary = LedgerService.get_ledger_summary()
+        assert summary['total_income'] == Decimal('0.00')
+        assert summary['total_expense'] == Decimal('250.00')
+        assert summary['current_balance'] == Decimal('9750.00')

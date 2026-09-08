@@ -100,13 +100,35 @@ def assign_user_roles(user_id):
     user = db.session.get(User, user_id)
     if user is None:
         abort(404)
+
     role_ids = request.form.getlist('role_ids', type=int)
-
     selected_roles = Role.query.filter(Role.id.in_(role_ids)).all() if role_ids else []
-    user.roles = selected_roles
-    db.session.commit()
 
-    flash(f'Roles updated for user "{user.username}".', 'success')
+    # Treat role assignment as an auditable security-sensitive operation.
+    old_role_names = sorted(role.name for role in user.roles)
+    new_role_names = sorted(role.name for role in selected_roles)
+
+    if old_role_names == new_role_names:
+        flash(f'Roles for user "{user.username}" are already up to date.', 'info')
+        return redirect(url_for('admin.list_users'))
+
+    try:
+        user.roles = selected_roles
+        AuditService.log_action(
+            'ROLE_CHANGE',
+            'USER',
+            user.id,
+            f"Administrator {current_user.username} changed roles for {user.username}: "
+            f"{old_role_names or ['<none>']} -> {new_role_names or ['<none>']}.",
+            details={'old_roles': old_role_names, 'new_roles': new_role_names},
+            commit=False,
+        )
+        db.session.commit()
+        flash(f'Roles updated for user "{user.username}".', 'success')
+    except Exception:
+        db.session.rollback()
+        flash(f'Unable to update roles for user "{user.username}". No changes were saved.', 'danger')
+
     return redirect(url_for('admin.list_users'))
 
 
@@ -127,6 +149,10 @@ def create_role():
     description = request.form.get('description', '').strip()
     perm_ids = request.form.getlist('permission_ids', type=int)
 
+    if not name:
+        flash('Role name is required.', 'danger')
+        return redirect(url_for('admin.list_roles'))
+
     if Role.query.filter_by(name=name).first():
         flash(f'Role "{name}" already exists.', 'warning')
         return redirect(url_for('admin.list_roles'))
@@ -138,6 +164,79 @@ def create_role():
     db.session.add(role)
     db.session.commit()
     flash(f'Role "{name}" created successfully.', 'success')
+    return redirect(url_for('admin.list_roles'))
+
+
+@admin_bp.route('/roles/<int:role_id>/edit', methods=['POST'])
+@login_required
+@admin_required
+def edit_role(role_id):
+    role = db.session.get(Role, role_id)
+    if role is None:
+        abort(404)
+
+    if role.is_system:
+        flash(f'System role "{role.name}" cannot be modified.', 'warning')
+        return redirect(url_for('admin.list_roles'))
+
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+    perm_ids = request.form.getlist('permission_ids', type=int)
+
+    if not name:
+        flash('Role name is required.', 'danger')
+        return redirect(url_for('admin.list_roles'))
+
+    duplicate = Role.query.filter(Role.name == name, Role.id != role.id).first()
+    if duplicate:
+        flash(f'Role "{name}" already exists.', 'warning')
+        return redirect(url_for('admin.list_roles'))
+
+    old_name = role.name
+    role.name = name
+    role.description = description
+    role.permissions = Permission.query.filter(Permission.id.in_(perm_ids)).all() if perm_ids else []
+
+    AuditService.log_action(
+        'UPDATE_ROLE',
+        'ROLE',
+        role.id,
+        f"Administrator {current_user.username} updated role '{old_name}' to '{role.name}' and changed its permissions.",
+        commit=False,
+    )
+    db.session.commit()
+    flash(f'Role "{role.name}" updated successfully.', 'success')
+    return redirect(url_for('admin.list_roles'))
+
+
+@admin_bp.route('/roles/<int:role_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_role(role_id):
+    role = db.session.get(Role, role_id)
+    if role is None:
+        abort(404)
+
+    if role.is_system:
+        flash(f'System role "{role.name}" cannot be deleted.', 'warning')
+        return redirect(url_for('admin.list_roles'))
+
+    if role.users:
+        flash(f'Role "{role.name}" is assigned to {len(role.users)} user(s). Reassign those users before deleting the role.', 'warning')
+        return redirect(url_for('admin.list_roles'))
+
+    role_name = role.name
+    role_id_value = role.id
+    AuditService.log_action(
+        'DELETE_ROLE',
+        'ROLE',
+        role_id_value,
+        f"Administrator {current_user.username} deleted role '{role_name}'.",
+        commit=False,
+    )
+    db.session.delete(role)
+    db.session.commit()
+    flash(f'Role "{role_name}" deleted successfully.', 'success')
     return redirect(url_for('admin.list_roles'))
 
 

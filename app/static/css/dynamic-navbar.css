@@ -1,9 +1,9 @@
 /* Collision-proof responsive navbar. */
 .navbar-custom .nav-shell{width:100%;max-width:1600px;margin-inline:auto;display:flex;align-items:center;gap:clamp(.45rem,1vw,1rem);min-width:0}
 .navbar-custom .navbar-brand{flex:0 1 auto;min-width:0;max-width:min(390px,34vw)}
-.navbar-custom .navbar-brand .brand-copy{min-width:0;overflow:hidden;display:flex;flex-direction:column}
-.navbar-custom .navbar-brand .brand-copy strong{display:block;max-width:100%;overflow:hidden;text-overflow:clip;white-space:nowrap;font-size:clamp(.72rem,.78vw,.88rem);line-height:1.15}
-.navbar-custom .navbar-brand .brand-copy small{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.navbar-custom .navbar-brand .brand-copy{min-width:0;overflow:hidden;display:flex;flex-direction:column;color:#fef08a;-webkit-text-fill-color:initial}
+.navbar-custom .navbar-brand .brand-copy strong{display:block;max-width:100%;overflow:hidden;text-overflow:clip;white-space:nowrap;font-size:clamp(.72rem,.78vw,.88rem);line-height:1.15;color:#fef08a;-webkit-text-fill-color:#fef08a}
+.navbar-custom .navbar-brand .brand-copy small{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fbbf24;-webkit-text-fill-color:#fbbf24}
 .navbar-custom .navbar-collapse{flex:1 1 auto;min-width:0;display:flex!important;align-items:center;gap:clamp(.2rem,.45vw,.6rem);overflow:visible}
 .navbar-custom .nav-main-zone,.navbar-custom .nav-section-group,.navbar-custom .nav-user-zone{min-width:0;flex:0 1 auto}
 .navbar-custom .nav-main-zone{flex:1 1 auto}

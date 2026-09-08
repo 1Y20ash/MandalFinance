@@ -2,14 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}Shree Ashtavinayak Ganesh Utsav Mandal{% endblock %}</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/static/img/icon-192.svg">
     <link rel="icon" type="image/svg+xml" href="/static/img/icon-192.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
@@ -18,48 +22,20 @@
     <link href="{{ url_for('static', filename='css/expense_categories.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/premium-glass.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/dynamic-navbar.css') }}" rel="stylesheet">
-    <style>
-        .navbar-custom .navbar-brand .brand-copy { min-width: 0; }
-        .navbar-custom .navbar-brand .brand-copy strong {
-            display: block; max-width: 330px; white-space: nowrap; overflow: visible;
-            text-overflow: clip; font-size: .98rem; color: #fff !important;
-            -webkit-text-fill-color: #fff !important;
-        }
-        @media (max-width: 1200px) {
-            .navbar-custom .navbar-brand .brand-copy strong { font-size: .86rem; max-width: 285px; }
-            .nav-main-zone { min-width: 0; }
-        }
-        @media (max-width: 992px) {
-            .navbar-custom .navbar-brand .brand-copy strong { max-width: calc(100vw - 150px); font-size: .92rem; }
-        }
-    </style>
+    <link href="{{ url_for('static', filename='css/mobile-responsive.css') }}" rel="stylesheet">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom" aria-label="Primary navigation">
     <div class="container-fluid nav-shell">
-        <a class="navbar-brand" href="{{ url_for('public.transparency') }}" aria-label="Shree Ashtavinayak Ganesh Utsav Mandal home">
-            <span class="brand-mark" aria-hidden="true">🕉</span>
-            <span class="brand-copy"><strong>Shree Ashtavinayak Ganesh Utsav Mandal</strong><small>Mandal Finance</small></span>
-        </a>
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <a class="navbar-brand" href="{{ url_for('public.transparency') }}" aria-label="Shree Ashtavinayak Ganesh Utsav Mandal home"><span class="brand-mark" aria-hidden="true">🕉</span><span class="brand-copy"><strong>Shree Ashtavinayak Ganesh Utsav Mandal</strong><small>Mandal Finance</small></span></a>
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <div class="nav-main-zone">
-                <div class="nav-section-label">Main</div>
-                <ul class="navbar-nav nav-primary-list">
-                    <li class="nav-item"><a class="nav-link nav-direct" href="{{ url_for('public.transparency') }}" data-route="{{ url_for('public.transparency') }}"><i class="fa-solid fa-eye"></i><span>Transparency</span></a></li>
-                    <li class="nav-item"><a class="nav-link nav-direct donate-link" href="{{ url_for('public.public_donate') }}" data-route="{{ url_for('public.public_donate') }}"><i class="fa-solid fa-hand-holding-dollar"></i><span>Donate Online</span></a></li>
-                    {% if current_user.is_authenticated %}<li class="nav-item"><a class="nav-link nav-direct" href="{{ url_for('dashboard.index') }}" data-route="{{ url_for('dashboard.index') }}"><i class="fa-solid fa-chart-line"></i><span>Dashboard</span></a></li>{% endif %}
-                </ul>
-            </div>
+            <div class="nav-main-zone"><div class="nav-section-label">Main</div><ul class="navbar-nav nav-primary-list"><li class="nav-item"><a class="nav-link nav-direct" href="{{ url_for('public.transparency') }}" data-route="{{ url_for('public.transparency') }}"><i class="fa-solid fa-eye"></i><span>Transparency</span></a></li><li class="nav-item"><a class="nav-link nav-direct donate-link" href="{{ url_for('public.public_donate') }}" data-route="{{ url_for('public.public_donate') }}"><i class="fa-solid fa-hand-holding-dollar"></i><span>Donate Online</span></a></li>{% if current_user.is_authenticated %}<li class="nav-item"><a class="nav-link nav-direct" href="{{ url_for('dashboard.index') }}" data-route="{{ url_for('dashboard.index') }}"><i class="fa-solid fa-chart-line"></i><span>Dashboard</span></a></li>{% endif %}</ul></div>
             {% if current_user.is_authenticated %}
-            <div class="nav-section-group"><div class="nav-section-label">Finance</div><ul class="navbar-nav nav-group-list"><li class="nav-item dropdown nav-group-item"><a class="nav-link dropdown-toggle nav-group-title" href="#" id="financeMenu" data-bs-toggle="dropdown" aria-expanded="false" data-group="finance"><i class="fa-solid fa-coins"></i><span>Finance</span></a><ul class="dropdown-menu dropdown-menu-dark nav-mega-menu" aria-labelledby="financeMenu"><li class="menu-heading">Financial Records</li><li><a class="dropdown-item nav-child" href="{{ url_for('donations.list_donations') }}" data-route="{{ url_for('donations.list_donations') }}"><i class="fa-solid fa-hand-holding-heart"></i><span><strong>Donations</strong><small>Donation records & receipts</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('income.list_income') }}" data-route="{{ url_for('income.list_income') }}"><i class="fa-solid fa-arrow-trend-up"></i><span><strong>Income</strong><small>Other income entries</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('expenses.list_expenses') }}" data-route="{{ url_for('expenses.list_expenses') }}"><i class="fa-solid fa-receipt"></i><span><strong>Expenses</strong><small>Expense records & approvals</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('budgets.index') }}" data-route="{{ url_for('budgets.index') }}"><i class="fa-solid fa-wallet"></i><span><strong>Budgets</strong><small>Planned financial limits</small></span></a></li></ul></li></ul></div>
+            <div class="nav-section-group"><div class="nav-section-label">Finance</div><ul class="navbar-nav nav-group-list"><li class="nav-item dropdown nav-group-item"><a class="nav-link dropdown-toggle nav-group-title" href="#" id="financeMenu" data-bs-toggle="dropdown" aria-expanded="false" data-group="finance"><i class="fa-solid fa-coins"></i><span>Finance</span></a><ul class="dropdown-menu dropdown-menu-dark nav-mega-menu" aria-labelledby="financeMenu"><li class="menu-heading">Financial Records</li><li><a class="dropdown-item nav-child" href="{{ url_for('donations.list_donations') }}" data-route="{{ url_for('donations.list_donations') }}"><i class="fa-solid fa-hand-holding-heart"></i><span><strong>Donations</strong><small>Donation records & receipts</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('income.list_income') }}" data-route="{{ url_for('income.list_income') }}"><i class="fa-solid fa-arrow-trend-up"></i><span><strong>Income</strong><small>Other income entries</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('expenses.list_expenses') }}" data-route="{{ url_for('expenses.list_expenses') }}"><i class="fa-solid fa-receipt"></i><span><strong>Expenses</strong><small>Expense records & approvals</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('budgets.index') }}" data-route="{{ url_for('budgets.index') }}"><i class="fa-solid fa-wallet"></i><span><strong>Budgets</strong><small>Planned financial limits</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('contributions.index') }}" data-route="{{ url_for('contributions.index') }}"><i class="fa-solid fa-handshake"></i><span><strong>Sponsorships & Contributions</strong><small>Commitments and receipt tracking</small></span></a></li></ul></li></ul></div>
             <div class="nav-section-group"><div class="nav-section-label">Operations</div><ul class="navbar-nav nav-group-list"><li class="nav-item dropdown nav-group-item"><a class="nav-link dropdown-toggle nav-group-title" href="#" id="operationsMenu" data-bs-toggle="dropdown" aria-expanded="false" data-group="operations"><i class="fa-solid fa-grid-2"></i><span>Operations</span></a><ul class="dropdown-menu dropdown-menu-dark nav-mega-menu" aria-labelledby="operationsMenu"><li class="menu-heading">Management Tools</li><li><a class="dropdown-item nav-child" href="{{ url_for('vendors.list_vendors') }}" data-route="{{ url_for('vendors.list_vendors') }}"><i class="fa-solid fa-truck"></i><span><strong>Vendors</strong><small>Vendor directory</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('documents.list_documents') }}" data-route="{{ url_for('documents.list_documents') }}"><i class="fa-solid fa-vault"></i><span><strong>Evidence Vault</strong><small>Financial evidence</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('reports.index') }}" data-route="{{ url_for('reports.index') }}"><i class="fa-solid fa-file-invoice-dollar"></i><span><strong>Reports</strong><small>Financial reporting</small></span></a></li></ul></li></ul></div>
-            {% if current_user.is_admin %}
-            <div class="nav-section-group nav-admin-group"><div class="nav-section-label">Administration</div><ul class="navbar-nav nav-group-list"><li class="nav-item dropdown nav-group-item"><a class="nav-link dropdown-toggle nav-group-title admin-title" href="#" id="adminDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-group="admin"><i class="fa-solid fa-user-shield"></i><span>Admin</span></a><ul class="dropdown-menu dropdown-menu-dark nav-mega-menu nav-admin-menu" aria-labelledby="adminDropdown"><li class="menu-heading">System Control</li><li><a class="dropdown-item nav-child" href="{{ url_for('admin.list_users') }}" data-route="{{ url_for('admin.list_users') }}"><i class="fa-solid fa-users-gear"></i><span><strong>User & Role Assignments</strong><small>Manage system access</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('admin.list_roles') }}" data-route="{{ url_for('admin.list_roles') }}"><i class="fa-solid fa-key"></i><span><strong>Role Permissions</strong><small>Review permissions</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('admin.audit_logs') }}" data-route="{{ url_for('admin.audit_logs') }}"><i class="fa-solid fa-clock-rotate-left"></i><span><strong>System Audit Logs</strong><small>Accountability history</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('expenses.list_expense_categories') }}" data-route="{{ url_for('expenses.list_expense_categories') }}"><i class="fa-solid fa-layer-group"></i><span><strong>Expense Categories</strong><small>Manage category structure</small></span></a></li></ul></li></ul></div>
-            {% endif %}{% endif %}
+            {% if current_user.is_admin %}<div class="nav-section-group nav-admin-group"><div class="nav-section-label">Administration</div><ul class="navbar-nav nav-group-list"><li class="nav-item dropdown nav-group-item"><a class="nav-link dropdown-toggle nav-group-title admin-title" href="#" id="adminDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-group="admin"><i class="fa-solid fa-user-shield"></i><span>Admin</span></a><ul class="dropdown-menu dropdown-menu-dark nav-mega-menu nav-admin-menu" aria-labelledby="adminDropdown"><li class="menu-heading">System Control</li><li><a class="dropdown-item nav-child" href="{{ url_for('admin.list_users') }}" data-route="{{ url_for('admin.list_users') }}"><i class="fa-solid fa-users-gear"></i><span><strong>User & Role Assignments</strong><small>Manage system access</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('admin.list_roles') }}" data-route="{{ url_for('admin.list_roles') }}"><i class="fa-solid fa-key"></i><span><strong>Role Permissions</strong><small>Review permissions</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('admin.audit_logs') }}" data-route="{{ url_for('admin.audit_logs') }}"><i class="fa-solid fa-clock-rotate-left"></i><span><strong>System Audit Logs</strong><small>Accountability history</small></span></a></li><li><a class="dropdown-item nav-child" href="{{ url_for('expenses.list_expense_categories') }}" data-route="{{ url_for('expenses.list_expense_categories') }}"><i class="fa-solid fa-layer-group"></i><span><strong>Expense Categories</strong><small>Manage category structure</small></span></a></li></ul></li></ul></div>{% endif %}{% endif %}
             <div class="nav-user-zone"><div class="nav-section-label">Account</div><ul class="navbar-nav nav-user-list">{% if current_user.is_authenticated %}<li class="nav-item dropdown"><a class="nav-link dropdown-toggle user-pill" href="#" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false"><span class="user-avatar"><i class="fa-solid fa-user"></i></span><span class="user-name">{{ current_user.full_name }}</span></a><ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end nav-mega-menu user-menu" aria-labelledby="userMenu"><li class="menu-heading">Your Account</li><li><a class="dropdown-item nav-child" href="{{ url_for('auth.profile') }}" data-route="{{ url_for('auth.profile') }}"><i class="fa-solid fa-user-pen"></i><span><strong>Profile</strong><small>Account details</small></span></a></li><li><a class="dropdown-item nav-child logout-item" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i><span><strong>Logout</strong><small>End current session</small></span></a></li></ul></li>{% else %}<li class="nav-item"><a class="btn login-pill" href="{{ url_for('auth.login') }}"><i class="fa-solid fa-arrow-right-to-bracket"></i><span>Login</span></a></li>{% endif %}</ul></div>
         </div>
     </div>
@@ -78,12 +54,10 @@
  const updateNavigation=()=>{if(!nav)return;const y=window.scrollY||0;nav.classList.toggle('navbar-scrolled',y>12);const max=document.documentElement.scrollHeight-window.innerHeight;nav.style.setProperty('--scroll-progress',`${max>0?Math.min(100,(y/max)*100):0}%`)};
  window.addEventListener('scroll',updateNavigation,{passive:true});window.addEventListener('resize',updateNavigation,{passive:true});updateNavigation();
  const animated=document.querySelectorAll('main .card,main .table-responsive');if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('is-visible');observer.unobserve(entry.target)}}),{threshold:.08,rootMargin:'0px 0px -24px 0px'});animated.forEach((element,index)=>{element.classList.add('reveal-on-scroll');element.style.setProperty('--reveal-delay',`${Math.min(index*45,240)}ms`);observer.observe(element)})}
- if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));window.addEventListener('offline',()=>{const banner=document.getElementById('offlineBanner');if(banner)banner.style.display='block'});window.addEventListener('online',()=>{const banner=document.getElementById('offlineBanner');if(banner)banner.style.display='none'});
+ if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {})); }
 })();
 </script>
-<script>
-/* ResizeObserver makes the navbar react to its actual available app-shell width. */
-(()=>{const nav=document.querySelector('.navbar-custom'),shell=nav?.querySelector('.nav-shell');if(!nav||!shell||!window.ResizeObserver)return;const apply=width=>{nav.classList.toggle('nav-width-tight',width<1100);nav.classList.toggle('nav-width-compact',width>=1100&&width<1400)};const observer=new ResizeObserver(entries=>apply(entries[0]?.contentRect?.width||shell.getBoundingClientRect().width));observer.observe(shell);apply(shell.getBoundingClientRect().width)})();
-</script>
+<script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
 {% block extra_js %}{% endblock %}
-</body></html>
+</body>
+</html>

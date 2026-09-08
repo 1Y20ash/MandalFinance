@@ -5,9 +5,11 @@
 .category-table td { padding: .9rem 1rem; }
 .category-actions { white-space: nowrap; }
 .category-actions .btn { margin-left: .25rem; }
-.expense-category-page .modal-content { border: 0; border-radius: 18px; box-shadow: 0 1rem 3rem rgba(15, 23, 42, .18); }
-.expense-category-page .form-control { border-radius: 10px; }
-.expense-category-page .form-control:focus { box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .12); }
+/* Modals are moved to <body> by the shared modal-safety script so Bootstrap's
+   fixed positioning/backdrop/focus trap never lives inside a page container. */
+.expense-category-modal .modal-content { border: 0; border-radius: 18px; box-shadow: 0 1rem 3rem rgba(15, 23, 42, .18); }
+.expense-category-modal .form-control { border-radius: 10px; }
+.expense-category-modal .form-control:focus { box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .12); }
 @media (max-width: 767.98px) {
   .category-actions { white-space: normal; min-width: 190px; }
   .category-actions .btn { margin: .15rem 0; }
