@@ -40,6 +40,7 @@
                                 <i class="fa-solid fa-pen me-1"></i>Edit
                             </button>
                             <form method="POST" action="{{ url_for('expenses.toggle_expense_category', category_id=category.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm {% if category.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" onclick="return confirm('{{ 'Deactivate' if category.is_active else 'Activate' }} this expense category?')">
                                     <i class="fa-solid {% if category.is_active %}fa-ban{% else %}fa-check{% endif %} me-1"></i>{{ 'Deactivate' if category.is_active else 'Activate' }}
                                 </button>
@@ -60,6 +61,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('expenses.edit_expense_category', category_id=category.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title" id="editCategoryLabel{{ category.id }}">Edit Expense Category</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -88,6 +90,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('expenses.create_expense_category') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title" id="createCategoryLabel">Create Expense Category</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
