@@ -129,12 +129,21 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def has_permission(self, perm_name):
+        """Check authorization from current DB rows rather than cached relationships."""
         if self.is_admin:
             return True
-        for role in self.roles:
-            if role.has_permission(perm_name):
-                return True
-        return False
+        permission_id = (
+            db.session.query(Permission.id)
+            .join(role_permissions, role_permissions.c.permission_id == Permission.id)
+            .join(Role, Role.id == role_permissions.c.role_id)
+            .join(user_roles, user_roles.c.role_id == Role.id)
+            .filter(
+                user_roles.c.user_id == self.id,
+                Permission.name == perm_name,
+            )
+            .first()
+        )
+        return permission_id is not None
 
     def get_permissions(self):
         perms = set()
