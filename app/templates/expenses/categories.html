@@ -55,11 +55,11 @@
     </div>
 </div>
 
-{# Keep all Bootstrap modals outside the table/tbody. Putting block-level modal
-   elements inside tbody produces invalid HTML; browsers repair that DOM in
-   different ways and can leave Bootstrap's backdrop/focus handling stuck. #}
+{# Bootstrap modals must be outside table markup. They are also marked with a
+   page-specific class because the shared base template relocates every modal
+   to <body> before Bootstrap's data API can open it. #}
 {% for category in categories %}
-<div class="modal fade" id="editCategory{{ category.id }}" tabindex="-1" aria-labelledby="editCategoryLabel{{ category.id }}" aria-hidden="true">
+<div class="modal fade expense-category-modal" id="editCategory{{ category.id }}" tabindex="-1" aria-labelledby="editCategoryLabel{{ category.id }}" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('expenses.edit_expense_category', category_id=category.id) }}">
@@ -87,7 +87,7 @@
 </div>
 {% endfor %}
 
-<div class="modal fade" id="createCategoryModal" tabindex="-1" aria-labelledby="createCategoryLabel" aria-hidden="true">
+<div class="modal fade expense-category-modal" id="createCategoryModal" tabindex="-1" aria-labelledby="createCategoryLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('expenses.create_expense_category') }}">
