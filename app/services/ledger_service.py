@@ -171,11 +171,12 @@ class LedgerService:
 
     @staticmethod
     def _effective_transaction_totals(query):
-        """Calculate ledger totals while preserving the economic effect of reversals.
+        """Return economic income/expense totals represented by a transaction query.
 
-        Reversed originals are excluded. Their REVERSAL rows are included with the
-        opposite sign of the original transaction type, so derived balances remain
-        identical to the stored account balance after corrections.
+        Reversal rows are audit-preserving correction records, not a third economic
+        category. A reversal of income removes income and therefore adds an equal
+        expense; a reversal of expense removes expense and therefore adds income.
+        Reversed originals are skipped so the correction is applied exactly once.
         """
         income = MONEY_ZERO
         expense = MONEY_ZERO
@@ -183,31 +184,37 @@ class LedgerService:
         for txn in transactions:
             amount = LedgerService._to_money(txn.amount)
             if txn.transaction_type == 'INCOME':
-                income += amount
+                if not txn.is_reversed:
+                    income += amount
             elif txn.transaction_type == 'EXPENSE':
-                expense += amount
+                if not txn.is_reversed:
+                    expense += amount
             elif txn.transaction_type == 'REVERSAL':
                 original = Transaction.query.filter_by(reversed_by_txn_id=txn.id).first()
                 if original and original.transaction_type == 'INCOME':
-                    income -= amount
+                    expense += amount
                 elif original and original.transaction_type == 'EXPENSE':
-                    expense -= amount
+                    income += amount
         return income, expense
 
     @staticmethod
     def get_ledger_summary(event_id=None):
         fy = FinancialYear.query.filter_by(is_active=True).first()
         opening_balance = LedgerService._to_money(fy.opening_balance if fy else MONEY_ZERO)
-        query = Transaction.query.filter_by(is_reversed=False)
+        query = Transaction.query
         if event_id:
             query = query.filter_by(event_id=event_id)
         total_income, total_expense = LedgerService._effective_transaction_totals(query)
+        effective_count = query.filter(
+            (Transaction.transaction_type.in_(['INCOME', 'EXPENSE'])) & (Transaction.is_reversed.is_(False)) |
+            (Transaction.transaction_type == 'REVERSAL')
+        ).count()
         return {
             'opening_balance': opening_balance,
             'total_income': total_income,
             'total_expense': total_expense,
             'current_balance': opening_balance + total_income - total_expense,
-            'transaction_count': query.count(),
+            'transaction_count': effective_count,
         }
 
     @staticmethod
@@ -217,10 +224,7 @@ class LedgerService:
         results = []
         for account in accounts:
             opening = LedgerService._to_money(account.opening_balance)
-            query = Transaction.query.filter(
-                Transaction.account_id == account.id,
-                Transaction.is_reversed.is_(False),
-            )
+            query = Transaction.query.filter(Transaction.account_id == account.id)
             income, expense = LedgerService._effective_transaction_totals(query)
             expected = opening + income - expense
             stored = LedgerService._to_money(account.current_balance)
