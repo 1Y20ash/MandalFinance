@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, flash, jsonify, redirect, request, url_for
 from flask_login import current_user, login_required
 
 from app.models.ledger import Account
@@ -36,7 +36,11 @@ def account_reconciliation():
 @login_required
 def adjust_opening_balance(account_id):
     if not finance_manage_allowed():
-        return jsonify({'error': 'Financial permission required.'}), 403
+        if request.is_json:
+            return jsonify({'error': 'Financial permission required.'}), 403
+        flash('Financial permission required.', 'danger')
+        return redirect(url_for('reports.reconciliation'))
+
     payload = request.get_json(silent=True) or request.form
     try:
         account = AccountBalanceService.adjust_opening_balance(
@@ -45,12 +49,19 @@ def adjust_opening_balance(account_id):
             current_user,
             payload.get('reason', ''),
         )
-        return jsonify({
+        response = {
             'ok': True,
             'account_id': account.id,
             'account_name': account.name,
             'opening_balance': str(account.opening_balance),
             'current_balance': str(account.current_balance),
-        })
+        }
+        if request.is_json:
+            return jsonify(response)
+        flash(f"Opening balance for {account.name} adjusted successfully.", 'success')
+        return redirect(url_for('reports.reconciliation'))
     except (ValueError, TypeError) as exc:
-        return jsonify({'error': str(exc)}), 400
+        if request.is_json:
+            return jsonify({'error': str(exc)}), 400
+        flash(str(exc), 'danger')
+        return redirect(url_for('reports.reconciliation'))
