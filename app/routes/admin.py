@@ -100,13 +100,35 @@ def assign_user_roles(user_id):
     user = db.session.get(User, user_id)
     if user is None:
         abort(404)
+
     role_ids = request.form.getlist('role_ids', type=int)
-
     selected_roles = Role.query.filter(Role.id.in_(role_ids)).all() if role_ids else []
-    user.roles = selected_roles
-    db.session.commit()
 
-    flash(f'Roles updated for user "{user.username}".', 'success')
+    # Treat role assignment as an auditable security-sensitive operation.
+    old_role_names = sorted(role.name for role in user.roles)
+    new_role_names = sorted(role.name for role in selected_roles)
+
+    if old_role_names == new_role_names:
+        flash(f'Roles for user "{user.username}" are already up to date.', 'info')
+        return redirect(url_for('admin.list_users'))
+
+    try:
+        user.roles = selected_roles
+        AuditService.log_action(
+            'ROLE_CHANGE',
+            'USER',
+            user.id,
+            f"Administrator {current_user.username} changed roles for {user.username}: "
+            f"{old_role_names or ['<none>']} -> {new_role_names or ['<none>']}.",
+            details={'old_roles': old_role_names, 'new_roles': new_role_names},
+            commit=False,
+        )
+        db.session.commit()
+        flash(f'Roles updated for user "{user.username}".', 'success')
+    except Exception:
+        db.session.rollback()
+        flash(f'Unable to update roles for user "{user.username}". No changes were saved.', 'danger')
+
     return redirect(url_for('admin.list_users'))
 
 
