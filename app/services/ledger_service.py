@@ -171,12 +171,12 @@ class LedgerService:
 
     @staticmethod
     def _effective_transaction_totals(query):
-        """Return economic income/expense totals represented by a transaction query.
+        """Calculate economic totals without double-counting preserved reversals.
 
-        Reversal rows are audit-preserving correction records, not a third economic
-        category. A reversal of income removes income and therefore adds an equal
-        expense; a reversal of expense removes expense and therefore adds income.
-        Reversed originals are skipped so the correction is applied exactly once.
+        Originals remain in the immutable ledger even after reversal. The original
+        contributes its normal economic effect, while its REVERSAL row removes that
+        exact effect. This keeps derived totals aligned with the stored account
+        balance while preserving the complete audit trail.
         """
         income = MONEY_ZERO
         expense = MONEY_ZERO
@@ -184,17 +184,15 @@ class LedgerService:
         for txn in transactions:
             amount = LedgerService._to_money(txn.amount)
             if txn.transaction_type == 'INCOME':
-                if not txn.is_reversed:
-                    income += amount
+                income += amount
             elif txn.transaction_type == 'EXPENSE':
-                if not txn.is_reversed:
-                    expense += amount
+                expense += amount
             elif txn.transaction_type == 'REVERSAL':
                 original = Transaction.query.filter_by(reversed_by_txn_id=txn.id).first()
                 if original and original.transaction_type == 'INCOME':
-                    expense += amount
+                    income -= amount
                 elif original and original.transaction_type == 'EXPENSE':
-                    income += amount
+                    expense -= amount
         return income, expense
 
     @staticmethod
@@ -206,7 +204,7 @@ class LedgerService:
             query = query.filter_by(event_id=event_id)
         total_income, total_expense = LedgerService._effective_transaction_totals(query)
         effective_count = query.filter(
-            (Transaction.transaction_type.in_(['INCOME', 'EXPENSE'])) & (Transaction.is_reversed.is_(False)) |
+            ((Transaction.transaction_type.in_(['INCOME', 'EXPENSE'])) & Transaction.is_reversed.is_(False)) |
             (Transaction.transaction_type == 'REVERSAL')
         ).count()
         return {
