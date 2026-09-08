@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Ledger Reconciliation - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="fa-solid fa-scale-balanced me-2 text-primary"></i>Ledger Reconciliation</h3>
+        <p class="text-muted mb-0">Compare stored account balances with balances independently derived from the central ledger.</p>
+    </div>
+    {% if current_user.is_admin or current_user.has_permission('report.export') %}
+    <a href="{{ url_for('reports.export_csv', report_type='reconciliation') }}" class="btn btn-outline-primary">
+        <i class="fa-solid fa-file-csv me-2"></i>Export Reconciliation
+    </a>
+    {% endif %}
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-semibold" for="account_id">Account</label>
+                <select class="form-select" id="account_id" name="account_id">
+                    <option value="">All accounts</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}" {% if selected_account_id == account.id %}selected{% endif %}>
+                        {{ account.name }} ({{ account.account_type|upper }}){% if not account.is_active %} — Inactive{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" type="submit"><i class="fa-solid fa-filter me-2"></i>Apply</button>
+            </div>
+            <div class="col-auto">
+                <a class="btn btn-outline-secondary" href="{{ url_for('reports.reconciliation') }}">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set balanced_count = rows|selectattr('is_balanced')|list|length %}
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <div class="text-muted small">Accounts checked</div><div class="fs-3 fw-bold">{{ rows|length }}</div>
+        </div></div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <div class="text-muted small">Balanced</div><div class="fs-3 fw-bold text-success">{{ balanced_count }}</div>
+        </div></div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card border-0 shadow-sm h-100"><div class="card-body">
+            <div class="text-muted small">Exceptions</div><div class="fs-3 fw-bold {% if rows|length - balanced_count %}text-danger{% else %}text-success{% endif %}">{{ rows|length - balanced_count }}</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+        <span>Account Balance Integrity</span>
+        {% if current_user.is_admin or current_user.has_permission('finance.manage') %}
+        <span class="small fw-normal opacity-75"><i class="fa-solid fa-lock me-1"></i>Opening balance adjustments require a reason and are audited</span>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr>
+                <th>Account</th><th>Opening</th><th>Ledger Income</th><th>Ledger Expense</th>
+                <th>Expected</th><th>Stored</th><th>Difference</th><th>Status</th>
+                {% if current_user.is_admin or current_user.has_permission('finance.manage') %}<th>Actions</th>{% endif %}
+            </tr></thead>
+            <tbody>
+            {% for row in rows %}
+            <tr>
+                <td><strong>{{ row.account.name }}</strong><div class="small text-muted">{{ row.account.account_type|upper }}</div></td>
+                <td>{{ row.opening_balance|currency }}</td>
+                <td class="text-success">+ {{ row.income|currency }}</td>
+                <td class="text-danger">- {{ row.expense|currency }}</td>
+                <td class="fw-semibold">{{ row.expected_balance|currency }}</td>
+                <td class="fw-semibold">{{ row.stored_balance|currency }}</td>
+                <td class="{% if row.is_balanced %}text-success{% else %}text-danger fw-bold{% endif %}">{{ row.difference|currency }}</td>
+                <td>
+                    {% if row.is_balanced %}<span class="badge text-bg-success">BALANCED</span>
+                    {% else %}<span class="badge text-bg-danger">EXCEPTION</span>{% endif %}
+                </td>
+                {% if current_user.is_admin or current_user.has_permission('finance.manage') %}
+                <td>
+                    {% if row.account.is_active %}
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleOpeningBalanceForm({{ row.account.id }})" aria-controls="openingBalanceForm{{ row.account.id }}" aria-expanded="false">
+                        <i class="fa-solid fa-pen-to-square me-1"></i>Edit Opening Balance
+                    </button>
+                    {% else %}
+                    <span class="badge text-bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% if row.account.is_active %}
+            <tr id="openingBalanceForm{{ row.account.id }}" class="d-none bg-body-secondary">
+                <td colspan="9">
+                    <div class="p-3">
+                        <form method="post" action="{{ url_for('account_balances.adjust_opening_balance', account_id=row.account.id) }}" class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="openingBalance{{ row.account.id }}">New opening balance</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" class="form-control" id="openingBalance{{ row.account.id }}" name="opening_balance" min="0" step="0.01" value="{{ row.opening_balance }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-semibold" for="openingReason{{ row.account.id }}">Reason <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="openingReason{{ row.account.id }}" name="reason" rows="2" maxlength="1000" required placeholder="Explain why the opening balance needs adjustment"></textarea>
+                            </div>
+                            <div class="col-md-3 d-flex gap-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="button" class="btn btn-outline-secondary" onclick="toggleOpeningBalanceForm({{ row.account.id }})">Cancel</button>
+                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check me-1"></i>Save Adjustment</button>
+                            </div>
+                        </form>
+                        <div class="form-text mt-2"><i class="fa-solid fa-circle-info me-1"></i>This changes opening and current balance by the same delta and creates a permanent audit record.</div>
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+            {% endif %}
+            {% else %}
+            <tr><td colspan="{% if current_user.is_admin or current_user.has_permission('finance.manage') %}9{% else %}8{% endif %}" class="text-center text-muted py-4">No accounts found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white fw-bold">Recent Ledger Activity</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Transaction</th><th>Account</th><th>Type</th><th>Amount</th><th>Source</th><th>Reference</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for txn in transactions %}
+            <tr>
+                <td><code>{{ txn.transaction_ref }}</code></td>
+                <td>{{ txn.account.name if txn.account else '—' }}</td>
+                <td><span class="badge {% if txn.transaction_type == 'INCOME' %}text-bg-success{% elif txn.transaction_type == 'EXPENSE' %}text-bg-danger{% else %}text-bg-secondary{% endif %}">{{ txn.transaction_type }}</span></td>
+                <td class="fw-semibold">{{ txn.amount|currency }}</td>
+                <td>{{ txn.source_module }}{% if txn.source_id %} #{{ txn.source_id }}{% endif %}</td>
+                <td>{{ txn.external_ref or '—' }}</td>
+                <td>{{ txn.transaction_date.strftime('%d %b %Y %H:%M') }}</td>
+                <td>{% if txn.is_reversed %}<span class="badge text-bg-warning">REVERSED</span>{% else %}<span class="badge text-bg-success">POSTED</span>{% endif %}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No ledger transactions found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleOpeningBalanceForm(accountId) {
+    const formRow = document.getElementById('openingBalanceForm' + accountId);
+    if (!formRow) return;
+    const hidden = formRow.classList.toggle('d-none');
+    const button = document.querySelector('[aria-controls="openingBalanceForm' + accountId + '"]');
+    if (button) button.setAttribute('aria-expanded', String(!hidden));
+    if (!hidden) {
+        const input = document.getElementById('openingBalance' + accountId);
+        if (input) input.focus();
+    }
+}
+</script>
+{% endblock %}

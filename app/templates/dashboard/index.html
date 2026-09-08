@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Financial Dashboard - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0">Financial Dashboard</h3>
+        <p class="text-muted small mb-0">Event: <strong>{{ active_event.title if active_event else 'All Events' }}</strong></p>
+    </div>
+    <div>
+        <a href="{{ url_for('donations.create_donation') }}" class="btn btn-success me-2"><i class="fa-solid fa-plus me-1"></i>Record Donation</a>
+        <a href="{{ url_for('expenses.create_expense') }}" class="btn btn-danger"><i class="fa-solid fa-receipt me-1"></i>Submit Expense</a>
+    </div>
+</div>
+
+<!-- Key Financial Metrics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-stat bg-white p-3 border-start border-4 border-success shadow-sm">
+            <span class="text-muted small fw-bold">TOTAL INCOME</span>
+            <h4 class="fw-bold text-success mb-0">{{ summary.total_income | currency }}</h4>
+            <span class="small text-muted">Donations, Sponsorships & Contributions</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat bg-white p-3 border-start border-4 border-danger shadow-sm">
+            <span class="text-muted small fw-bold">TOTAL EXPENSES</span>
+            <h4 class="fw-bold text-danger mb-0">{{ summary.total_expense | currency }}</h4>
+            <span class="small text-muted">Paid Mandal Operations</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat bg-white p-3 border-start border-4 border-primary shadow-sm">
+            <span class="text-muted small fw-bold">CURRENT BALANCE</span>
+            <h4 class="fw-bold text-primary mb-0">{{ summary.current_balance | currency }}</h4>
+            <span class="small text-muted">Available Cash + Bank + UPI</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat bg-white p-3 border-start border-4 border-warning shadow-sm">
+            <span class="text-muted small fw-bold">PENDING APPROVALS</span>
+            <h4 class="fw-bold text-warning mb-0">{{ pending_approvals }}</h4>
+            <span class="small text-muted">Expenses awaiting review</span>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold">Expense Breakdown by Category</div>
+            <div class="card-body">
+                <canvas id="categoryChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold">Income Breakdown</div>
+            <div class="card-body">
+                <canvas id="incomeChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+fetch("{{ url_for('dashboard.analytics_data') }}")
+    .then(r => r.json())
+    .then(data => {
+        // Category Expenses Chart
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: data.categories.length ? data.categories : ['No Expenses Yet'],
+                datasets: [{
+                    data: data.category_expenses.length ? data.category_expenses : [0],
+                    backgroundColor: ['#d9534f', '#f0ad4e', '#5bc0de', '#0275d8', '#5cb85c', '#6c757d']
+                }]
+            }
+        });
+
+        // Income Breakdown Chart
+        new Chart(document.getElementById('incomeChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Total Income', 'Total Expense', 'Current Balance'],
+                datasets: [{
+                    label: 'Amount (₹)',
+                    data: [data.total_income, data.total_expense, data.current_balance],
+                    backgroundColor: ['#5cb85c', '#d9534f', '#0275d8']
+                }]
+            },
+            options: { scales: { y: { beginAtZero: true } } }
+        });
+    });
+</script>
+{% endblock %}

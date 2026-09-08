@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Upload Document - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white fw-bold">
+                <i class="fa-solid fa-cloud-arrow-up me-2"></i>Upload Financial Document Proof
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select File (PDF, Image, Scan)</label>
+                        <input type="file" name="file" class="form-control" required>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Document Title</label>
+                            <input type="text" name="title" class="form-control" placeholder="e.g. Stage Vendor Invoice #104" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Category</label>
+                            <select name="category" class="form-select" required>
+                                <option value="BILL">BILL</option>
+                                <option value="INVOICE">INVOICE</option>
+                                <option value="RECEIPT">RECEIPT</option>
+                                <option value="PAYMENT_PROOF">PAYMENT PROOF</option>
+                                <option value="DONATION_PROOF">DONATION PROOF</option>
+                                <option value="BANK_STATEMENT">BANK STATEMENT</option>
+                                <option value="QUOTATION">QUOTATION</option>
+                                <option value="AGREEMENT">AGREEMENT</option>
+                                <option value="OTHER">OTHER</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Linked Entity Type</label>
+                            <select name="entity_type" class="form-select" required>
+                                <option value="EXPENSE" {% if entity_type == 'EXPENSE' %}selected{% endif %}>EXPENSE</option>
+                                <option value="DONATION" {% if entity_type == 'DONATION' %}selected{% endif %}>DONATION</option>
+                                <option value="SPONSORSHIP" {% if entity_type == 'SPONSORSHIP' %}selected{% endif %}>SPONSORSHIP</option>
+                                <option value="VENDOR" {% if entity_type == 'VENDOR' %}selected{% endif %}>VENDOR</option>
+                                <option value="GENERAL" {% if entity_type == 'GENERAL' %}selected{% endif %}>GENERAL</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Linked Entity ID</label>
+                            <input type="number" name="entity_id" class="form-control" value="{{ entity_id or '' }}" placeholder="ID of linked expense/donation">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description / Rationale</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('documents.list_documents') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4"><i class="fa-solid fa-upload me-1"></i>Upload & Compute SHA-256 Hash</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

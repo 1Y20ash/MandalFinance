@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Roles & Permissions - Admin RBAC{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="fw-bold mb-0"><i class="fa-solid fa-shield-halved me-2 text-info"></i>Roles & Dynamic Permission Management</h3>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createRoleModal">
+        <i class="fa-solid fa-plus me-1"></i>Create New Role
+    </button>
+</div>
+
+<div class="row g-4">
+    {% for role in roles %}
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">{{ role.name }}</h5>
+                    {% if role.is_system %}<span class="badge bg-secondary mt-1">System Role</span>{% endif %}
+                </div>
+                {% if not role.is_system %}
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="modal" data-bs-target="#editRole{{ role.id }}">
+                        <i class="fa-solid fa-pen me-1"></i>Edit
+                    </button>
+                    <form method="POST" action="{{ url_for('admin.delete_role', role_id=role.id) }}" class="d-inline" onsubmit="return confirm('Delete this role? This action cannot be undone.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="fa-solid fa-trash me-1"></i>Delete
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">{{ role.description or 'No description provided.' }}</p>
+                <h6 class="fw-bold small text-uppercase">Assigned Permissions:</h6>
+                <div>
+                    {% for perm in role.permissions %}
+                        <span class="badge bg-primary me-1 mb-1">{{ perm.name }}</span>
+                    {% else %}
+                        <span class="text-muted small">No permissions attached.</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal Create Role -->
+<div class="modal fade" id="createRoleModal" tabindex="-1" aria-labelledby="createRoleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.create_role') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createRoleLabel">Create New Role</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Role Name</label>
+                        <input type="text" name="name" class="form-control" maxlength="64" placeholder="e.g. Treasurer, Auditor, Volunteer" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" name="description" class="form-control" maxlength="255" placeholder="Description of role responsibilities">
+                    </div>
+                    <h6 class="fw-bold border-bottom pb-2">Attach Permissions</h6>
+                    <div class="row g-2">
+                        {% for perm in permissions %}
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="permission_ids" value="{{ perm.id }}" id="create_perm_{{ perm.id }}">
+                                <label class="form-check-label small" for="create_perm_{{ perm.id }}">
+                                    <code>{{ perm.name }}</code> - <span class="text-muted">{{ perm.description }}</span>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Role</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Role Modals -->
+{% for role in roles if not role.is_system %}
+<div class="modal fade role-management-modal" id="editRole{{ role.id }}" tabindex="-1" aria-labelledby="editRoleLabel{{ role.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.edit_role', role_id=role.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editRoleLabel{{ role.id }}">Edit Role: {{ role.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="roleName{{ role.id }}">Role Name</label>
+                        <input id="roleName{{ role.id }}" type="text" name="name" class="form-control" maxlength="64" value="{{ role.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="roleDescription{{ role.id }}">Description</label>
+                        <textarea id="roleDescription{{ role.id }}" name="description" class="form-control" maxlength="255" rows="2">{{ role.description or '' }}</textarea>
+                    </div>
+                    <h6 class="fw-bold border-bottom pb-2">Role Constraints / Permissions</h6>
+                    <p class="text-muted small">Select the permissions this role should have. Saving replaces the current permission set.</p>
+                    <div class="row g-2">
+                        {% for perm in permissions %}
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="permission_ids" value="{{ perm.id }}" id="role{{ role.id }}_perm{{ perm.id }}" {% if perm in role.permissions %}checked{% endif %}>
+                                <label class="form-check-label small" for="role{{ role.id }}_perm{{ perm.id }}">
+                                    <code>{{ perm.name }}</code> - <span class="text-muted">{{ perm.description }}</span>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Role Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.modal').forEach(function (modal) {
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Register - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-3 py-lg-4">
+    <div class="col-sm-11 col-md-9 col-lg-7 col-xl-6">
+        <div class="card shadow-lg border-0 premium-glass-card overflow-hidden">
+            <div class="card-body p-4 p-lg-5">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning bg-opacity-10 text-warning p-3 mb-3" aria-hidden="true">
+                        <span class="fs-2">🕉</span>
+                    </div>
+                    <div class="text-uppercase small fw-bold text-muted">Member registration</div>
+                    <h2 class="fw-bold mt-1 mb-2">Mandal Member Registration</h2>
+                    <p class="text-muted small mb-3">Request an account to join Shree Ashtavinayak Ganesh Utsav Mandal</p>
+                    <span class="badge rounded-pill text-bg-warning px-3 py-2"><i class="fa-solid fa-user-shield me-1"></i>Administrator approval required</span>
+                </div>
+
+                <div class="alert alert-info border-0 bg-info bg-opacity-10 small" role="note">
+                    <div class="d-flex gap-2">
+                        <i class="fa-solid fa-circle-info mt-1"></i>
+                        <div><strong>What happens next?</strong><br>Your request is created as <strong>Pending</strong>. An administrator must approve it before you can sign in.</div>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('auth.register') }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-7">
+                            <label for="full_name" class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" placeholder="e.g. Ramesh Patil" maxlength="120" autocomplete="name" required autofocus>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="phone" class="form-label fw-semibold">Phone Number</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" placeholder="10-digit mobile" maxlength="20" autocomplete="tel">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="username" class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Choose a unique username" maxlength="64" autocomplete="username" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" maxlength="120" autocomplete="email" required>
+                    </div>
+
+                    <div class="row g-3 mb-2">
+                        <div class="col-md-6">
+                            <label for="password" class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="password" name="password" minlength="8" autocomplete="new-password" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="confirm_password" class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="8" autocomplete="new-password" required>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 bg-body-secondary mt-3 mb-4">
+                        <div class="card-body py-3">
+                            <div class="d-flex gap-2 align-items-start">
+                                <i class="fa-solid fa-shield-halved text-success mt-1"></i>
+                                <div class="small">
+                                    <strong>Password security</strong>
+                                    <div class="text-muted">Minimum 8 characters. Passwords are protected using PBKDF2-HMAC-SHA256 with 600,000 iterations.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
+                        <i class="fa-solid fa-paper-plane me-2"></i>Submit Registration Request
+                    </button>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <span class="text-muted small">Already have an account?</span>
+                        <a href="{{ url_for('auth.login') }}" class="fw-bold text-decoration-none ms-1">Log In</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

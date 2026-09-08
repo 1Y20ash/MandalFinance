@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Shree Ashtavinayak Ganesh Utsav Mandal | Ganpati Bappa Morya{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/home.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/pwa-install.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<section class="home-hero" aria-labelledby="home-title">
+    <div class="hero-glow hero-glow-one"></div>
+    <div class="hero-glow hero-glow-two"></div>
+    <div class="hero-particles" aria-hidden="true">
+        <span>✦</span><span>•</span><span>✧</span><span>•</span><span>✦</span><span>•</span><span>✧</span><span>•</span>
+    </div>
+    <div class="hero-mandala" aria-hidden="true"></div>
+    <div class="hero-diya diya-left" aria-hidden="true">🪔</div>
+    <div class="hero-diya diya-right" aria-hidden="true">🪔</div>
+
+    <div class="hero-content">
+        <div class="hero-kicker"><span></span> Shree Ashtavinayak Ganesh Utsav Mandal <span></span></div>
+        <div class="hero-om" aria-hidden="true">ॐ</div>
+        <p class="hero-mantra">ॐ गं गणपतये नमः</p>
+        <h1 id="home-title">Ganpati Bappa Morya</h1>
+        <p class="hero-location"><i class="fa-solid fa-location-dot"></i> Panchasheel Nagar, Gittikhadan · Nagpur, Maharashtra</p>
+        <p class="hero-message">A celebration of faith, community and seva — with every contribution handled with honesty, care and accountability.</p>
+        <div class="hero-actions">
+            <a href="{{ url_for('public.public_donate') }}" class="btn btn-hero-primary"><i class="fa-solid fa-heart"></i> Offer Your Seva</a>
+            <a href="#transparency" class="btn btn-hero-secondary"><i class="fa-solid fa-eye"></i> View Transparency</a>
+        </div>
+        <div class="hero-trust"><i class="fa-solid fa-shield-heart"></i><span>Every rupee in. Every rupee out. Every transaction accounted for.</span></div>
+    </div>
+    <div class="hero-scroll" aria-hidden="true"><span>Scroll to explore</span><i class="fa-solid fa-chevron-down"></i></div>
+</section>
+
+<section class="devotion-strip" aria-label="Mandal values">
+    <div><i class="fa-solid fa-hands-praying"></i><strong>Bhakti</strong><span>Faith in every celebration</span></div>
+    <div><i class="fa-solid fa-people-group"></i><strong>Seva</strong><span>Community before self</span></div>
+    <div><i class="fa-solid fa-heart"></i><strong>Shraddha</strong><span>Every offering with sincerity</span></div>
+    <div><i class="fa-solid fa-shield-halved"></i><strong>Vishwas</strong><span>Trust through transparency</span></div>
+</section>
+
+<section id="transparency" class="home-section">
+    <div class="section-heading">
+        <span class="section-eyebrow">Public accountability</span>
+        <h2>Faith deserves transparency.</h2>
+        <p>Our financial records are presented openly so devotees can see how the Utsav is supported and managed.</p>
+    </div>
+
+    <div class="financial-summary row g-4">
+        <div class="col-lg-4">
+            <article class="financial-card income-card h-100">
+                <div class="financial-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                <span>Approved income</span>
+                <strong>{{ summary.total_income | currency }}</strong>
+                <small>Donations & contributions received</small>
+                <div class="card-accent"></div>
+            </article>
+        </div>
+        <div class="col-lg-4">
+            <article class="financial-card expense-card h-100">
+                <div class="financial-icon"><i class="fa-solid fa-receipt"></i></div>
+                <span>Approved expenses</span>
+                <strong>{{ summary.total_expense | currency }}</strong>
+                <small>Verified festival expenditure</small>
+                <div class="card-accent"></div>
+            </article>
+        </div>
+        <div class="col-lg-4">
+            <article class="financial-card balance-card h-100">
+                <div class="financial-icon"><i class="fa-solid fa-vault"></i></div>
+                <span>Approved balance</span>
+                <strong>{{ summary.current_balance | currency }}</strong>
+                <small>Current Mandal cash & bank balance</small>
+                <div class="card-accent"></div>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="home-story">
+    <div class="story-art" aria-hidden="true">
+        <div class="story-halo"></div>
+        <div class="story-om">ॐ</div>
+        <span class="story-dot dot-one"></span><span class="story-dot dot-two"></span><span class="story-dot dot-three"></span>
+    </div>
+    <div class="story-copy">
+        <span class="section-eyebrow">Seva with integrity</span>
+        <h2>Let devotion be the beginning. Let accountability be the promise.</h2>
+        <p>Every offering made to the Mandal is part of a shared celebration. Our digital records connect money, transactions, supporting evidence, approvals and audit history — keeping the spirit of seva aligned with responsible stewardship.</p>
+        <div class="accountability-chain">
+            <span>Offering</span><i class="fa-solid fa-arrow-right"></i><span>Transaction</span><i class="fa-solid fa-arrow-right"></i><span>Evidence</span><i class="fa-solid fa-arrow-right"></i><span>Approval</span><i class="fa-solid fa-arrow-right"></i><span>Audit</span>
+        </div>
+    </div>
+</section>
+
+<section class="support-section">
+    <div class="support-card">
+        <div class="support-aura"></div>
+        <div class="support-icon">🙏</div>
+        <span class="section-eyebrow">Be part of the Utsav</span>
+        <h2>Your seva helps keep the celebration alive.</h2>
+        <p>Support Ganesh Utsav 2026 with a contribution of your choice. Your offering is recorded responsibly and a digital receipt is provided.</p>
+        <a href="{{ url_for('public.public_donate') }}" class="btn btn-support"><i class="fa-solid fa-hand-holding-heart"></i> Make a Contribution</a>
+    </div>
+</section>
+
+<section class="home-closing" aria-label="Ganesh Utsav message">
+    <div class="closing-line"></div>
+    <p>May Lord Ganesha bless every home with wisdom, prosperity and peace.</p>
+    <strong>गणपती बाप्पा मोरया! 🙏</strong>
+    <div class="closing-line"></div>
+</section>
+
+<div id="pwaInstallPrompt" class="pwa-install-backdrop" role="region" aria-label="Install Mandal app" hidden>
+    <div class="pwa-install-card">
+        <div class="pwa-install-aura" aria-hidden="true"></div>
+        <button type="button" class="pwa-install-close" id="pwaInstallClose" aria-label="Close install card"><i class="fa-solid fa-xmark"></i></button>
+        <div class="pwa-install-content">
+            <div class="pwa-install-header">
+                <img class="pwa-install-logo" src="{{ url_for('static', filename='img/icon-192.svg') }}" alt="Ganesh logo">
+                <div class="pwa-install-copy">
+                    <span class="pwa-install-kicker">Shree Ashtavinayak Mandal</span>
+                    <h2 class="pwa-install-title">Install the Mandal App</h2>
+                </div>
+            </div>
+            <p class="pwa-install-text">Keep Mandal transparency, seva and financial accountability just one tap away.</p>
+
+            <div class="pwa-install-ios-note" id="pwaInstallIosNote">
+                <strong>On iPhone or iPad:</strong> tap Safari's <strong>Share</strong> button <i class="fa-solid fa-arrow-up-from-bracket" aria-hidden="true"></i>, then choose <strong>Add to Home Screen</strong>.
+            </div>
+
+            <div class="pwa-install-actions">
+                <button type="button" class="btn pwa-install-primary" id="pwaInstallAction"><i class="fa-solid fa-download"></i> Install App</button>
+                <button type="button" class="btn pwa-install-secondary" id="pwaInstallLater">Maybe Later</button>
+            </div>
+            <p class="pwa-install-hint" id="pwaInstallHint">One tap installs the app when your browser supports direct PWA installation.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+    const prompt = document.getElementById('pwaInstallPrompt');
+    const card = prompt?.querySelector('.pwa-install-card');
+    const action = document.getElementById('pwaInstallAction');
+    const close = document.getElementById('pwaInstallClose');
+    const later = document.getElementById('pwaInstallLater');
+    const hint = document.getElementById('pwaInstallHint');
+    if (!prompt || !card || !action || !close || !later) return;
+
+    let deferredPrompt = null;
+    const sessionKey = 'ashtavinayak_pwa_install_prompt_shown';
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isStandalone = window.navigator.standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches;
+
+    const wasShownThisSession = () => {
+        try { return sessionStorage.getItem(sessionKey) === '1'; } catch (_) { return false; }
+    };
+
+    const markShown = () => {
+        try { sessionStorage.setItem(sessionKey, '1'); } catch (_) {}
+    };
+
+    const hidePrompt = () => {
+        prompt.classList.remove('is-visible');
+        window.setTimeout(() => { prompt.hidden = true; }, 260);
+    };
+
+    const showPrompt = () => {
+        if (isStandalone || wasShownThisSession() || prompt.classList.contains('is-visible')) return;
+        markShown();
+        if (isIOS) {
+            card.classList.add('is-ios');
+            action.innerHTML = '<i class="fa-solid fa-share-nodes"></i> How to Install';
+            hint.textContent = 'iOS does not expose a one-click web install API; use Share → Add to Home Screen.';
+        }
+        prompt.hidden = false;
+        requestAnimationFrame(() => prompt.classList.add('is-visible'));
+    };
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredPrompt = event;
+        if (!isStandalone && !isIOS) showPrompt();
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredPrompt = null;
+        hidePrompt();
+    });
+
+    action.addEventListener('click', async () => {
+        if (isIOS) {
+            hint.textContent = 'Safari: Share ↑ → Add to Home Screen → Add.';
+            return;
+        }
+        if (!deferredPrompt) return;
+        try {
+            await deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+        } catch (_) {}
+        deferredPrompt = null;
+        hidePrompt();
+    });
+
+    [close, later].forEach(button => button.addEventListener('click', hidePrompt));
+
+    if (isIOS && !isStandalone) {
+        window.setTimeout(showPrompt, 900);
+    }
+})();
+</script>
+{% endblock %}

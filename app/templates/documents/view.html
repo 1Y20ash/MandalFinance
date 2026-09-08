@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Document {{ doc.doc_ref }} - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Metadata & Integrity -->
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fa-solid fa-file-shield me-2"></i>Document: {{ doc.doc_ref }}</h5>
+                <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-success" target="_blank">
+                    <i class="fa-solid fa-download me-1"></i>Download File
+                </a>
+            </div>
+            <div class="card-body p-4">
+                <table class="table align-middle">
+                    <tr><th>Title</th><td class="fw-bold">{{ doc.title }}</td></tr>
+                    <tr><th>Category</th><td><span class="badge bg-secondary">{{ doc.category }}</span></td></tr>
+                    <tr><th>Linked Entity</th><td>{{ doc.entity_type }} #{{ doc.entity_id or 'Gen' }}</td></tr>
+                    <tr><th>Original Filename</th><td>{{ doc.original_filename }}</td></tr>
+                    <tr><th>File Size</th><td>{{ (doc.file_size / 1024) | round(1) }} KB</td></tr>
+                    <tr><th>Current Version</th><td><span class="badge bg-info text-dark">v{{ doc.current_version_number }}</span></td></tr>
+                    <tr><th>Recorded SHA-256 Hash</th><td><code class="small text-break">{{ doc.current_sha256_hash }}</code></td></tr>
+                    <tr><th>Storage Provider</th><td>{{ doc.storage_provider }}</td></tr>
+                    <tr><th>Uploaded By</th><td>{{ doc.uploaded_by.full_name }}</td></tr>
+                    <tr><th>Uploaded At</th><td>{{ doc.created_at.strftime('%d-%b-%Y %H:%M') }}</td></tr>
+                </table>
+
+                <div class="d-flex gap-2 border-top pt-3 mt-3">
+                    <a href="{{ url_for('documents.verify_document', doc_id=doc.id) }}" class="btn btn-outline-success">
+                        <i class="fa-solid fa-shield-halved me-1"></i>Re-verify SHA-256 Integrity
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Replace Document Form (Version N+1) -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-warning text-dark fw-bold">
+                <i class="fa-solid fa-code-compare me-2"></i>Replace Document (Creates Version v{{ doc.current_version_number + 1 }})
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('documents.replace_document', doc_id=doc.id) }}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">New File</label>
+                        <input type="file" name="file" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Replacement Rationale</label>
+                        <input type="text" name="replacement_reason" class="form-control" placeholder="Explain why file is being updated..." required>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100"><i class="fa-solid fa-upload me-1"></i>Upload Version v{{ doc.current_version_number + 1 }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Full Version History Log -->
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-secondary text-white fw-bold">
+                <i class="fa-solid fa-clock-rotate-left me-2"></i>Version History Log (Immutable)
+            </div>
+            <div class="card-body p-3">
+                <ul class="list-group list-group-flush small">
+                    {% for ver in doc.versions %}
+                    <li class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="text-primary">Version v{{ ver.version_number }}</strong>
+                            <span class="text-muted">{{ ver.created_at.strftime('%d-%b-%Y %H:%M') }}</span>
+                        </div>
+                        <div>File: {{ ver.original_filename }} ({{ (ver.file_size/1024)|round(1) }} KB)</div>
+                        <div><code class="small text-break">Hash: {{ ver.sha256_hash[:16] }}...</code></div>
+                        <div class="text-muted italic">Reason: {{ ver.replacement_reason }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Donations - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="fw-bold mb-0"><i class="fa-solid fa-hand-holding-heart me-2 text-danger"></i>Donations Management</h3>
+    <a href="{{ url_for('donations.create_donation') }}" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Record Offline Donation</a>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2">
+            <div class="col-md-5">
+                <input type="text" name="q" class="form-control" placeholder="Search by donor name, donation no, or receipt no..." value="{{ search_query }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="SUCCESS" {% if status_filter == 'SUCCESS' %}selected{% endif %}>SUCCESS</option>
+                    <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>PENDING</option>
+                    <option value="FAILED" {% if status_filter == 'FAILED' %}selected{% endif %}>FAILED</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Donation No</th>
+                    <th>Receipt No</th>
+                    <th>Donor Name</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Mode</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in pagination.items %}
+                <tr>
+                    <td class="fw-bold">{{ d.donation_number }}</td>
+                    <td>{{ d.receipt_number or '-' }}</td>
+                    <td>{{ d.donor_name }}</td>
+                    <td class="fw-bold text-success">{{ d.amount | currency }}</td>
+                    <td><span class="badge bg-secondary">{{ d.donation_type }}</span></td>
+                    <td>{{ d.payment_mode }}</td>
+                    <td>
+                        {% if d.status == 'SUCCESS' %}
+                            <span class="badge bg-success">SUCCESS</span>
+                        {% elif d.status == 'PENDING' %}
+                            <span class="badge bg-warning text-dark">PENDING</span>
+                        {% else %}
+                            <span class="badge bg-danger">{{ d.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ d.created_at.strftime('%d-%b-%Y') }}</td>
+                    <td>
+                        <a href="{{ url_for('donations.view_donation', donation_id=d.id) }}" class="btn btn-sm btn-outline-info me-1"><i class="fa-solid fa-eye"></i></a>
+                        {% if d.status == 'SUCCESS' %}
+                        <a href="{{ url_for('donations.download_receipt', donation_id=d.id) }}" class="btn btn-sm btn-outline-success" target="_blank"><i class="fa-solid fa-file-pdf"></i></a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="text-center py-4 text-muted">No donations found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

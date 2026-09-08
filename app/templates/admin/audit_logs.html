@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}System Audit Logs - Admin RBAC{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-3"><i class="fa-solid fa-list-check me-2 text-danger"></i>System Audit Trail Logs</h3>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>Description</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in pagination.items %}
+                <tr>
+                    <td>#{{ log.id }}</td>
+                    <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td class="fw-bold">{{ log.user_email or 'System / Public' }}</td>
+                    <td><span class="badge bg-secondary">{{ log.action }}</span></td>
+                    <td>{{ log.entity_type }} #{{ log.entity_id or '' }}</td>
+                    <td>{{ log.description }}</td>
+                    <td><code>{{ log.ip_address or '-' }}</code></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center py-4 text-muted">No audit logs recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

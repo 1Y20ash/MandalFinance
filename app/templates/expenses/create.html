@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Submit Expense - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="expense-page">
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 expense-card">
+            <div class="card-header bg-dark text-white fw-bold"><i class="fa-solid fa-plus-circle me-2"></i>Submit Expense for Approval</div>
+            <div class="card-body p-4">
+                <div class="alert alert-info small" role="note"><i class="fa-solid fa-circle-info me-1"></i>Submission records the expense commitment. The central ledger is updated only when an approved expense is actually paid.</div>
+                <form method="POST" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6"><label class="form-label fw-bold" for="event_id">Target Event</label><select id="event_id" name="event_id" class="form-select" required><option value="">Select event</option>{% for ev in events %}<option value="{{ ev.id }}">{{ ev.title }} ({{ ev.year }})</option>{% endfor %}</select></div>
+                        <div class="col-md-6"><label class="form-label fw-bold" for="category_id">Expense Category</label><select id="category_id" name="category_id" class="form-select" required><option value="">Select category</option>{% for cat in categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}</select></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8"><label class="form-label fw-bold" for="title">Expense Title</label><input id="title" type="text" name="title" maxlength="150" class="form-control" placeholder="e.g. Stage Sound System Rental" required></div>
+                        <div class="col-md-4"><label class="form-label fw-bold" for="amount">Amount (₹)</label><input id="amount" type="number" step="0.01" min="0.01" name="amount" class="form-control" placeholder="15000.00" required></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6"><label class="form-label" for="vendor_id">Vendor <span class="text-muted">(Optional)</span></label><select id="vendor_id" name="vendor_id" class="form-select"><option value="">No specific vendor</option>{% for v in vendors %}<option value="{{ v.id }}">{{ v.name }} ({{ v.category }})</option>{% endfor %}</select></div>
+                        <div class="col-md-6"><label class="form-label fw-bold" for="expense_date">Expense Date</label><input id="expense_date" type="date" name="expense_date" class="form-control" required></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6"><label class="form-label" for="bill_number">Bill / Invoice Number</label><input id="bill_number" type="text" name="bill_number" maxlength="100" class="form-control" placeholder="Optional bill reference"></div>
+                        <div class="col-md-6"><label class="form-label" for="bill_date">Bill Date</label><input id="bill_date" type="date" name="bill_date" class="form-control"></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label fw-bold" for="description">Description & Operational Justification</label><textarea id="description" name="description" class="form-control" rows="4" placeholder="Provide enough detail for review and future audit reference..." required></textarea></div>
+                    <div class="d-flex justify-content-end gap-2"><a href="{{ url_for('expenses.list_expenses') }}" class="btn btn-secondary">Cancel</a><button type="submit" class="btn btn-danger px-4"><i class="fa-solid fa-paper-plane me-1"></i>Submit for Approval</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

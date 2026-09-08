@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Secure Payment - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="payment-page">
+    <div class="payment-shell">
+        <div class="payment-header">
+            <div>
+                <span class="payment-kicker">Secure donation checkout</span>
+                <h1 class="h3 mb-1">Complete your donation</h1>
+                <p class="mb-0 text-white-50">Your payment is verified on the server before the donation enters the ledger.</p>
+            </div>
+            <span class="payment-header-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+        </div>
+
+        <div class="payment-summary">
+            <div><span>Donation</span><strong>{{ donation.donation_number }}</strong></div>
+            <div><span>Donor</span><strong>{{ donation.donor_name }}</strong></div>
+            <div><span>Purpose</span><strong>{{ donation.purpose }}</strong></div>
+            <div class="payment-total"><span>Amount</span><strong>₹{{ donation.amount }}</strong></div>
+        </div>
+
+        {% if order_info.key_id != 'mock_key_id' %}
+        <div class="payment-action">
+            <button id="rzp-pay-button" type="button" class="btn btn-success btn-lg w-100 py-3 fw-bold">
+                <i class="fa-solid fa-lock me-2"></i>Pay ₹{{ donation.amount }} securely
+            </button>
+            <p id="payment-status" class="small text-muted text-center mt-3 mb-0">You will be redirected to the secure Razorpay checkout.</p>
+        </div>
+        {% else %}
+        <div class="payment-action">
+            <div class="alert alert-warning small mb-3">
+                <i class="fa-solid fa-flask me-1"></i>Development/test gateway is active. No real money will be charged.
+            </div>
+            <form method="POST" action="{{ url_for('public.confirm_online_payment') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="donation_id" value="{{ donation.id }}">
+                <input type="hidden" name="gateway_order_id" value="{{ order_info.order_id }}">
+                <input type="hidden" name="gateway_payment_id" value="{{ order_info.mock_payment_id }}">
+                <input type="hidden" name="gateway_signature" value="{{ order_info.mock_signature }}">
+                <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold">
+                    <i class="fa-solid fa-vial me-2"></i>Simulate successful payment
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="payment-trust-row">
+            <span><i class="fa-solid fa-lock"></i> Server-side verification</span>
+            <span><i class="fa-solid fa-receipt"></i> Receipt after verification</span>
+            <span><i class="fa-solid fa-book"></i> Ledger posting after success</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if order_info.key_id != 'mock_key_id' %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+(() => {
+    const button = document.getElementById('rzp-pay-button');
+    const status = document.getElementById('payment-status');
+    const csrfToken = {{ csrf_token()|tojson }};
+    const options = {
+        key: {{ order_info.key_id|tojson }},
+        amount: {{ order_info.amount_in_paise|tojson }},
+        currency: {{ order_info.currency|tojson }},
+        name: 'Shree Ashtavinayak Ganesh Utsav Mandal',
+        description: {{ donation.purpose|tojson }},
+        order_id: {{ order_info.order_id|tojson }},
+        prefill: {
+            name: {{ donation.donor_name|tojson }},
+            email: {{ donation.donor_email|tojson }},
+            contact: {{ donation.donor_phone|tojson }}
+        },
+        theme: { color: '#d97706' },
+        handler: async function (response) {
+            status.textContent = 'Verifying payment securely…';
+            button.disabled = true;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = {{ url_for('public.confirm_online_payment')|tojson }};
+            const fields = {
+                csrf_token: csrfToken,
+                donation_id: {{ donation.id|tojson }},
+                gateway_order_id: response.razorpay_order_id,
+                gateway_payment_id: response.razorpay_payment_id,
+                gateway_signature: response.razorpay_signature
+            };
+            Object.entries(fields).forEach(([name, value]) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value || '';
+                form.appendChild(input);
+            });
+            document.body.appendChild(form);
+            form.submit();
+        },
+        modal: {
+            ondismiss: function () {
+                status.textContent = 'Payment window closed. Your donation remains pending.';
+                button.disabled = false;
+            }
+        }
+    };
+    button.addEventListener('click', () => new Razorpay(options).open());
+})();
+</script>
+{% endif %}
+{% endblock %}

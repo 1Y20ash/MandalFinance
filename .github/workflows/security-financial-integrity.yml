@@ -1,0 +1,51 @@
+name: Security and Financial Integrity
+on:
+  push:
+    branches: ['**']
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mandalfinance_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mandalfinance_ci"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      FLASK_ENV: testing
+      SECRET_KEY: ci-test-secret
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mandalfinance_ci
+      RATELIMIT_STORAGE_URI: redis://localhost:6379/0
+      PYTHONWARNINGS: error
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Compile Python sources
+        run: python -m compileall -q app api app.py
+      - name: Check migration heads
+        run: flask --app app.py db heads
+      - name: Apply migrations on clean PostgreSQL
+        env:
+          # TestingConfig intentionally uses an in-memory SQLite database for
+          # the regression suite. Migration verification must exercise the
+          # PostgreSQL service configured above instead.
+          FLASK_ENV: development
+        run: flask --app app.py db upgrade
+      - name: Run regression and security tests
+        run: python -m pytest -q
