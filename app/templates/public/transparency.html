@@ -112,20 +112,19 @@
     <div class="closing-line"></div>
 </section>
 
-<div id="pwaInstallPrompt" class="pwa-install-backdrop" role="dialog" aria-modal="true" aria-labelledby="pwaInstallTitle" aria-describedby="pwaInstallText" hidden>
+<div id="pwaInstallPrompt" class="pwa-install-backdrop" role="region" aria-label="Install Mandal app" hidden>
     <div class="pwa-install-card">
         <div class="pwa-install-aura" aria-hidden="true"></div>
-        <button type="button" class="pwa-install-close" id="pwaInstallClose" aria-label="Close install prompt"><i class="fa-solid fa-xmark"></i></button>
+        <button type="button" class="pwa-install-close" id="pwaInstallClose" aria-label="Close install card"><i class="fa-solid fa-xmark"></i></button>
         <div class="pwa-install-content">
-            <img class="pwa-install-logo" src="{{ url_for('static', filename='img/icon-192.svg') }}" alt="Ganesh logo">
-            <span class="pwa-install-kicker">Shree Ashtavinayak Mandal</span>
-            <h2 id="pwaInstallTitle" class="pwa-install-title">Install the Mandal App</h2>
-            <p id="pwaInstallText" class="pwa-install-text">Keep the Mandal's transparency, seva and financial accountability just one tap away.</p>
-
-            <div class="pwa-install-steps" aria-label="Android and desktop installation steps">
-                <div class="pwa-install-step"><span class="pwa-install-step-number">1</span><span>Tap <strong>Install App</strong> to add Mandal Finance to your device.</span></div>
-                <div class="pwa-install-step"><span class="pwa-install-step-number">2</span><span>Open it from your Home Screen like a normal app.</span></div>
+            <div class="pwa-install-header">
+                <img class="pwa-install-logo" src="{{ url_for('static', filename='img/icon-192.svg') }}" alt="Ganesh logo">
+                <div class="pwa-install-copy">
+                    <span class="pwa-install-kicker">Shree Ashtavinayak Mandal</span>
+                    <h2 class="pwa-install-title">Install the Mandal App</h2>
+                </div>
             </div>
+            <p class="pwa-install-text">Keep Mandal transparency, seva and financial accountability just one tap away.</p>
 
             <div class="pwa-install-ios-note" id="pwaInstallIosNote">
                 <strong>On iPhone or iPad:</strong> tap Safari's <strong>Share</strong> button <i class="fa-solid fa-arrow-up-from-bracket" aria-hidden="true"></i>, then choose <strong>Add to Home Screen</strong>.
@@ -135,7 +134,7 @@
                 <button type="button" class="btn pwa-install-primary" id="pwaInstallAction"><i class="fa-solid fa-download"></i> Install App</button>
                 <button type="button" class="btn pwa-install-secondary" id="pwaInstallLater">Maybe Later</button>
             </div>
-            <p class="pwa-install-hint" id="pwaInstallHint">You will only see this once during the current browser session.</p>
+            <p class="pwa-install-hint" id="pwaInstallHint">One tap installs the app when your browser supports direct PWA installation.</p>
         </div>
     </div>
 </div>
@@ -160,38 +159,35 @@
         window.matchMedia('(display-mode: standalone)').matches ||
         window.matchMedia('(display-mode: fullscreen)').matches;
 
-    const hidePrompt = () => {
-        prompt.classList.remove('is-visible');
-        window.setTimeout(() => { prompt.hidden = true; }, 260);
-        document.body.classList.remove('pwa-install-open');
+    const wasShownThisSession = () => {
+        try { return sessionStorage.getItem(sessionKey) === '1'; } catch (_) { return false; }
     };
 
     const markShown = () => {
         try { sessionStorage.setItem(sessionKey, '1'); } catch (_) {}
     };
 
+    const hidePrompt = () => {
+        prompt.classList.remove('is-visible');
+        window.setTimeout(() => { prompt.hidden = true; }, 260);
+    };
+
     const showPrompt = () => {
-        if (isStandalone || prompt.classList.contains('is-visible')) return;
-        let alreadyShown = false;
-        try { alreadyShown = sessionStorage.getItem(sessionKey) === '1'; } catch (_) {}
-        if (alreadyShown) return;
+        if (isStandalone || wasShownThisSession() || prompt.classList.contains('is-visible')) return;
         markShown();
         if (isIOS) {
             card.classList.add('is-ios');
             action.innerHTML = '<i class="fa-solid fa-share-nodes"></i> How to Install';
-            hint.textContent = 'iOS uses Safari\'s Add to Home Screen option instead of a native install prompt.';
+            hint.textContent = 'iOS does not expose a one-click web install API; use Share → Add to Home Screen.';
         }
         prompt.hidden = false;
-        requestAnimationFrame(() => {
-            prompt.classList.add('is-visible');
-            document.body.classList.add('pwa-install-open');
-        });
+        requestAnimationFrame(() => prompt.classList.add('is-visible'));
     };
 
     window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         deferredPrompt = event;
-        action.innerHTML = '<i class="fa-solid fa-download"></i> Install App';
+        if (!isStandalone && !isIOS) showPrompt();
     });
 
     window.addEventListener('appinstalled', () => {
@@ -201,28 +197,23 @@
 
     action.addEventListener('click', async () => {
         if (isIOS) {
-            hint.textContent = 'In Safari: Share ↑ → Add to Home Screen → Add.';
+            hint.textContent = 'Safari: Share ↑ → Add to Home Screen → Add.';
             return;
         }
-        if (!deferredPrompt) {
-            hint.textContent = 'If no install dialog appears, open your browser menu and choose “Install app” or “Add to Home Screen”.';
-            return;
-        }
-        deferredPrompt.prompt();
-        try { await deferredPrompt.userChoice; } catch (_) {}
+        if (!deferredPrompt) return;
+        try {
+            await deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+        } catch (_) {}
         deferredPrompt = null;
         hidePrompt();
     });
 
     [close, later].forEach(button => button.addEventListener('click', hidePrompt));
-    prompt.addEventListener('click', (event) => {
-        if (event.target === prompt) hidePrompt();
-    });
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && prompt.classList.contains('is-visible')) hidePrompt();
-    });
 
-    if (!isStandalone) window.setTimeout(showPrompt, 900);
+    if (isIOS && !isStandalone) {
+        window.setTimeout(showPrompt, 900);
+    }
 })();
 </script>
 {% endblock %}
