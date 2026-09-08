@@ -121,3 +121,35 @@ def test_ledger_rolls_back_when_audit_logging_fails(app, monkeypatch):
         assert db_account.current_balance == before
         assert Transaction.query.filter_by(source_module='ATOMICITY_TEST', source_id=1).first() is None
         assert AuditLog.query.filter_by(entity_type='TRANSACTION', description='Recorded INCOME of ₹125.00 to account \'Main Cash\'').first() is None
+
+
+def test_reversal_is_reflected_in_derived_account_reconciliation(app):
+    with app.app_context():
+        user = User.query.filter_by(username='admin').first()
+        account = Account.query.filter_by(name='Main Cash').first()
+        before = account.current_balance
+
+        income = LedgerService.record_income(account.id, '400.00', 'Reversal reconciliation income', 'REV_RECON', 1, user.id)
+        expense = LedgerService.record_expense(account.id, '150.00', 'Reversal reconciliation expense', 'REV_RECON', 2, user.id)
+        LedgerService.reverse_transaction(income.id, user.id, 'Income correction')
+
+        result = next(item for item in LedgerService.get_account_reconciliation() if item['account'].id == account.id)
+        assert result['stored_balance'] == before - Decimal('150.00')
+        assert result['expected_balance'] == result['stored_balance']
+        assert result['difference'] == Decimal('0.00')
+        assert result['is_balanced'] is True
+
+
+def test_ledger_summary_preserves_reversal_effect(app):
+    with app.app_context():
+        user = User.query.filter_by(username='admin').first()
+        account = Account.query.filter_by(name='Main Cash').first()
+
+        income = LedgerService.record_income(account.id, '1000.00', 'Summary reversal income', 'SUMMARY_REV', 1, user.id)
+        expense = LedgerService.record_expense(account.id, '250.00', 'Summary expense', 'SUMMARY_REV', 2, user.id)
+        LedgerService.reverse_transaction(income.id, user.id, 'Incorrect income')
+
+        summary = LedgerService.get_ledger_summary()
+        assert summary['total_income'] == Decimal('0.00')
+        assert summary['total_expense'] == Decimal('250.00')
+        assert summary['current_balance'] == Decimal('9750.00')
