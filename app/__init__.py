@@ -33,6 +33,7 @@ def create_app(config_name=None):
     from app.routes.expenses import expenses_bp
     from app.routes.vendors import vendors_bp
     from app.routes.budgets import budgets_bp
+    from app.routes.contributions import contributions_bp
     from app.routes.documents import documents_bp
     from app.routes.reports import reports_bp
     from app.routes.admin import admin_bp
@@ -40,7 +41,7 @@ def create_app(config_name=None):
     from app.routes.financial_controls import controls_bp
     from app.routes.reconciliation import reconciliation_bp
     from app.routes.health import health_bp
-    for bp in (main_bp,auth_bp,dashboard_bp,donations_bp,income_bp,expenses_bp,vendors_bp,budgets_bp,documents_bp,reports_bp,admin_bp,public_bp,controls_bp,reconciliation_bp,health_bp): app.register_blueprint(bp)
+    for bp in (main_bp,auth_bp,dashboard_bp,donations_bp,income_bp,expenses_bp,vendors_bp,budgets_bp,contributions_bp,documents_bp,reports_bp,admin_bp,public_bp,controls_bp,reconciliation_bp,health_bp): app.register_blueprint(bp)
 
     @app.template_filter('currency')
     def currency_filter(amount): return '₹0.00' if amount is None else f'₹{amount:,.2f}'
