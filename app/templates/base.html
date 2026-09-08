@@ -23,12 +23,6 @@
     <link href="{{ url_for('static', filename='css/premium-glass.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/dynamic-navbar.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/mobile-responsive.css') }}" rel="stylesheet">
-    <style>
-        .navbar-custom .navbar-brand .brand-copy { min-width: 0; }
-        .navbar-custom .navbar-brand .brand-copy strong { display: block; max-width: 330px; white-space: nowrap; overflow: visible; text-overflow: clip; font-size: .98rem; color: #fff !important; -webkit-text-fill-color: #fff !important; }
-        @media (max-width: 1200px) { .navbar-custom .navbar-brand .brand-copy strong { font-size: .86rem; max-width: 285px; } .nav-main-zone { min-width: 0; } }
-        @media (max-width: 992px) { .navbar-custom .navbar-brand .brand-copy strong { max-width: calc(100vw - 150px); font-size: .92rem; } }
-    </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -63,6 +57,7 @@
  if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {})); }
 })();
 </script>
+<script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>
