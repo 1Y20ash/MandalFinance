@@ -55,11 +55,20 @@ def _create_fk_if_missing(bind, table_name, name, columns, referred_table, refer
             for fk in existing
         )
         if not same_fk:
+            if bind.dialect.name == 'sqlite':
+                # SQLite cannot ALTER an existing table to add a foreign key.
+                # The current 0001 bootstrap already creates these relationships
+                # from SQLAlchemy metadata on clean databases.
+                return
             op.create_foreign_key(name, table_name, referred_table, list(columns), list(referred_columns))
 
 
 def _create_check_if_missing(bind, table_name, name, condition):
     if not _constraint_exists(bind, table_name, name):
+        if bind.dialect.name == 'sqlite':
+            # SQLite cannot ALTER an existing table to add a CHECK constraint.
+            # Clean databases receive this constraint from the 0001 metadata.
+            return
         op.create_check_constraint(name, table_name, condition)
 
 
