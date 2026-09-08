@@ -18,15 +18,27 @@ from app.services.audit_service import AuditService
 
 controls_bp = Blueprint('financial_controls', __name__, url_prefix='/finance-controls')
 
+
 def finance_access():
-    return current_user.is_admin or current_user.has_permission('expense.create') or current_user.has_permission('donation.create')
+    """Return whether the current user may mutate financial-control records.
+
+    Financial-control writes are deliberately narrower than ordinary income or
+    expense creation. A user who can create an expense/donation must not gain
+    reconciliation, correction, sponsorship, or member-contribution authority
+    as a side effect.
+    """
+    return current_user.is_admin or current_user.has_permission('finance.manage')
+
 
 def deny_unless_finance():
     return jsonify({'error': 'Financial permission required.'}), 403 if not finance_access() else None
 
+
 def jm(v): return str(money(v))
 
+
 def payload(): return request.get_json(silent=True) or request.form
+
 
 def rec_json(r):
     return {'id': r.id, 'reference': r.reconciliation_ref, 'account_id': r.account_id, 'event_id': r.event_id,
@@ -219,14 +231,3 @@ def notification_read(notification_id):
     n=Notification.query.filter_by(id=notification_id,user_id=current_user.id).first()
     if not n:return jsonify({'error':'Notification not found.'}),404
     n.is_read=True;db.session.commit();return jsonify({'ok':True})
-
-@controls_bp.get('/search')
-@login_required
-def search():
-    q=request.args.get('q','').strip();eid=request.args.get('event_id',type=int)
-    if len(q)<2:return jsonify({'error':'Search term must contain at least 2 characters.'}),400
-    like=f'%{q}%';out={k:[] for k in ('donations','expenses','transactions','documents','sponsorships','members','vendors')}
-    d=Donation.query.filter(or_(Donation.donation_number.ilike(like),Donation.donor_name.ilike(like)));s=Sponsorship.query.filter(or_(Sponsorship.sponsorship_ref.ilike(like),Sponsorship.sponsor_name.ilike(like)));m=MemberContribution.query.filter(MemberContribution.member_name.ilike(like));t=Transaction.query.filter(or_(Transaction.transaction_ref.ilike(like),Transaction.description.ilike(like),Transaction.external_ref.ilike(like)));e=Expense.query.filter(Expense.description.ilike(like));doc=Document.query.filter(or_(Document.doc_ref.ilike(like),Document.title.ilike(like),Document.original_filename.ilike(like)));v=Vendor.query.filter(or_(Vendor.name.ilike(like),Vendor.phone.ilike(like)))
-    if eid:d=d.filter_by(event_id=eid);s=s.filter_by(event_id=eid);m=m.filter_by(event_id=eid);t=t.filter_by(event_id=eid);e=e.filter_by(event_id=eid)
-    out['donations']=[{'id':x.id,'ref':x.donation_number,'name':x.donor_name,'amount':jm(x.amount)} for x in d.limit(25).all()];out['sponsorships']=[{'id':x.id,'ref':x.sponsorship_ref,'name':x.sponsor_name,'amount':jm(x.committed_amount)} for x in s.limit(25).all()];out['members']=[{'id':x.id,'name':x.member_name,'amount':jm(x.target_amount)} for x in m.limit(25).all()];out['transactions']=[{'id':x.id,'ref':x.transaction_ref,'type':x.transaction_type,'amount':jm(x.amount)} for x in t.limit(25).all()];out['expenses']=[{'id':x.id,'amount':jm(x.amount),'description':x.description} for x in e.limit(25).all()];out['documents']=[{'id':x.id,'ref':x.doc_ref,'title':x.title,'category':x.category} for x in doc.limit(25).all()];out['vendors']=[{'id':x.id,'name':x.name} for x in v.limit(25).all()]
-    return jsonify(out)
