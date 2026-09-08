@@ -2,7 +2,7 @@
   'use strict';
 
   // Direct native PWA installation, matching the SecureCloudStorage flow.
-  // The install card is intentionally non-blocking and is shown only when the
+  // The install card is intentionally non-blocking and appears only when the
   // browser exposes beforeinstallprompt. It is limited to once per session.
   let deferredInstallPrompt = null;
   let installCard = null;
@@ -14,9 +14,10 @@
     window.matchMedia('(display-mode: standalone)').matches ||
     window.navigator.standalone === true;
 
+  // MandalFinance's public landing page is /transparency; / redirects there.
   const isHomePage = () => {
     const path = window.location.pathname.replace(/\/+$/, '') || '/';
-    return path === '/';
+    return path === '/' || path === '/transparency';
   };
 
   const alreadyShownThisSession = () => {
