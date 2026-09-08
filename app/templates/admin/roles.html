@@ -4,7 +4,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="fw-bold mb-0"><i class="fa-solid fa-shield-halved me-2 text-info"></i>Roles & Dynamic Permission Management</h3>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoleModal"><i class="fa-solid fa-plus me-1"></i>Create New Role</button>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createRoleModal"><i class="fa-solid fa-plus me-1"></i>Create New Role</button>
 </div>
 
 <div class="row g-4">
@@ -32,14 +32,14 @@
 </div>
 
 <!-- Modal Create Role -->
-<div class="modal fade" id="createRoleModal" tabindex="-1">
+<div class="modal fade" id="createRoleModal" tabindex="-1" aria-labelledby="createRoleLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('admin.create_role') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
-                    <h5 class="modal-title">Create New Role</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="createRoleLabel">Create New Role</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
@@ -72,4 +72,19 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* Keep the modal directly under <body>. This avoids transformed/animated
+   ancestors trapping Bootstrap's backdrop and focus, which can make the
+   entire page appear frozen after opening the dialog. */
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.modal').forEach(function (modal) {
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+    });
+});
+</script>
 {% endblock %}
