@@ -55,9 +55,6 @@
     </div>
 </div>
 
-{# Bootstrap modals must be outside table markup. They are also marked with a
-   page-specific class because the shared base template relocates every modal
-   to <body> before Bootstrap's data API can open it. #}
 {% for category in categories %}
 <div class="modal fade expense-category-modal" id="editCategory{{ category.id }}" tabindex="-1" aria-labelledby="editCategoryLabel{{ category.id }}" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -113,4 +110,17 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* Bootstrap modals must live under <body>; relocate them before the Bootstrap
+   data API can open them. This prevents transformed/animated ancestors from
+   trapping the backdrop, focus, or page scroll on management screens. */
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.modal').forEach(function (modal) {
+        if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    });
+});
+</script>
 {% endblock %}
