@@ -1,8 +1,9 @@
 from decimal import Decimal
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask_limiter.util import get_remote_address
 
-from app.extensions import csrf, db
+from app.extensions import csrf, db, limiter
 from app.models.income import Donation
 from app.models.ledger import Account
 from app.models.mandal import Event, Mandal
@@ -45,6 +46,7 @@ def transparency():
 
 
 @public_bp.route('/donate', methods=['GET', 'POST'])
+@limiter.limit('10 per hour', methods=['POST'], key_func=get_remote_address)
 def public_donate():
     active_event = Event.query.filter_by(is_active=True).first()
     if not active_event:
@@ -97,6 +99,7 @@ def public_donate():
 
 
 @public_bp.route('/donate/confirm', methods=['POST'])
+@limiter.limit('20 per minute', methods=['POST'], key_func=get_remote_address)
 def confirm_online_payment():
     donation_id = request.form.get('donation_id', type=int)
     payment_id = request.form.get('gateway_payment_id', '').strip()
