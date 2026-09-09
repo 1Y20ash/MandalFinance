@@ -53,5 +53,23 @@ jobs:
         env:
           FLASK_ENV: development
         run: python scripts/verify_postgres_schema.py
+      - name: Verify production configuration contract
+        env:
+          FLASK_ENV: production
+          SECRET_KEY: ci-production-secret-0123456789abcdef0123456789abcdef
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mandalfinance_ci
+          SUPABASE_URL: https://ci-example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-role-secret
+          SUPABASE_STORAGE_BUCKET: mandal-financial-documents
+          SUPABASE_STORAGE_PRIVATE: 'true'
+          ONLINE_DONATION_ACCOUNT_ID: '1'
+          ONLINE_DONATION_ACTOR_ID: '1'
+          PAYMENT_GATEWAY_DRIVER: razorpay
+          RAZORPAY_KEY_ID: rzp_test_ci
+          RAZORPAY_KEY_SECRET: ci-razorpay-secret
+          RAZORPAY_WEBHOOK_SECRET: ci-webhook-secret
+          MAX_CONTENT_LENGTH: '16777216'
+          MAX_DOCUMENT_SIZE: '10485760'
+        run: python scripts/verify_production_config.py
       - name: Run regression and security tests
         run: python -m pytest -q
