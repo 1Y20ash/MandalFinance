@@ -76,7 +76,7 @@ def test_retention_policy_rejects_invalid_values(app):
 
         invalid_action = RetentionPolicy(
             data_category='BAD_ACTION', retention_days=30,
-            retention_basis='Invalid', disposal_action='DELETE'
+            retention_basis='Invalid', disposal_action='PURGE'
         )
         db.session.add(invalid_action)
         with pytest.raises(Exception):
