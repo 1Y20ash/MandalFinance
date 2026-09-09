@@ -1,6 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
 
+from sqlalchemy import Index
+
 from app.extensions import db
 
 
@@ -59,6 +61,12 @@ class Expense(db.Model):
         db.CheckConstraint(
             "payment_mode IS NULL OR payment_mode IN ('CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE')",
             name='ck_expenses_payment_mode',
+        ),
+        Index(
+            'uq_expenses_payment_ref', 'payment_ref',
+            unique=True,
+            postgresql_where=db.text('payment_ref IS NOT NULL'),
+            sqlite_where=db.text('payment_ref IS NOT NULL'),
         ),
     )
 
