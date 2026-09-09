@@ -42,9 +42,9 @@ def test_matrix_preserves_release_and_financial_boundaries():
         "absolute financial-integrity rules",
         "Phase 36",
         "Phase 37",
-        "Phase 38",
-        "Phase 39",
-        "Phase 40",
+        "38. Single Clean Deployment",
+        "39. Post-Deployment Verification",
+        "40. PWA",
     ]
     for marker in required:
         assert marker in text
