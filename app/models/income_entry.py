@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 
 from app.extensions import db
 
@@ -21,7 +20,10 @@ class Income(db.Model):
     transaction_ref = db.Column(db.String(100), nullable=True, index=True)
     notes = db.Column(db.Text, nullable=True)
 
-    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id'), nullable=False, unique=True)
+    # Nullable at the persistence boundary because the income row and its
+    # central-ledger transaction are created in one database transaction.
+    # IncomeService fills this field before the transaction is committed.
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id'), nullable=True, unique=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
