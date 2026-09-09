@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -40,36 +41,76 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False
 
 
+def validate_production_environment(environ=None):
+    """Fail closed when production is missing a security-critical setting."""
+    env = os.environ if environ is None else environ
+    required = [
+        'SECRET_KEY',
+        'DATABASE_URL',
+        'SUPABASE_URL',
+        'SUPABASE_SERVICE_ROLE_KEY',
+        'SUPABASE_STORAGE_BUCKET',
+        'ONLINE_DONATION_ACCOUNT_ID',
+        'ONLINE_DONATION_ACTOR_ID',
+    ]
+    missing = [name for name in required if not env.get(name)]
+    if missing:
+        raise RuntimeError(
+            'Missing required production environment variables: '
+            + ', '.join(sorted(set(missing)))
+        )
+
+    secret_key = env.get('SECRET_KEY', '')
+    if len(secret_key) < 32 or secret_key.lower() in {
+        'change-me', 'change-me-in-production', 'dev-secret-key',
+        'development-only-change-me', 'testing-secret-key',
+    }:
+        raise RuntimeError('SECRET_KEY must be a strong production secret of at least 32 characters.')
+
+    database_url = env.get('DATABASE_URL', '').strip()
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    if not database_url.startswith('postgresql://'):
+        raise RuntimeError('DATABASE_URL must use PostgreSQL in production.')
+
+    supabase_url = env.get('SUPABASE_URL', '').strip()
+    parsed_supabase = urlparse(supabase_url)
+    if parsed_supabase.scheme != 'https' or not parsed_supabase.netloc:
+        raise RuntimeError('SUPABASE_URL must be a valid HTTPS URL in production.')
+    if env.get('SUPABASE_SERVICE_ROLE_KEY', '').lower().startswith('your-'):
+        raise RuntimeError('SUPABASE_SERVICE_ROLE_KEY still contains a placeholder value.')
+
+    if env.get('SUPABASE_STORAGE_PRIVATE', 'true').strip().lower() != 'true':
+        raise RuntimeError('SUPABASE_STORAGE_PRIVATE must be true in production.')
+
+    driver = env.get('PAYMENT_GATEWAY_DRIVER', '').strip().lower()
+    if driver != 'razorpay':
+        raise RuntimeError('PAYMENT_GATEWAY_DRIVER must be razorpay in production.')
+    payment_required = ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET']
+    payment_missing = [name for name in payment_required if not env.get(name)]
+    if payment_missing:
+        raise RuntimeError(
+            'Missing required Razorpay production environment variables: '
+            + ', '.join(payment_missing)
+        )
+
+    max_content_length = int(env.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
+    max_document_size = int(env.get('MAX_DOCUMENT_SIZE', 10 * 1024 * 1024))
+    if max_content_length <= 0 or max_document_size <= 0:
+        raise RuntimeError('Upload size limits must be positive.')
+    if max_document_size > max_content_length:
+        raise RuntimeError('MAX_DOCUMENT_SIZE cannot exceed MAX_CONTENT_LENGTH.')
+
+    return True
+
+
 class ProductionConfig(Config):
     DEBUG = False
     SESSION_COOKIE_SECURE = True
 
     @classmethod
     def validate(cls):
-        required = [
-            'SECRET_KEY',
-            'DATABASE_URL',
-            'SUPABASE_URL',
-            'SUPABASE_SERVICE_ROLE_KEY',
-            'ONLINE_DONATION_ACCOUNT_ID',
-            'ONLINE_DONATION_ACTOR_ID',
-        ]
-        if cls.PAYMENT_GATEWAY_DRIVER == 'razorpay':
-            required += [
-                'RAZORPAY_KEY_ID',
-                'RAZORPAY_KEY_SECRET',
-                'RAZORPAY_WEBHOOK_SECRET',
-            ]
-        elif cls.PAYMENT_GATEWAY_DRIVER == 'mock':
-            raise RuntimeError('Mock payment gateway is forbidden in production.')
-        if not cls.SUPABASE_STORAGE_PRIVATE:
-            raise RuntimeError('SUPABASE_STORAGE_PRIVATE must be true in production.')
-        missing = [name for name in required if not os.environ.get(name)]
-        if missing:
-            raise RuntimeError(
-                'Missing required production environment variables: '
-                + ', '.join(sorted(set(missing)))
-            )
+        validate_production_environment()
 
 
 config_by_name = {
