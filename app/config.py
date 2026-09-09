@@ -55,9 +55,11 @@ class ProductionConfig(Config):
             raise RuntimeError('Mock payment gateway is forbidden in production.')
         if not cls.SUPABASE_STORAGE_PRIVATE:
             raise RuntimeError('SUPABASE_STORAGE_PRIVATE must be true in production.')
-        if not cls.RATELIMIT_STORAGE_URI:
-            required.append('RATELIMIT_STORAGE_URI or REDIS_URL')
+        if not cls.RATELIMIT_STORAGE_URI or cls.RATELIMIT_STORAGE_URI.strip().lower().startswith('memory://'):
+            required.append('RATELIMIT_STORAGE_URI or REDIS_URL (persistent shared storage)')
         missing = [name for name in required if not os.environ.get(name)]
+        if cls.RATELIMIT_STORAGE_URI and cls.RATELIMIT_STORAGE_URI.strip().lower().startswith('memory://'):
+            missing.append('RATELIMIT_STORAGE_URI or REDIS_URL (persistent shared storage)')
         if missing:
             raise RuntimeError('Missing required production environment variables: ' + ', '.join(sorted(set(missing))))
 
