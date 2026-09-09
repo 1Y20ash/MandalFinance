@@ -14,6 +14,10 @@ def login(client, username='volunteer', password='password'):
 
 
 def admin_login(client):
+    # The login route deliberately leaves an already-authenticated user
+    # logged in, so explicitly end the volunteer session before switching
+    # identities in this integration test.
+    client.post('/auth/logout', follow_redirects=True)
     return client.post('/auth/login', data={'username': 'admin', 'password': 'password'}, follow_redirects=True)
 
 
