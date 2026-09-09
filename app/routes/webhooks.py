@@ -3,7 +3,7 @@ import json
 from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy import or_
 
-from app.extensions import csrf, db
+from app.extensions import csrf, db, limiter
 from app.models.income import Donation
 from app.services.audit_service import AuditService
 from app.services.payment_gateway import get_payment_gateway
@@ -14,6 +14,7 @@ webhooks_bp = Blueprint('webhooks', __name__, url_prefix='/webhooks')
 
 @webhooks_bp.post('/razorpay')
 @csrf.exempt
+@limiter.exempt
 def razorpay_webhook():
     """Receive and authenticate Razorpay webhook deliveries.
 
@@ -48,10 +49,6 @@ def razorpay_webhook():
     if not event:
         return jsonify({'status': 'invalid_payload'}), 400
 
-    # Keep failure state in sync when a payment is explicitly reported failed.
-    # Success events are acknowledged but do not post the ledger here because
-    # webhook retries and browser callbacks can otherwise create duplicate
-    # accounting entries.
     if event == 'payment.failed':
         payment_entity = ((payload.get('payload') or {}).get('payment') or {}).get('entity') or {}
         order_id = payment_entity.get('order_id')
