@@ -4,14 +4,17 @@ import json
 import pytest
 
 from app.extensions import db
+from app.models.audit import AuditLog
 from app.models.auth import User
 from app.models.mandal import Event
 from app.models.income import Sponsorship
 from app.models.expense import ExpenseCategory, Expense
 from app.models.ledger import Account, Transaction
 from app.models.controls import EvidenceRule
+from app.services.audit_service import AuditService
 from app.services.financial_controls_service import FinancialControlsService
 from app.services.expense_service import ExpenseService
+from app.services.ledger_service import LedgerService
 
 
 def login(client, username='admin', password='password'):
@@ -56,6 +59,35 @@ def test_correction_cannot_self_approve(app):
         with pytest.raises(ValueError,match='Self-approval'):FinancialControlsService.review_correction(req.id,admin,True,'attempt')
 
 
+def test_correction_approval_is_atomic_with_reversal(app, monkeypatch):
+    with app.app_context():
+        requester=User.query.filter_by(username='volunteer').first()
+        reviewer=User.query.filter_by(username='admin').first()
+        account=Account.query.first()
+        txn=LedgerService.record_income(account.id,'80.00','Correction atomicity','COR_ATOMIC',9911,requester.id)
+        req=FinancialControlsService.request_correction('TRANSACTION',txn.id,txn.id,'Incorrect financial entry',requester)
+        before=account.current_balance
+
+        original_audit=AuditService.log_action
+        def failing_approval_audit(action, entity_type, entity_id, description, **kwargs):
+            if action == 'APPROVE' and entity_type == 'CORRECTION':
+                raise RuntimeError('simulated correction audit failure')
+            return original_audit(action, entity_type, entity_id, description, **kwargs)
+        monkeypatch.setattr(AuditService,'log_action',failing_approval_audit)
+
+        with pytest.raises(RuntimeError,match='simulated correction audit failure'):
+            FinancialControlsService.review_correction(req.id,reviewer,True,'atomicity')
+
+        db.session.expire_all()
+        stored_req=db.session.get(type(req),req.id)
+        stored_txn=db.session.get(Transaction,txn.id)
+        assert stored_req.status=='PENDING'
+        assert stored_req.applied_reversal_id is None
+        assert stored_txn.is_reversed is False
+        assert Transaction.query.filter_by(external_ref=f'REVERSAL-OF-{txn.transaction_ref}').first() is None
+        assert db.session.get(Account,account.id).current_balance==before
+
+
 def test_reconciliation_is_decimal(app):
     with app.app_context():
         admin=User.query.filter_by(username='admin').first();account=Account.query.first();record=FinancialControlsService.reconcile_account(account.id,date.today(),'10000.00',admin)
@@ -69,11 +101,8 @@ def test_expense_payment_requires_configured_evidence(app):
         category=ExpenseCategory.query.first()
         account=Account.query.first()
         rule=EvidenceRule(
-            name='Expense payment proof required',
-            entity_type='EXPENSE',
-            min_amount=Decimal('1.00'),
-            required_categories=json.dumps(['BILL']),
-            description='Every expense above one rupee requires a bill before payment.',
+            name='Expense payment proof required', entity_type='EXPENSE', min_amount=Decimal('1.00'),
+            required_categories=json.dumps(['BILL']), description='Every expense above one rupee requires a bill before payment.',
             created_by_id=admin.id,
         )
         db.session.add(rule)

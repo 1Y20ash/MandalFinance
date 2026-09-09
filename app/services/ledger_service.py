@@ -1,13 +1,11 @@
 import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-
-from sqlalchemy import func
+from uuid import uuid4
 
 from app.extensions import db
 from app.models.ledger import Account, Transaction
 from app.models.mandal import FinancialYear
 from app.services.audit_service import AuditService
-
 
 MONEY_ZERO = Decimal('0.00')
 
@@ -15,8 +13,7 @@ MONEY_ZERO = Decimal('0.00')
 class LedgerService:
     @staticmethod
     def _generate_txn_ref():
-        timestamp = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-        return f'TXN-{timestamp}'
+        return f"TXN-{datetime.datetime.utcnow().year}-{uuid4().hex.upper()}"
 
     @staticmethod
     def _normalize_amount(amount):
@@ -86,8 +83,10 @@ class LedgerService:
             )
             if transaction_type == 'INCOME':
                 account.current_balance = LedgerService._to_money(account.current_balance) + decimal_amount
-            else:
+            elif transaction_type == 'EXPENSE':
                 account.current_balance = LedgerService._to_money(account.current_balance) - decimal_amount
+            else:
+                raise ValueError('Unsupported ledger transaction type.')
             db.session.add(transaction)
             db.session.flush()
             AuditService.log_action(
@@ -118,7 +117,7 @@ class LedgerService:
                                      created_by_id, payment_mode, external_ref, category_id, event_id, commit)
 
     @staticmethod
-    def reverse_transaction(transaction_id, reversed_by_user_id, reason):
+    def reverse_transaction(transaction_id, reversed_by_user_id, reason, commit=True):
         if not reason or not str(reason).strip():
             raise ValueError('A reversal reason is required.')
         try:
@@ -136,48 +135,46 @@ class LedgerService:
                 raise ValueError('Transaction has already been reversed.')
             if orig_txn.transaction_type not in ('INCOME', 'EXPENSE'):
                 raise ValueError('Only INCOME and EXPENSE transactions can be reversed.')
+
             account = LedgerService._lock_account(orig_txn.account_id)
-            existing_reversal = Transaction.query.filter_by(external_ref=f'REVERSAL-OF-{orig_txn.transaction_ref}').first()
-            if existing_reversal:
+            reversal_ref = f'REVERSAL-OF-{orig_txn.transaction_ref}'
+            if Transaction.query.filter_by(external_ref=reversal_ref).first():
                 raise ValueError('A reversal already exists for this transaction.')
+
             if orig_txn.transaction_type == 'INCOME':
                 account.current_balance = LedgerService._to_money(account.current_balance) - orig_txn.amount
             else:
                 account.current_balance = LedgerService._to_money(account.current_balance) + orig_txn.amount
+
             reversal_txn = Transaction(
                 transaction_ref=LedgerService._generate_txn_ref(), event_id=orig_txn.event_id,
-                account_id=orig_txn.account_id, category_id=orig_txn.category_id, transaction_type='REVERSAL',
-                amount=orig_txn.amount, payment_mode=orig_txn.payment_mode,
-                external_ref=f'REVERSAL-OF-{orig_txn.transaction_ref}',
+                account_id=orig_txn.account_id, category_id=orig_txn.category_id,
+                transaction_type='REVERSAL', amount=orig_txn.amount,
+                payment_mode=orig_txn.payment_mode, external_ref=reversal_ref,
                 description=f'Reversal of {orig_txn.transaction_ref}: {str(reason).strip()}',
-                source_module=orig_txn.source_module, source_id=orig_txn.source_id,
-                created_by_id=reversed_by_user_id,
+                source_module='REVERSAL', source_id=None, created_by_id=reversed_by_user_id,
             )
-            orig_txn.is_reversed = True
-            orig_txn.reversal_reason = str(reason).strip()
             db.session.add(reversal_txn)
             db.session.flush()
+            orig_txn.is_reversed = True
+            orig_txn.reversal_reason = str(reason).strip()
             orig_txn.reversed_by_txn_id = reversal_txn.id
+            db.session.flush()
             AuditService.log_action(
                 action='REVERSE', entity_type='TRANSACTION', entity_id=orig_txn.id,
                 description=f'Reversed transaction {orig_txn.transaction_ref} with {reversal_txn.transaction_ref}. Reason: {orig_txn.reversal_reason}',
                 commit=False,
             )
-            db.session.commit()
+            if commit:
+                db.session.commit()
             return reversal_txn
         except Exception:
-            db.session.rollback()
+            if commit:
+                db.session.rollback()
             raise
 
     @staticmethod
     def _effective_transaction_totals(query):
-        """Calculate economic totals without double-counting preserved reversals.
-
-        Originals remain in the immutable ledger even after reversal. The original
-        contributes its normal economic effect, while its REVERSAL row removes that
-        exact effect. This keeps derived totals aligned with the stored account
-        balance while preserving the complete audit trail.
-        """
         income = MONEY_ZERO
         expense = MONEY_ZERO
         transactions = query.all()
@@ -217,7 +214,6 @@ class LedgerService:
 
     @staticmethod
     def get_account_reconciliation():
-        """Compare stored account balances with balances derivable from the immutable ledger."""
         accounts = Account.query.order_by(Account.is_active.desc(), Account.name.asc()).all()
         results = []
         for account in accounts:
@@ -228,14 +224,9 @@ class LedgerService:
             stored = LedgerService._to_money(account.current_balance)
             difference = stored - expected
             results.append({
-                'account': account,
-                'opening_balance': opening,
-                'income': income,
-                'expense': expense,
-                'expected_balance': expected,
-                'stored_balance': stored,
-                'difference': difference,
-                'is_balanced': difference == MONEY_ZERO,
+                'account': account, 'opening_balance': opening, 'income': income,
+                'expense': expense, 'expected_balance': expected, 'stored_balance': stored,
+                'difference': difference, 'is_balanced': difference == MONEY_ZERO,
             })
         return results
 
