@@ -50,7 +50,8 @@ def upload_document():
             doc=DocumentService.upload_document(content,filename,mime,category,title,entity_type,current_user,entity_id,description)
             flash(f'Document "{doc.title}" uploaded successfully with SHA-256 verification.','success')
             return redirect(url_for('documents.view_document',doc_id=doc.id))
-        except Exception as e: flash(f'Upload failed: {str(e)}','danger')
+        except Exception:
+            flash('Upload failed. Please verify the document and required details, then try again.','danger')
     return render_template('documents/upload.html',entity_type=request.args.get('entity_type','GENERAL'),entity_id=request.args.get('entity_id',type=int))
 
 @documents_bp.route('/<int:doc_id>')
@@ -65,7 +66,8 @@ def view_document(doc_id): return render_template('documents/view.html',doc=Docu
 def download_document(doc_id):
     doc=Document.query.get_or_404(doc_id)
     try:file_bytes=StorageDriver.get_file(doc.storage_provider,doc.storage_path)
-    except Exception as e: flash(str(e),'danger'); return redirect(url_for('documents.view_document',doc_id=doc.id))
+    except Exception:
+        flash('The requested document could not be retrieved. Please try again later.','danger'); return redirect(url_for('documents.view_document',doc_id=doc.id))
     if not file_bytes: flash('Requested document file could not be retrieved from storage.','danger'); return redirect(url_for('documents.view_document',doc_id=doc.id))
     AuditService.log_action('DOWNLOAD','DOCUMENT',doc.id,f'Document {doc.doc_ref} downloaded by authorized user.',commit=True)
     response=make_response(file_bytes);response.headers['Content-Type']=doc.file_type;response.headers['Content-Disposition']=f'inline; filename="{StorageDriver.sanitize_filename(doc.original_filename)}"';response.headers['X-Content-Type-Options']='nosniff';return response
@@ -81,7 +83,8 @@ def replace_document(doc_id):
         if not reason: raise ValueError('Replacement reason is required.')
         doc=DocumentService.replace_document(doc_id,content,filename,mime,current_user,reason)
         flash(f'Document replaced successfully. Version updated to v{doc.current_version_number}.','success')
-    except Exception as e: flash(f'Document replacement failed: {str(e)}','danger')
+    except Exception:
+        flash('Document replacement failed. Please verify the document and replacement reason.','danger')
     return redirect(url_for('documents.view_document',doc_id=doc_id))
 
 @documents_bp.route('/<int:doc_id>/verify')
@@ -92,7 +95,8 @@ def verify_document(doc_id):
     try:
         ok,recorded,computed=DocumentService.verify_document_integrity(doc_id)
         flash(f'✓ SHA-256 integrity verified: {computed[:16]}...' if ok else f'⚠ Hash mismatch. Recorded: {recorded[:16]}..., Computed: {computed[:16]}...','success' if ok else 'danger')
-    except Exception as e: flash(f'Integrity verification failed: {str(e)}','danger')
+    except Exception:
+        flash('Integrity verification failed. Please try again later.','danger')
     return redirect(url_for('documents.view_document',doc_id=doc_id))
 
 @documents_bp.route('/evidence-pack/<entity_type>/<int:entity_id>')
@@ -102,4 +106,5 @@ def verify_document(doc_id):
 def generate_evidence_pack(entity_type,entity_id):
     try:
         pack,zip_bytes=DocumentService.generate_evidence_pack(entity_type,entity_id,current_user);response=make_response(zip_bytes);response.headers['Content-Type']='application/zip';response.headers['Content-Disposition']=f'attachment; filename="EvidencePack_{pack.pack_ref}.zip"';return response
-    except Exception as e: flash(f'Evidence Pack generation failed: {str(e)}','danger');return redirect(url_for('documents.list_documents'))
+    except Exception:
+        flash('Evidence Pack generation failed. Please try again later.','danger');return redirect(url_for('documents.list_documents'))
