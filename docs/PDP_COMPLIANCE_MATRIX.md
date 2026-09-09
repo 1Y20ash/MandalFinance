@@ -39,7 +39,7 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | **26. Public Transparency** | **🟢 PASS** | `docs/PUBLIC_TRANSPARENCY_POLICY.md`; public transparency route reviewed as aggregate-only; public template checked for sensitive-field leakage; authoritative-ledger disclosure boundary; automated Phase 26 tests | Re-review public disclosures whenever financial, payment, document, or personal-data processing changes | **P0** |
 | **27. Frontend Privacy** | **🟢 PASS** | `docs/FRONTEND_PRIVACY_POLICY.md`; browser storage boundary; PWA session-only UI state; donation CSRF token excluded from service-worker precache; service-worker GET/same-origin/static/public-shell restrictions; automated Phase 27 tests | Re-review whenever browser storage, SDKs, offline behavior, payment/document flows, or tracking changes | **P0** |
 | **28. Error Handling** | **🟢 PASS** | `docs/ERROR_HANDLING_POLICY.md`; generic HTML/JSON handling for expected HTTP errors; privacy-safe 500 handling with server-side logging and DB rollback; health-error detail suppression; automated Phase 28 regression tests | Re-review when new API surfaces, error classes, or external integrations are introduced | **P0** |
-| 29. Dependency Audit | 🟡 | `requirements.txt` includes Flask-Limiter and Redis support | Complete vulnerability/unused-dependency audit | P0 |
+| **29. Dependency Audit** | **🟢 PASS** | `docs/DEPENDENCY_SECURITY_POLICY.md`; clean CI dependency installation; exact `pip-audit==2.10.1` security gate against `requirements.txt`; Phase 29 dependency-policy regression tests | Re-audit on every dependency change and remediate newly disclosed vulnerabilities | **P0** |
 | 30. Testing | 🟢/🟡 | Dedicated regression/security suite and phase-specific tests | Complete remaining privacy/payment/E2E coverage | P0 |
 | 31. Clean-Environment Test | 🟢/🟡 | Repeatable CI migration/regression verification | Expand clean-environment scenario matrix | P0 |
 | 32. Production Configuration Test | 🟢/🟡 | Production preflight and persistent rate-limit configuration validation | Complete real deployment configuration smoke test | P0 |
@@ -103,6 +103,16 @@ Phase 28 establishes `docs/ERROR_HANDLING_POLICY.md` as the controlled applicati
 The health endpoint no longer returns raw database exception text; detailed diagnostics remain server-side. Error responses do not disclose stack traces, SQL, connection strings, credentials, filesystem paths, document contents, payment secrets, or framework internals.
 
 Automated Phase 28 tests verify generic 404 HTML and JSON responses, generic 500 HTML and JSON responses, suppression of injected exception secrets, server-side exception logging, and health-endpoint error-detail suppression.
+
+## Phase 29 — Dependency Audit evidence
+
+Phase 29 establishes `docs/DEPENDENCY_SECURITY_POLICY.md` as the controlled software-supply-chain boundary. `requirements.txt` remains the declared direct dependency manifest and every direct dependency carries an explicit version constraint. CI installs the declared manifest in a clean environment and then runs the exact `pip-audit==2.10.1` tool against that manifest.
+
+The dependency gate covers resolved transitive dependencies as well as direct packages and is intentionally fail-closed: a known vulnerability reported by the audit causes CI failure. The policy prohibits silently suppressing findings and requires removal, replacement, upgrade, or a documented time-bounded exception with compensating controls when immediate remediation is impossible.
+
+The audit tool is kept out of the production runtime manifest because it is a CI security tool rather than an application dependency. Dependency changes remain subject to the complete regression/security suite, and new third-party packages or browser SDKs must also pass the applicable privacy, processor, and security reviews.
+
+Automated Phase 29 tests verify that the dependency manifest exists and uses explicit constraints, the dependency security policy exists, CI pins the audit tool, CI invokes `pip-audit -r requirements.txt`, and the policy requires failure on known vulnerabilities including transitive dependencies.
 
 ## Absolute financial integrity rules
 
