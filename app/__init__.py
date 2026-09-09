@@ -4,6 +4,7 @@ from flask import Flask
 from app.config import config_by_name
 from app.extensions import db,migrate,login_manager,csrf,limiter
 from app.models.auth import User
+from app.logging_config import configure_logging, install_request_logging
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -18,7 +19,9 @@ def create_app(config_name=None):
     config_class=config_by_name.get(config_name,config_by_name['default'])
     if config_name=='production': config_class.validate()
     app=Flask(__name__, template_folder=str(TEMPLATE_DIR));app.config.from_object(config_class);app.config['APP_ENV']=config_name
+    configure_logging(app)
     db.init_app(app);migrate.init_app(app,db);login_manager.init_app(app);csrf.init_app(app);limiter.init_app(app)
+    install_request_logging(app)
     from app.services.financial_guard import install_financial_guard
     from app.services.rbac_guard import install_rbac_guard
     install_financial_guard()
