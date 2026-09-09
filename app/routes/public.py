@@ -145,6 +145,7 @@ def confirm_online_payment():
 
 @csrf.exempt
 @public_bp.route('/donate/webhook', methods=['POST'])
+@limiter.exempt
 def payment_webhook():
     payload = request.get_data()
     signature = request.headers.get('X-Razorpay-Signature', '')
