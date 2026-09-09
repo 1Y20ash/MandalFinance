@@ -1,7 +1,6 @@
 """Harden document/version integrity constraints for private evidence storage."""
 
 from alembic import op
-import sqlalchemy as sa
 
 revision = '20260909_doc_security'
 down_revision = '20260909_payment_event'
@@ -9,54 +8,37 @@ branch_labels = None
 depends_on = None
 
 
+def _pg_constraint_exists(name: str) -> bool:
+    bind = op.get_bind()
+    if bind.dialect.name != 'postgresql':
+        return False
+    return bool(bind.exec_driver_sql(
+        'SELECT 1 FROM pg_constraint WHERE conname = %s LIMIT 1', (name,)
+    ).scalar())
+
+
 def upgrade() -> None:
     bind = op.get_bind()
-    inspector = sa.inspect(bind)
-
-    # The bootstrap migration builds from SQLAlchemy metadata. On a fresh
-    # database these constraints may therefore already exist. Existing/stamped
-    # databases from the older model still need them added here.
-    version_constraints = {
-        item.get('name') for item in inspector.get_unique_constraints('document_versions')
-    }
-    version_indexes = {
-        item.get('name') for item in inspector.get_indexes('document_versions')
-    }
-    if 'uq_document_version_number' not in version_constraints and 'uq_document_version_number' not in version_indexes:
-        if bind.dialect.name != 'sqlite':
-            op.create_unique_constraint(
-                'uq_document_version_number', 'document_versions', ['document_id', 'version_number']
-            )
-
-    if bind.dialect.name == 'sqlite':
-        # SQLite cannot safely add table constraints with ALTER TABLE. The
-        # SQLAlchemy model enforces these validation boundaries for test/local
-        # databases, while PostgreSQL receives database-level constraints.
+    if bind.dialect.name != 'postgresql':
+        # SQLite's CREATE TABLE path already receives the model constraints.
+        # Avoid ALTER TABLE constraint operations that SQLite does not support.
         return
 
-    existing_checks = {
-        item.get('name') for item in inspector.get_check_constraints('documents')
-    }
-    if 'ck_documents_file_size_nonnegative' not in existing_checks:
-        op.create_check_constraint(
-            'ck_documents_file_size_nonnegative', 'documents', 'file_size >= 0'
-        )
-    if 'ck_documents_version_positive' not in existing_checks:
-        op.create_check_constraint(
-            'ck_documents_version_positive', 'documents', 'current_version_number >= 1'
-        )
-
-    version_checks = {
-        item.get('name') for item in inspector.get_check_constraints('document_versions')
-    }
-    if 'ck_document_versions_file_size_nonnegative' not in version_checks:
-        op.create_check_constraint(
-            'ck_document_versions_file_size_nonnegative', 'document_versions', 'file_size >= 0'
-        )
-    if 'ck_document_versions_version_positive' not in version_checks:
-        op.create_check_constraint(
-            'ck_document_versions_version_positive', 'document_versions', 'version_number >= 1'
-        )
+    constraints = (
+        ('uq_document_version_number',
+         'ALTER TABLE document_versions ADD CONSTRAINT uq_document_version_number UNIQUE (document_id, version_number)'),
+        ('ck_documents_file_size_nonnegative',
+         'ALTER TABLE documents ADD CONSTRAINT ck_documents_file_size_nonnegative CHECK (file_size >= 0)'),
+        ('ck_documents_version_positive',
+         'ALTER TABLE documents ADD CONSTRAINT ck_documents_version_positive CHECK (current_version_number >= 1)'),
+        ('ck_document_versions_file_size_nonnegative',
+         'ALTER TABLE document_versions ADD CONSTRAINT ck_document_versions_file_size_nonnegative CHECK (file_size >= 0)'),
+        ('ck_document_versions_version_positive',
+         'ALTER TABLE document_versions ADD CONSTRAINT ck_document_versions_version_positive CHECK (version_number >= 1)'),
+    )
+    for name, statement in constraints:
+        if not _pg_constraint_exists(name):
+            op.execute(statement)
 
 
 def downgrade() -> None:
