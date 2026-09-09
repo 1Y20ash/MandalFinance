@@ -42,7 +42,8 @@ def create_app(config_name=None):
     from app.routes.reconciliation import reconciliation_bp
     from app.routes.account_balances import account_balances_bp
     from app.routes.health import health_bp
-    for bp in (main_bp,auth_bp,dashboard_bp,donations_bp,income_bp,expenses_bp,vendors_bp,budgets_bp,contributions_bp,documents_bp,reports_bp,admin_bp,public_bp,controls_bp,reconciliation_bp,account_balances_bp,health_bp): app.register_blueprint(bp)
+    from app.routes.webhooks import webhooks_bp
+    for bp in (main_bp,auth_bp,dashboard_bp,donations_bp,income_bp,expenses_bp,vendors_bp,budgets_bp,contributions_bp,documents_bp,reports_bp,admin_bp,public_bp,controls_bp,reconciliation_bp,account_balances_bp,health_bp,webhooks_bp): app.register_blueprint(bp)
 
     @app.template_filter('currency')
     def currency_filter(amount): return '₹0.00' if amount is None else f'₹{amount:,.2f}'
