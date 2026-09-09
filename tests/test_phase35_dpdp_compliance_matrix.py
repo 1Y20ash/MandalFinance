@@ -61,7 +61,10 @@ def test_phase35_policy_defines_traceability_and_non_certification_boundary():
         'automated tests and the CI gate',
         'Environment-specific evidence belongs to the PDP phase that explicitly owns it',
         'must not be presented as proof of live production connectivity or deployment behavior',
-        'legal applicability, commencement timing, contractual interpretation, regulatory advice',
+        'legal applicability',
+        'commencement timing',
+        'contractual interpretation',
+        'regulatory advice',
         'Release Gate',
     ]
     for marker in required:
