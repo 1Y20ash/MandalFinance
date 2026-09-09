@@ -120,6 +120,33 @@ def test_online_confirmation_requires_verified_server_payment(app):
         assert Transaction.query.filter_by(external_ref=payment_id).count() == 1
 
 
+def _webhook_payload(order_id, payment_id, amount=50100, currency='INR', status='captured', captured=True,
+                     event='payment.captured', order_entity_id=None):
+    return {
+        'event': event,
+        'payload': {
+            'payment': {'entity': {
+                'id': payment_id,
+                'order_id': order_id,
+                'amount': amount,
+                'currency': currency,
+                'status': status,
+                'captured': captured,
+            }},
+            'order': {'entity': {'id': order_entity_id or order_id}},
+        },
+    }
+
+
+def _post_mock_webhook(client, payload, event_id):
+    raw = json.dumps(payload, separators=(',', ':')).encode('utf-8')
+    return client.post('/donate/webhook', data=raw, headers={
+        'X-Razorpay-Signature': 'valid_mock_webhook_sig',
+        'X-Razorpay-Event-Id': event_id,
+        'Content-Type': 'application/json',
+    })
+
+
 def test_webhook_is_idempotent_and_does_not_double_post(app):
     with app.app_context():
         from app.models.mandal import Event
@@ -142,20 +169,109 @@ def test_webhook_is_idempotent_and_does_not_double_post(app):
         db.session.add(donation)
         db.session.commit()
         payment_id = 'pay_mock_order_mock_webhook'
-        payload = {'event': 'payment.captured', 'payload': {'payment': {'entity': {
-            'id': payment_id, 'order_id': donation.gateway_order_id, 'amount': 50100,
-            'currency': 'INR', 'status': 'captured', 'captured': True,
-        }}}}
-        raw = json.dumps(payload, separators=(',', ':')).encode('utf-8')
-        headers = {'X-Razorpay-Signature': 'valid_mock_webhook_sig',
-                   'x-razorpay-event-id': 'evt_phase12_001', 'Content-Type': 'application/json'}
+        payload = _webhook_payload(donation.gateway_order_id, payment_id)
         client = app.test_client()
-        first = client.post('/donate/webhook', data=raw, headers=headers)
-        second = client.post('/donate/webhook', data=raw, headers=headers)
+        first = _post_mock_webhook(client, payload, 'evt_phase13_001')
+        second = _post_mock_webhook(client, payload, 'evt_phase13_001')
         assert first.status_code == 200
         assert second.status_code == 200
         db.session.expire_all()
         saved = db.session.get(Donation, donation.id)
         assert saved.status == 'SUCCESS'
         assert Transaction.query.filter_by(external_ref=payment_id).count() == 1
-        assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase12_001').count() == 1
+        assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_001').count() == 1
+
+
+def test_webhook_rejects_invalid_signature_before_parsing(app):
+    client = app.test_client()
+    raw = b'{"event":"payment.captured","payload":{not-json}}'
+    response = client.post('/donate/webhook', data=raw, headers={
+        'X-Razorpay-Signature': 'wrong', 'X-Razorpay-Event-Id': 'evt_invalid_sig',
+    })
+    assert response.status_code == 400
+
+
+def test_webhook_rejects_order_identity_mismatch(app):
+    with app.app_context():
+        from app.models.mandal import Event
+        event = Event.query.first()
+        actor = User.query.filter_by(username='admin').first()
+        donation = Donation(
+            donation_number='DON-TEST-PHASE13-IDENTITY', event_id=event.id,
+            donor_name='Identity Donor', amount=Decimal('501.00'),
+            purpose='General Utsav Donation', donation_type='ONLINE',
+            payment_mode='ONLINE_GATEWAY', status='PENDING',
+            gateway_order_id='order_identity_test', created_by_id=actor.id,
+        )
+        db.session.add(donation)
+        db.session.commit()
+        response = _post_mock_webhook(
+            app.test_client(),
+            _webhook_payload('order_identity_test', 'pay_mock_order_identity_test', order_entity_id='order_other'),
+            'evt_phase13_identity',
+        )
+        assert response.status_code == 400
+        assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_identity').count() == 0
+        assert Donation.query.get(donation.id).status == 'PENDING'
+
+
+def test_webhook_rejects_malformed_amount_without_500(app):
+    with app.app_context():
+        from app.models.mandal import Event
+        event = Event.query.first()
+        actor = User.query.filter_by(username='admin').first()
+        donation = Donation(
+            donation_number='DON-TEST-PHASE13-AMOUNT', event_id=event.id,
+            donor_name='Amount Donor', amount=Decimal('501.00'),
+            purpose='General Utsav Donation', donation_type='ONLINE',
+            payment_mode='ONLINE_GATEWAY', status='PENDING',
+            gateway_order_id='order_amount_test', created_by_id=actor.id,
+        )
+        db.session.add(donation)
+        db.session.commit()
+        payload = _webhook_payload('order_amount_test', 'pay_mock_order_amount_test', amount='not-a-number')
+        response = _post_mock_webhook(app.test_client(), payload, 'evt_phase13_amount')
+        assert response.status_code == 400
+        assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_amount').count() == 0
+
+
+def test_webhook_ignores_failed_payment_without_marking_donation_failed(app):
+    with app.app_context():
+        from app.models.mandal import Event
+        event = Event.query.first()
+        actor = User.query.filter_by(username='admin').first()
+        donation = Donation(
+            donation_number='DON-TEST-PHASE13-FAILED', event_id=event.id,
+            donor_name='Failed Donor', amount=Decimal('501.00'),
+            purpose='General Utsav Donation', donation_type='ONLINE',
+            payment_mode='ONLINE_GATEWAY', status='PENDING',
+            gateway_order_id='order_failed_test', created_by_id=actor.id,
+        )
+        db.session.add(donation)
+        db.session.commit()
+        payload = _webhook_payload('order_failed_test', 'pay_mock_order_failed_test', status='failed', captured=False,
+                                   event='payment.failed')
+        response = _post_mock_webhook(app.test_client(), payload, 'evt_phase13_failed')
+        assert response.status_code == 200
+        assert Donation.query.get(donation.id).status == 'PENDING'
+        assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_failed').count() == 1
+        assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_failed', status='IGNORED').count() == 1
+
+
+def test_webhook_ignores_unknown_signed_event_durably(app):
+    payload = {'event': 'payment.authorized', 'payload': {}}
+    response = _post_mock_webhook(app.test_client(), payload, 'evt_phase13_ignored')
+    assert response.status_code == 200
+    with app.app_context():
+        event = PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_ignored').first()
+        assert event is not None
+        assert event.status == 'IGNORED'
+        assert event.event_type == 'payment.authorized'
+
+
+def test_webhook_rejects_missing_event_id(app):
+    raw = json.dumps({'event': 'payment.captured'}, separators=(',', ':')).encode('utf-8')
+    response = app.test_client().post('/donate/webhook', data=raw, headers={
+        'X-Razorpay-Signature': 'valid_mock_webhook_sig', 'Content-Type': 'application/json',
+    })
+    assert response.status_code == 400
