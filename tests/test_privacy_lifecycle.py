@@ -6,6 +6,7 @@ from app.models.audit import AuditLog
 from app.models.mandal import Event
 from app.models.ledger import Account
 from app.services.donation_service import DonationService
+from app.extensions import db
 
 
 def login(client, username='volunteer', password='password'):
@@ -63,8 +64,7 @@ def test_admin_must_follow_privacy_request_workflow(client, app):
     assert invalid.status_code == 200
     assert b'Invalid workflow transition' in invalid.data
     with app.app_context():
-        item = db_session_get(app, request_id)
-        assert item.status == 'REQUESTED'
+        assert db.session.get(PrivacyRequest, request_id).status == 'REQUESTED'
 
     for status in ['IDENTITY_VERIFIED', 'REVIEWED', 'PROCESSED', 'COMPLETED']:
         response = client.post(f'/admin/privacy-requests/{request_id}/status', data={
@@ -72,17 +72,11 @@ def test_admin_must_follow_privacy_request_workflow(client, app):
         }, follow_redirects=True)
         assert response.status_code == 200
     with app.app_context():
-        item = db_session_get(app, request_id)
+        item = db.session.get(PrivacyRequest, request_id)
         assert item.status == 'COMPLETED'
         assert item.verified_at is not None
         assert item.completed_at is not None
         assert item.response_note == 'COMPLETED note'
-
-
-def db_session_get(app, request_id):
-    from app.extensions import db
-    with app.app_context():
-        return db.session.get(PrivacyRequest, request_id)
 
 
 def test_correction_creates_reviewable_request_without_immediate_update(client, app):
