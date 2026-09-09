@@ -41,17 +41,32 @@
     <div class="col-12">
       <div class="card p-4">
         <h2>Optional consent</h2>
-        <p class="text-muted">Core account and financial processing is not bundled with these optional preferences.</p>
+        <p class="text-muted">These choices are separate from core account, financial, security, and legally required processing. Nothing is pre-selected.</p>
         {% for purpose, description in consent_purposes.items() %}
           {% set current = consents | selectattr('purpose', 'equalto', purpose) | first %}
-          <div class="border rounded p-3 mb-2">
-            <strong>{{ purpose|title }}</strong><p class="mb-2">{{ description }}</p>
+          <div class="border rounded p-3 mb-3">
+            <strong>{{ purpose|title }}</strong>
+            <p class="mb-2">{{ description }}</p>
             <span class="badge text-bg-{{ 'success' if current and current.status == 'GRANTED' else 'secondary' }}">{{ current.status if current else 'NOT GRANTED' }}</span>
-            <form class="d-inline" method="post" action="{{ url_for('privacy.consent') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="purpose" value="{{ purpose }}">
-              <input type="hidden" name="action" value="{{ 'WITHDRAW' if current and current.status == 'GRANTED' else 'GRANT' }}">
-              <button class="btn btn-sm btn-outline-primary ms-2">{{ 'Withdraw' if current and current.status == 'GRANTED' else 'Grant' }}</button>
-            </form>
+            {% if current and current.status == 'GRANTED' %}
+              <form class="d-inline" method="post" action="{{ url_for('privacy.consent') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="purpose" value="{{ purpose }}">
+                <input type="hidden" name="action" value="WITHDRAW">
+                <button class="btn btn-sm btn-outline-danger ms-2">Withdraw</button>
+              </form>
+            {% else %}
+              <form class="mt-3" method="post" action="{{ url_for('privacy.consent') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="purpose" value="{{ purpose }}">
+                <input type="hidden" name="action" value="GRANT">
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="consent_confirm" value="yes" id="consent-{{ purpose }}" required>
+                  <label class="form-check-label" for="consent-{{ purpose }}">I agree to this optional {{ purpose }} processing.</label>
+                </div>
+                <button class="btn btn-sm btn-outline-primary">Give consent</button>
+              </form>
+            {% endif %}
           </div>
         {% endfor %}
       </div>
