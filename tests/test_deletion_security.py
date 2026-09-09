@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.audit import AuditLog, Notification
 from app.models.auth import User
 from app.models.deletion import DeletionRequest
+from app.models.retention import RetentionPolicy
 from app.services.deletion_service import DeletionService
 
 
@@ -112,12 +113,26 @@ def test_erased_account_is_not_reloaded_into_a_session(app):
         assert loaded is None
 
 
-def test_admin_deletion_review_endpoint_is_protected_and_available(client, app):
-    response = client.get('/admin/deletion-requests', follow_redirects=False)
-    assert response.status_code in (302, 401)
+def test_delete_retention_action_is_restricted_to_user_accounts(client, app):
+    with app.app_context():
+        admin = db.session.query(User).filter_by(username='admin').one()
+        policy = RetentionPolicy(
+            data_category='FINANCIAL_TEST',
+            retention_days=30,
+            retention_basis='Test financial policy',
+            disposal_action='REVIEW',
+        )
+        db.session.add(policy)
+        db.session.commit()
 
-    with client.session_transaction() as session:
-        session['_user_id'] = '1'
-        session['_fresh'] = True
-    response = client.get('/admin/deletion-requests')
-    assert response.status_code in (200, 302)
+        with client.session_transaction() as session:
+            session['_user_id'] = str(admin.id)
+            session['_fresh'] = True
+        response = client.post(
+            f'/admin/retention/{policy.id}',
+            data={'retention_days': '30', 'disposal_action': 'DELETE'},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        db.session.refresh(policy)
+        assert policy.disposal_action == 'REVIEW'
