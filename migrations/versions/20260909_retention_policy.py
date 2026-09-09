@@ -6,6 +6,8 @@ present. It then ensures the policy catalogue contains the required defaults.
 Destructive deletion is deliberately deferred to the dedicated deletion phase.
 """
 
+from datetime import datetime
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -62,19 +64,25 @@ def upgrade() -> None:
         sa.column('retention_basis', sa.String()),
         sa.column('disposal_action', sa.String()),
         sa.column('is_active', sa.Boolean()),
+        sa.column('created_at', sa.DateTime()),
+        sa.column('updated_at', sa.DateTime()),
     )
+    now = datetime.utcnow()
+    bind = op.get_bind()
     for category, days, basis in DEFAULT_POLICIES:
-        exists = op.get_bind().execute(
+        exists = bind.execute(
             sa.select(sa.literal(1)).select_from(table).where(table.c.data_category == category).limit(1)
         ).scalar()
         if not exists:
-            op.bulk_insert(table, [{
-                'data_category': category,
-                'retention_days': days,
-                'retention_basis': basis,
-                'disposal_action': 'REVIEW',
-                'is_active': True,
-            }])
+            bind.execute(table.insert().values(
+                data_category=category,
+                retention_days=days,
+                retention_basis=basis,
+                disposal_action='REVIEW',
+                is_active=True,
+                created_at=now,
+                updated_at=now,
+            ))
 
 
 def downgrade() -> None:
