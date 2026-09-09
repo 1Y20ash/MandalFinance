@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
-from flask import Flask, render_template
-from werkzeug.exceptions import TooManyRequests
+from flask import Flask, render_template, jsonify, request
+from werkzeug.exceptions import HTTPException, TooManyRequests
 from app.config import config_by_name
 from app.extensions import db, migrate, login_manager, csrf, limiter
 from app.models.auth import User
@@ -13,6 +13,22 @@ PROJECT_DIR = BASE_DIR.parent
 PACKAGE_TEMPLATE_DIR = BASE_DIR / 'templates'
 DEPLOYED_TEMPLATE_DIR = PROJECT_DIR / 'templates'
 TEMPLATE_DIR = DEPLOYED_TEMPLATE_DIR if DEPLOYED_TEMPLATE_DIR.exists() else PACKAGE_TEMPLATE_DIR
+
+
+def _wants_json_response():
+    """Use JSON for explicit API-style clients without leaking exception details."""
+    if request.path.startswith('/api/'):
+        return True
+    return request.accept_mimetypes.best == 'application/json'
+
+
+def _safe_error_payload(status_code, message):
+    return jsonify({
+        'error': {
+            'code': status_code,
+            'message': message,
+        }
+    }), status_code
 
 
 def create_app(config_name=None):
@@ -43,8 +59,40 @@ def create_app(config_name=None):
     @app.errorhandler(TooManyRequests)
     def rate_limit_exceeded(error):
         """Return a privacy-safe, user-friendly 429 page without internals."""
+        if _wants_json_response():
+            return _safe_error_payload(429, 'Too many requests. Please try again later.')
         response = render_template('errors/429.html'), 429
         return response
+
+    @app.errorhandler(HTTPException)
+    def handle_http_error(error):
+        """Normalize expected HTTP failures without exposing framework internals."""
+        messages = {
+            400: 'The request could not be processed. Please check your input and try again.',
+            401: 'Authentication is required to access this resource.',
+            403: 'You do not have permission to access this resource.',
+            404: 'The requested page could not be found.',
+            405: 'This action is not supported for the requested resource.',
+            408: 'The request timed out. Please try again.',
+            413: 'The submitted content is too large.',
+            415: 'The submitted content type is not supported.',
+            422: 'The request could not be validated.',
+            429: 'Too many requests. Please try again later.',
+        }
+        status_code = error.code or 500
+        message = messages.get(status_code, 'The request could not be completed.')
+        if _wants_json_response():
+            return _safe_error_payload(status_code, message)
+        return render_template('errors/http_error.html', status_code=status_code, message=message), status_code
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        """Log unexpected failures server-side and expose only a generic response."""
+        db.session.rollback()
+        app.logger.exception('Unhandled application exception')
+        if _wants_json_response():
+            return _safe_error_payload(500, 'An unexpected error occurred. Please try again later.')
+        return render_template('errors/500.html'), 500
 
     @app.after_request
     def security_headers(response):
