@@ -1,4 +1,7 @@
 import pytest
+from flask import Flask
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from app.config import ProductionConfig
 
@@ -91,3 +94,15 @@ def test_production_accepts_non_memory_shared_storage(monkeypatch):
     monkeypatch.setattr(ProductionConfig, 'RATELIMIT_STORAGE_URI', 'redis://localhost:6379/0')
 
     ProductionConfig.validate()
+
+
+def test_flask_limiter_uses_configured_redis_backend():
+    app = Flask(__name__)
+    app.config['RATELIMIT_STORAGE_URI'] = 'redis://localhost:6379/0'
+    configured_limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=['10 per minute'],
+    )
+    configured_limiter.init_app(app)
+
+    assert type(configured_limiter.storage).__name__ == 'RedisStorage'
