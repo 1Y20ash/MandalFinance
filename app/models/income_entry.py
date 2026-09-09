@@ -21,7 +21,11 @@ class Income(db.Model):
     transaction_ref = db.Column(db.String(100), nullable=True, index=True)
     notes = db.Column(db.Text, nullable=True)
 
-    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id'), nullable=False, unique=True)
+    # Nullable is intentional at the database/ORM insertion boundary: the
+    # income row must receive its primary key before the central ledger row
+    # can reference income.id as its source_id. IncomeService performs both
+    # inserts in one transaction and assigns this field before commit.
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id'), nullable=True, unique=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
