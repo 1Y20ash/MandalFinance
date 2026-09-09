@@ -2,7 +2,9 @@
 from alembic import op
 import sqlalchemy as sa
 
-revision = '20260909_phase11_financial_integrity'
+# Alembic's default version_num column is VARCHAR(32); keep revision IDs within
+# that limit so clean PostgreSQL upgrades can record them safely.
+revision = '20260909_fin_integrity'
 down_revision = '20260908_contribution_payments'
 branch_labels = None
 depends_on = None
