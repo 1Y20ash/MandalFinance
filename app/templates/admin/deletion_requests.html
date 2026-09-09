@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Deletion Requests - Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <div class="text-muted small fw-semibold">PRIVACY GOVERNANCE</div>
+        <h3 class="fw-bold mb-1"><i class="fa-solid fa-user-shield me-2 text-primary"></i>Deletion Requests</h3>
+        <p class="text-muted mb-0">Review requests before controlled erasure. Required financial evidence is never deleted by this workflow.</p>
+    </div>
+    <span class="badge rounded-pill text-bg-light border px-3 py-2">Admin only</span>
+</div>
+
+<div class="alert alert-warning border-0 shadow-sm">
+    <i class="fa-solid fa-triangle-exclamation me-2"></i>
+    Use <strong>Hold</strong> where legal, audit, dispute, or operational preservation is required. Approval anonymizes account PII and removes operational notifications without destroying retained financial evidence.
+</div>
+
+<div class="row g-3">
+{% for item in requests %}
+    <div class="col-12 col-xl-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <div class="small text-muted">REQUEST #{{ item.id }}</div>
+                        <h5 class="fw-bold mb-1">{{ item.user.username if item.user else 'Account reference unavailable' }}</h5>
+                        <div class="small text-muted">Submitted {{ item.requested_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                    <span class="badge rounded-pill {% if item.status == 'COMPLETED' %}text-bg-success{% elif item.status in ['REJECTED', 'BLOCKED'] %}text-bg-warning{% else %}text-bg-primary{% endif %}">{{ item.status }}</span>
+                </div>
+
+                {% if item.reason %}
+                    <div class="bg-light rounded-3 p-3 small mb-3"><strong>Requester note:</strong> {{ item.reason }}</div>
+                {% endif %}
+
+                {% if item.status == 'PENDING' %}
+                <form method="post" action="{{ url_for('admin.review_deletion_request', request_id=item.id) }}">
+                    <label class="form-label small fw-semibold" for="decision-{{ item.id }}">Decision note</label>
+                    <textarea id="decision-{{ item.id }}" name="decision_reason" class="form-control mb-3" rows="2" maxlength="5000" required></textarea>
+                    <label class="form-label small fw-semibold" for="hold-{{ item.id }}">Hold reason (only for Hold)</label>
+                    <input id="hold-{{ item.id }}" name="legal_hold_reason" class="form-control mb-3" maxlength="5000" placeholder="Required when placing a hold">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button name="action" value="APPROVE" class="btn btn-danger" type="submit" onclick="return confirm('Approve controlled deletion for this account?');">Approve deletion</button>
+                        <button name="action" value="HOLD" class="btn btn-outline-warning" type="submit">Place hold</button>
+                        <button name="action" value="REJECT" class="btn btn-outline-secondary" type="submit">Reject</button>
+                    </div>
+                </form>
+                {% else %}
+                    {% if item.decision_reason %}<div class="small text-muted">{{ item.decision_reason }}</div>{% endif %}
+                    {% if item.legal_hold_reason %}<div class="small text-warning mt-2"><strong>Hold:</strong> {{ item.legal_hold_reason }}</div>{% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="col-12"><div class="card border-0 shadow-sm"><div class="card-body text-center py-5 text-muted">No deletion requests.</div></div></div>
+{% endfor %}
+</div>
+{% endblock %}
