@@ -103,12 +103,12 @@ class AuditService:
             request_id=request_id,
             ip_address=ip_address,
             user_agent=user_agent,
+            # The digest is non-null in production, so the timestamp must be
+            # explicit before INSERT rather than populated by SQLAlchemy later.
+            created_at=datetime.utcnow(),
         )
-        db.session.add(entry)
-        # Flush is required so SQLAlchemy applies the created_at default before
-        # the immutable integrity hash is calculated.
-        db.session.flush()
         entry.integrity_hash = AuditService._integrity_hash(entry)
+        db.session.add(entry)
         if commit:
             db.session.commit()
         return entry
