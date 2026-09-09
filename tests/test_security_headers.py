@@ -1,4 +1,5 @@
 from app import create_app
+from app.config import ProductionConfig
 
 
 def test_security_headers_are_present():
@@ -31,11 +32,8 @@ def test_security_headers_are_present():
         assert directive in csp
 
 
-def test_production_hsts_is_enabled():
-    app = create_app('testing')
-    # The production-only branch is kept independently testable without
-    # requiring production secrets by invoking the header logic directly.
-    with app.test_request_context('/'):
-        response = app.response_class('ok')
-        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-        assert response.headers['Strict-Transport-Security'] == 'max-age=31536000; includeSubDomains'
+def test_production_hsts_is_enabled(monkeypatch):
+    monkeypatch.setattr(ProductionConfig, 'validate', classmethod(lambda cls: None))
+    app = create_app('production')
+    response = app.test_client().get('/health')
+    assert response.headers['Strict-Transport-Security'] == 'max-age=31536000; includeSubDomains'
