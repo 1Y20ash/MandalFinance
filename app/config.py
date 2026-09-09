@@ -9,6 +9,7 @@ class Config:
     UPLOAD_FOLDER=os.environ.get('UPLOAD_FOLDER',str(BASE_DIR/'uploads'));MAX_CONTENT_LENGTH=int(os.environ.get('MAX_CONTENT_LENGTH',16*1024*1024));MAX_DOCUMENT_SIZE=int(os.environ.get('MAX_DOCUMENT_SIZE',10*1024*1024))
     SUPABASE_URL=os.environ.get('SUPABASE_URL','');SUPABASE_SERVICE_ROLE_KEY=os.environ.get('SUPABASE_SERVICE_ROLE_KEY','');SUPABASE_STORAGE_BUCKET=os.environ.get('SUPABASE_STORAGE_BUCKET','mandal-financial-documents');SUPABASE_STORAGE_PRIVATE=os.environ.get('SUPABASE_STORAGE_PRIVATE','true').lower()=='true'
     PAYMENT_GATEWAY_DRIVER=os.environ.get('PAYMENT_GATEWAY_DRIVER','mock').strip().lower();ONLINE_DONATION_ACCOUNT_ID=os.environ.get('ONLINE_DONATION_ACCOUNT_ID','');RAZORPAY_KEY_ID=os.environ.get('RAZORPAY_KEY_ID','');RAZORPAY_KEY_SECRET=os.environ.get('RAZORPAY_KEY_SECRET','');RAZORPAY_WEBHOOK_SECRET=os.environ.get('RAZORPAY_WEBHOOK_SECRET','')
+    LOG_LEVEL=os.environ.get('LOG_LEVEL','INFO').upper()
     SESSION_COOKIE_HTTPONLY=True;SESSION_COOKIE_SAMESITE='Lax'
 class DevelopmentConfig(Config):
     DEBUG=True;SECRET_KEY=os.environ.get('SECRET_KEY','development-only-change-me')
