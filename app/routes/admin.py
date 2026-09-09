@@ -4,9 +4,11 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app.models.auth import User, Role, Permission
 from app.models.audit import AuditLog
+from app.models.retention import RetentionPolicy
 from app.extensions import db
 from app.utils.decorators import admin_required
 from app.services.audit_service import AuditService
+from app.services.retention_service import RetentionService
 
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -104,7 +106,6 @@ def assign_user_roles(user_id):
     role_ids = request.form.getlist('role_ids', type=int)
     selected_roles = Role.query.filter(Role.id.in_(role_ids)).all() if role_ids else []
 
-    # Treat role assignment as an auditable security-sensitive operation.
     old_role_names = sorted(role.name for role in user.roles)
     new_role_names = sorted(role.name for role in selected_roles)
 
@@ -238,6 +239,54 @@ def delete_role(role_id):
     db.session.commit()
     flash(f'Role "{role_name}" deleted successfully.', 'success')
     return redirect(url_for('admin.list_roles'))
+
+
+@admin_bp.route('/retention')
+@login_required
+@admin_required
+def retention_policies():
+    policies = RetentionPolicy.query.order_by(RetentionPolicy.data_category.asc()).all()
+    return render_template('admin/retention.html', policies=policies)
+
+
+@admin_bp.route('/retention/<int:policy_id>', methods=['POST'])
+@login_required
+@admin_required
+def update_retention_policy(policy_id):
+    policy = db.session.get(RetentionPolicy, policy_id)
+    if policy is None:
+        abort(404)
+
+    try:
+        retention_days = int(request.form.get('retention_days', '0'))
+    except ValueError:
+        retention_days = 0
+    disposal_action = request.form.get('disposal_action', '').strip().upper()
+
+    if retention_days <= 0 or retention_days > 36500:
+        flash('Retention must be between 1 and 36,500 days.', 'danger')
+        return redirect(url_for('admin.retention_policies'))
+    if disposal_action not in {'REVIEW', 'ARCHIVE'}:
+        flash('Invalid disposal action.', 'danger')
+        return redirect(url_for('admin.retention_policies'))
+
+    try:
+        old_days = policy.retention_days
+        old_action = policy.disposal_action
+        policy.retention_days = retention_days
+        policy.disposal_action = disposal_action
+        RetentionService.record_policy_change(policy, actor=current_user)
+        db.session.commit()
+        flash(
+            f'Retention policy {policy.data_category} updated: {old_days} → {retention_days} days, '
+            f'{old_action} → {disposal_action}.',
+            'success',
+        )
+    except Exception:
+        db.session.rollback()
+        flash('Unable to update the retention policy. No changes were saved.', 'danger')
+
+    return redirect(url_for('admin.retention_policies'))
 
 
 @admin_bp.route('/audit-logs')
