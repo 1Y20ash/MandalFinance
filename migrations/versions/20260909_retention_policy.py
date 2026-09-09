@@ -1,6 +1,8 @@
 """Add explicit, auditable data-retention policy metadata.
 
-This phase establishes retention schedules and expiry calculation only.
+The bootstrap migration creates the current SQLAlchemy metadata, so this
+revision is intentionally idempotent when the retention model is already
+present. It then ensures the policy catalogue contains the required defaults.
 Destructive deletion is deliberately deferred to the dedicated deletion phase.
 """
 
@@ -23,21 +25,35 @@ DEFAULT_POLICIES = (
 )
 
 
+def _table_exists(name: str) -> bool:
+    return sa.inspect(op.get_bind()).has_table(name)
+
+
 def upgrade() -> None:
-    op.create_table(
-        'retention_policies',
-        sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('data_category', sa.String(length=80), nullable=False, unique=True),
-        sa.Column('retention_days', sa.Integer(), nullable=False),
-        sa.Column('retention_basis', sa.String(length=120), nullable=False),
-        sa.Column('disposal_action', sa.String(length=20), nullable=False, server_default='REVIEW'),
-        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.CheckConstraint('retention_days > 0', name='ck_retention_policies_days_positive'),
-        sa.CheckConstraint("disposal_action IN ('REVIEW', 'ARCHIVE')", name='ck_retention_policies_action'),
-    )
-    op.create_index('ix_retention_policies_data_category', 'retention_policies', ['data_category'], unique=False)
+    if not _table_exists('retention_policies'):
+        op.create_table(
+            'retention_policies',
+            sa.Column('id', sa.Integer(), primary_key=True),
+            sa.Column('data_category', sa.String(length=80), nullable=False, unique=True),
+            sa.Column('retention_days', sa.Integer(), nullable=False),
+            sa.Column('retention_basis', sa.String(length=120), nullable=False),
+            sa.Column('disposal_action', sa.String(length=20), nullable=False, server_default='REVIEW'),
+            sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.CheckConstraint('retention_days > 0', name='ck_retention_policies_days_positive'),
+            sa.CheckConstraint("disposal_action IN ('REVIEW', 'ARCHIVE')", name='ck_retention_policies_action'),
+        )
+
+    inspector = sa.inspect(op.get_bind())
+    existing_indexes = {index['name'] for index in inspector.get_indexes('retention_policies')}
+    if 'ix_retention_policies_data_category' not in existing_indexes:
+        op.create_index(
+            'ix_retention_policies_data_category',
+            'retention_policies',
+            ['data_category'],
+            unique=False,
+        )
 
     table = sa.table(
         'retention_policies',
@@ -47,16 +63,18 @@ def upgrade() -> None:
         sa.column('disposal_action', sa.String()),
         sa.column('is_active', sa.Boolean()),
     )
-    op.bulk_insert(table, [
-        {
-            'data_category': category,
-            'retention_days': days,
-            'retention_basis': basis,
-            'disposal_action': 'REVIEW',
-            'is_active': True,
-        }
-        for category, days, basis in DEFAULT_POLICIES
-    ])
+    for category, days, basis in DEFAULT_POLICIES:
+        exists = op.get_bind().execute(
+            sa.select(sa.literal(1)).select_from(table).where(table.c.data_category == category).limit(1)
+        ).scalar()
+        if not exists:
+            op.bulk_insert(table, [{
+                'data_category': category,
+                'retention_days': days,
+                'retention_basis': basis,
+                'disposal_action': 'REVIEW',
+                'is_active': True,
+            }])
 
 
 def downgrade() -> None:
