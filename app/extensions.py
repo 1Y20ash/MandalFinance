@@ -23,7 +23,10 @@ if os.getenv("FLASK_ENV", "").lower() == "production" and not _ratelimit_storage
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=_ratelimit_storage_uri or "memory://",
-    default_limits=[],
+    # Phase 24: establish a conservative application-wide ceiling while
+    # sensitive endpoints receive tighter route-specific limits.
+    default_limits=["300 per minute"],
+    headers_enabled=True,
 )
 
 login_manager.login_view = 'auth.login'
