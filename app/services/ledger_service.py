@@ -1,7 +1,6 @@
 import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-
-from sqlalchemy import func
+from uuid import uuid4
 
 from app.extensions import db
 from app.models.ledger import Account, Transaction
@@ -15,8 +14,7 @@ MONEY_ZERO = Decimal('0.00')
 class LedgerService:
     @staticmethod
     def _generate_txn_ref():
-        timestamp = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-        return f'TXN-{timestamp}'
+        return f"TXN-{datetime.datetime.utcnow().year}-{uuid4().hex.upper()}"
 
     @staticmethod
     def _normalize_amount(amount):
@@ -86,8 +84,10 @@ class LedgerService:
             )
             if transaction_type == 'INCOME':
                 account.current_balance = LedgerService._to_money(account.current_balance) + decimal_amount
-            else:
+            elif transaction_type == 'EXPENSE':
                 account.current_balance = LedgerService._to_money(account.current_balance) - decimal_amount
+            else:
+                raise ValueError('Unsupported ledger transaction type.')
             db.session.add(transaction)
             db.session.flush()
             AuditService.log_action(
@@ -136,28 +136,37 @@ class LedgerService:
                 raise ValueError('Transaction has already been reversed.')
             if orig_txn.transaction_type not in ('INCOME', 'EXPENSE'):
                 raise ValueError('Only INCOME and EXPENSE transactions can be reversed.')
+
             account = LedgerService._lock_account(orig_txn.account_id)
-            existing_reversal = Transaction.query.filter_by(external_ref=f'REVERSAL-OF-{orig_txn.transaction_ref}').first()
-            if existing_reversal:
+            reversal_ref = f'REVERSAL-OF-{orig_txn.transaction_ref}'
+            if Transaction.query.filter_by(external_ref=reversal_ref).first():
                 raise ValueError('A reversal already exists for this transaction.')
+
             if orig_txn.transaction_type == 'INCOME':
                 account.current_balance = LedgerService._to_money(account.current_balance) - orig_txn.amount
             else:
                 account.current_balance = LedgerService._to_money(account.current_balance) + orig_txn.amount
+
+            # A reversal is its own immutable ledger entry. It deliberately has
+            # no source_id so the active-source uniqueness invariant remains
+            # attached to the original financial record.
             reversal_txn = Transaction(
                 transaction_ref=LedgerService._generate_txn_ref(), event_id=orig_txn.event_id,
                 account_id=orig_txn.account_id, category_id=orig_txn.category_id, transaction_type='REVERSAL',
                 amount=orig_txn.amount, payment_mode=orig_txn.payment_mode,
-                external_ref=f'REVERSAL-OF-{orig_txn.transaction_ref}',
+                external_ref=reversal_ref,
                 description=f'Reversal of {orig_txn.transaction_ref}: {str(reason).strip()}',
-                source_module=orig_txn.source_module, source_id=orig_txn.source_id,
+                source_module='REVERSAL', source_id=None,
                 created_by_id=reversed_by_user_id,
             )
-            orig_txn.is_reversed = True
-            orig_txn.reversal_reason = str(reason).strip()
             db.session.add(reversal_txn)
             db.session.flush()
+
+            orig_txn.is_reversed = True
+            orig_txn.reversal_reason = str(reason).strip()
             orig_txn.reversed_by_txn_id = reversal_txn.id
+            db.session.flush()
+
             AuditService.log_action(
                 action='REVERSE', entity_type='TRANSACTION', entity_id=orig_txn.id,
                 description=f'Reversed transaction {orig_txn.transaction_ref} with {reversal_txn.transaction_ref}. Reason: {orig_txn.reversal_reason}',
@@ -171,13 +180,7 @@ class LedgerService:
 
     @staticmethod
     def _effective_transaction_totals(query):
-        """Calculate economic totals without double-counting preserved reversals.
-
-        Originals remain in the immutable ledger even after reversal. The original
-        contributes its normal economic effect, while its REVERSAL row removes that
-        exact effect. This keeps derived totals aligned with the stored account
-        balance while preserving the complete audit trail.
-        """
+        """Calculate economic totals without double-counting preserved reversals."""
         income = MONEY_ZERO
         expense = MONEY_ZERO
         transactions = query.all()
@@ -217,7 +220,6 @@ class LedgerService:
 
     @staticmethod
     def get_account_reconciliation():
-        """Compare stored account balances with balances derivable from the immutable ledger."""
         accounts = Account.query.order_by(Account.is_active.desc(), Account.name.asc()).all()
         results = []
         for account in accounts:
