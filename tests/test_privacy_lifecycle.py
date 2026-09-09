@@ -16,7 +16,7 @@ def test_privacy_notice_is_public(client):
     response = client.get('/privacy/notice')
     assert response.status_code == 200
     assert b'Privacy Notice' in response.data
-    assert b'password hashes' in response.data
+    assert b'password hash' in response.data
 
 
 def test_privacy_center_requires_authentication(client):
