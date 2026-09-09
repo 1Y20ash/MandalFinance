@@ -131,11 +131,19 @@ def test_ineligible_authenticated_user_cannot_retain_permission(client, app):
     assert response.status_code == 403
 
 
-def test_strong_session_protection_rejects_changed_client_identity(client):
+def test_strong_session_protection_rejects_changed_client_identity(client, app):
+    assert app.config['SESSION_PROTECTION'] == 'strong'
     assert _login(client, 'volunteer').status_code == 302
 
-    # Change the network identity used by Flask-Login's session fingerprint.
-    # This is deterministic in Flask's test client and exercises the same
-    # strong-protection path as a changed client identity in production.
-    response = client.get('/dashboard/', environ_overrides={'REMOTE_ADDR': '203.0.113.99'})
+    # Flask-Login binds the session to a hash of the client's network identity
+    # and user-agent. Change both inputs so the test deterministically exercises
+    # the production strong-protection path instead of relying on one mutable
+    # test-client environ field.
+    response = client.get(
+        '/dashboard/',
+        environ_overrides={
+            'REMOTE_ADDR': '203.0.113.99',
+            'HTTP_USER_AGENT': 'MandalFinance-Session-Test/2',
+        },
+    )
     assert response.status_code == 302
