@@ -12,6 +12,7 @@ from app.models.audit import AuditLog, Setting, Notification
 from app.models.controls import ContributionReceipt, CorrectionRequest, ReconciliationRecord, EvidenceRule
 from app.models.reconciliation import ReconciliationLine
 from app.models.contribution import SponsorshipPayment, MemberContributionPayment
+from app.models.retention import RetentionPolicy
 
 __all__ = [
     'User', 'Role', 'Permission', 'role_permissions', 'user_roles',
@@ -24,5 +25,6 @@ __all__ = [
     'Document', 'DocumentVersion', 'EvidencePack',
     'AuditLog', 'Setting', 'Notification',
     'ContributionReceipt', 'CorrectionRequest', 'ReconciliationRecord', 'EvidenceRule',
-    'ReconciliationLine', 'SponsorshipPayment', 'MemberContributionPayment'
+    'ReconciliationLine', 'SponsorshipPayment', 'MemberContributionPayment',
+    'RetentionPolicy'
 ]
