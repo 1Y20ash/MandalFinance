@@ -45,12 +45,22 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | **32. Production Configuration Test** | **🟢 PASS** | `docs/PRODUCTION_CONFIGURATION_TEST_POLICY.md`; fail-closed PostgreSQL/Razorpay/private-Supabase/persistent-Redis validation; synthetic production-shaped preflight; negative-path configuration simulations; secure-cookie assertions; CI-enforced dedicated Phase 32 test gate | Record actual production provider/region/configuration evidence without exposing secrets; perform final production smoke test in Phase 39 | **P0** |
 | **33. Deployment Architecture** | **🟢 PASS** | `docs/DEPLOYMENT_ARCHITECTURE.md`; canonical `server.py` production entrypoint; Vercel function configuration; application-factory boundary; PostgreSQL/Supabase/Redis/Razorpay stateful-system boundaries; controlled Flask-Migrate/Alembic schema ownership; production anti-patterns; automated Phase 33 architecture tests and CI gate | Validate actual deployed topology and live dependency connectivity in later deployment/post-deployment phases | **P0** |
 | **34. Health Checks** | **🟢 PASS** | `docs/HEALTH_CHECK_POLICY.md`; dedicated `/health/live` liveness probe; database-backed `/health/ready` readiness probe with safe HTTP 503 failure; backward-compatible `/health`; server-side exception logging; rate-limit-exempt probes; automated Phase 34 tests and CI gate | Validate live probe behavior against the actual production deployment during Phase 39 | **P0** |
-| 35. DPDP Compliance Matrix | 🟢/🟡 | This evidence matrix | Keep synchronized with implemented controls | P0 |
+| **35. DPDP Compliance Matrix** | **🟢 PASS** | `docs/PDP_COMPLIANCE_MATRIX.md` is the authoritative phase/status index; `docs/DPDP_COMPLIANCE_MATRIX_POLICY.md` defines status semantics, evidence traceability, environment/legal boundaries, downgrade rules, and release-gate discipline; automated Phase 35 tests verify matrix integrity and preservation of critical controls | Keep matrix synchronized with every subsequent material control change; Phase 36 must independently review the matrix against the repository and CI evidence | **P0** |
 | 36. Final Security Review | ⚪ | Not yet final | OWASP/security review after all phases | P0 |
 | 37. Release Gate | ⚪ | Not yet reached | All checklist controls must PASS | P0 |
 | 38. Single Clean Deployment | ⚪ | Not yet reached | Deploy only after release gate | P0 |
 | 39. Post-Deployment Verification | ⚪ | Not yet reached | Execute full production verification | P0 |
 | 40. PWA | ⚪ | Deferred by authoritative PDP | Perform only after post-deployment stability | P1 |
+
+## Phase 35 — DPDP Compliance Matrix evidence
+
+Phase 35 establishes the PDP Compliance Matrix as a controlled engineering evidence index rather than a static checklist. `docs/DPDP_COMPLIANCE_MATRIX_POLICY.md` defines the status semantics, required traceability, separation between repository/CI evidence and live production evidence, legal/non-certification boundary, and downgrade/re-verification process when later work exposes a defect.
+
+The matrix records the implementation state of all PDP phases and preserves the explicit distinction between implemented controls, incomplete work, deferred phases, and environment-specific evidence. In particular, synthetic CI configuration is not represented as proof of live production connectivity; production smoke evidence remains owned by the later deployment/post-deployment phases.
+
+`tests/test_phase35_dpdp_compliance_matrix.py` verifies the matrix and governance policy exist, required phase/release boundaries remain present, critical financial and security rules are preserved, traceability requirements are documented, and a later defect requires phase downgrade and exact-head CI re-verification rather than a documentation-only PASS.
+
+Phase 35 is an engineering governance milestone. It does not certify legal DPDP compliance and does not convert incomplete phases 4–18 or unreached phases 36–40 into PASS.
 
 ## Phase 34 — Health Checks evidence
 
