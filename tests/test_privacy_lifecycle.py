@@ -34,19 +34,56 @@ def test_authenticated_user_can_submit_privacy_request(client, app):
         assert item.user_id is not None
 
 
-def test_authenticated_user_can_grant_and_withdraw_optional_consent(client, app):
+def test_optional_consent_requires_explicit_affirmative_confirmation(client, app):
     login(client)
-    response = client.post('/privacy/consent', data={'purpose': 'analytics', 'action': 'GRANT'}, follow_redirects=True)
+    response = client.post('/privacy/consent', data={
+        'purpose': 'analytics', 'action': 'GRANT'
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'explicitly confirm' in response.data
+    with app.app_context():
+        assert ConsentRecord.query.filter_by(purpose='analytics').count() == 0
+
+    response = client.post('/privacy/consent', data={
+        'purpose': 'analytics', 'action': 'GRANT', 'consent_confirm': 'yes'
+    }, follow_redirects=True)
     assert response.status_code == 200
     with app.app_context():
         record = ConsentRecord.query.filter_by(purpose='analytics').one()
         assert record.status == 'GRANTED'
-    response = client.post('/privacy/consent', data={'purpose': 'analytics', 'action': 'WITHDRAW'}, follow_redirects=True)
+        assert record.notice_version == '1.0'
+        assert record.source == 'web'
+        assert record.granted_at is not None
+
+
+def test_authenticated_user_can_grant_and_withdraw_optional_consent(client, app):
+    login(client)
+    response = client.post('/privacy/consent', data={
+        'purpose': 'communications', 'action': 'GRANT', 'consent_confirm': 'yes'
+    }, follow_redirects=True)
     assert response.status_code == 200
     with app.app_context():
-        record = ConsentRecord.query.filter_by(purpose='analytics').one()
+        record = ConsentRecord.query.filter_by(purpose='communications').one()
+        assert record.status == 'GRANTED'
+    response = client.post('/privacy/consent', data={
+        'purpose': 'communications', 'action': 'WITHDRAW'
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    with app.app_context():
+        record = ConsentRecord.query.filter_by(purpose='communications').one()
         assert record.status == 'WITHDRAWN'
         assert record.withdrawn_at is not None
+
+
+def test_invalid_consent_purpose_is_rejected(client, app):
+    login(client)
+    response = client.post('/privacy/consent', data={
+        'purpose': 'financial_processing', 'action': 'GRANT', 'consent_confirm': 'yes'
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Invalid consent request' in response.data
+    with app.app_context():
+        assert ConsentRecord.query.filter_by(purpose='financial_processing').count() == 0
 
 
 def test_profile_correction_cannot_take_another_users_email(client, app):
