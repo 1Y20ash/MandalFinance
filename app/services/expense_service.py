@@ -33,6 +33,20 @@ class ExpenseService:
         return value
 
     @staticmethod
+    def _lock_expense(expense_id):
+        query = db.session.query(Expense).filter(Expense.id == expense_id)
+        try:
+            bind = db.session.get_bind()
+            if bind is not None and bind.dialect.name != 'sqlite':
+                query = query.with_for_update()
+        except Exception:
+            pass
+        expense = query.first()
+        if not expense:
+            raise ValueError('Expense not found.')
+        return expense
+
+    @staticmethod
     def _validate_submission(event_id, category_id, title, description, amount, expense_date,
                              created_by_user, vendor_id=None, bill_date=None):
         if not event_id:
@@ -68,42 +82,27 @@ class ExpenseService:
     @staticmethod
     def submit_expense(event_id, category_id, title, description, amount, expense_date, created_by_user,
                        vendor_id=None, bill_number=None, bill_date=None):
-        """Create a submitted expense atomically; no money leaves an account until payment is posted."""
         decimal_amount = ExpenseService._normalize_amount(amount)
         ExpenseService._validate_submission(
             event_id, category_id, title, description, decimal_amount, expense_date,
             created_by_user, vendor_id, bill_date,
         )
-
         expense = Expense(
-            expense_ref=ExpenseService._generate_expense_ref(),
-            event_id=event_id,
-            category_id=category_id,
-            vendor_id=vendor_id,
-            title=title.strip(),
-            description=description.strip(),
-            amount=decimal_amount,
-            expense_date=expense_date,
-            bill_number=bill_number.strip() if bill_number else None,
-            bill_date=bill_date,
-            status='SUBMITTED',
-            created_by_id=created_by_user.id,
+            expense_ref=ExpenseService._generate_expense_ref(), event_id=event_id,
+            category_id=category_id, vendor_id=vendor_id, title=title.strip(),
+            description=description.strip(), amount=decimal_amount, expense_date=expense_date,
+            bill_number=bill_number.strip() if bill_number else None, bill_date=bill_date,
+            status='SUBMITTED', created_by_id=created_by_user.id,
         )
-
         try:
             db.session.add(expense)
             db.session.flush()
-
             if vendor_id:
                 vendor = db.session.get(Vendor, vendor_id)
                 vendor.pending_amount += decimal_amount
-
             db.session.add(Approval(
-                expense_id=expense.id,
-                approver_id=created_by_user.id,
-                action='SUBMIT',
-                previous_status='NEW',
-                new_status='SUBMITTED',
+                expense_id=expense.id, approver_id=created_by_user.id, action='SUBMIT',
+                previous_status='NEW', new_status='SUBMITTED',
                 comments='Expense submitted for review and approval.',
             ))
             AuditService.log_action(
@@ -119,9 +118,7 @@ class ExpenseService:
 
     @staticmethod
     def approve_expense(expense_id, approver_user, comments=None):
-        expense = db.session.get(Expense, expense_id)
-        if not expense:
-            raise ValueError('Expense not found.')
+        expense = ExpenseService._lock_expense(expense_id)
         if expense.status not in ('SUBMITTED', 'UNDER_REVIEW'):
             raise ValueError(f"Cannot approve expense with status '{expense.status}'.")
         if expense.created_by_id == approver_user.id:
@@ -130,7 +127,6 @@ class ExpenseService:
         if not event:
             raise ValueError('Expense event was not found.')
         event.assert_editable()
-
         previous_status = expense.status
         try:
             expense.status = 'APPROVED'
@@ -152,9 +148,7 @@ class ExpenseService:
 
     @staticmethod
     def reject_expense(expense_id, reviewer_user, rejection_reason):
-        expense = db.session.get(Expense, expense_id)
-        if not expense:
-            raise ValueError('Expense not found.')
+        expense = ExpenseService._lock_expense(expense_id)
         if expense.status in ('PAID', 'REJECTED'):
             raise ValueError(f"Cannot reject expense in status '{expense.status}'.")
         if not rejection_reason or len(rejection_reason.strip()) < 3:
@@ -165,7 +159,6 @@ class ExpenseService:
         if not event:
             raise ValueError('Expense event was not found.')
         event.assert_editable()
-
         previous_status = expense.status
         try:
             expense.status = 'REJECTED'
@@ -192,41 +185,39 @@ class ExpenseService:
 
     @staticmethod
     def pay_expense(expense_id, payer_user, account_id, payment_mode, payment_ref=None):
-        """Pay an approved expense atomically and post the disbursement to the central ledger."""
-        expense = db.session.get(Expense, expense_id)
-        if not expense:
-            raise ValueError('Expense not found.')
-        if expense.status != 'APPROVED':
-            raise ValueError('Expense must be in APPROVED status before payment.')
+        """Pay an approved expense as one locked, idempotent financial transaction."""
         if payment_mode not in ExpenseService.PAYMENT_MODES:
             raise ValueError('Invalid expense payment mode.')
         if payment_mode != 'CASH' and not payment_ref:
             raise ValueError('Payment reference is required for this payment mode.')
-        event = db.session.get(Event, expense.event_id)
-        if not event:
-            raise ValueError('Expense event was not found.')
-        event.assert_editable()
-
-        evidence = FinancialControlsService.check_evidence('EXPENSE', expense.id, expense.amount)
-        if not evidence['complete']:
-            missing = sorted({category for failure in evidence['failures'] for category in failure['missing']})
-            raise ValueError(
-                'Required evidence is missing before payment: ' + ', '.join(missing)
-            )
-
-        account = db.session.get(Account, account_id)
-        if not account or not account.is_active:
-            raise ValueError('Selected payment account is not active.')
-
-        if payment_ref:
-            duplicate = Expense.query.filter(
-                Expense.payment_ref == payment_ref,
-                Expense.id != expense.id,
-            ).first()
-            if duplicate:
-                raise ValueError('An expense with this payment reference already exists.')
 
         try:
+            expense = ExpenseService._lock_expense(expense_id)
+            if expense.status != 'APPROVED':
+                raise ValueError('Expense must be in APPROVED status before payment.')
+
+            event = db.session.get(Event, expense.event_id)
+            if not event:
+                raise ValueError('Expense event was not found.')
+            event.assert_editable()
+
+            evidence = FinancialControlsService.check_evidence('EXPENSE', expense.id, expense.amount)
+            if not evidence['complete']:
+                missing = sorted({category for failure in evidence['failures'] for category in failure['missing']})
+                raise ValueError('Required evidence is missing before payment: ' + ', '.join(missing))
+
+            account = db.session.get(Account, account_id)
+            if not account or not account.is_active:
+                raise ValueError('Selected payment account is not active.')
+
+            if payment_ref:
+                duplicate = Expense.query.filter(
+                    Expense.payment_ref == payment_ref,
+                    Expense.id != expense.id,
+                ).first()
+                if duplicate:
+                    raise ValueError('An expense with this payment reference already exists.')
+
             txn = LedgerService.record_expense(
                 account_id=account_id, amount=expense.amount,
                 description=f'Payment for Expense {expense.expense_ref}: {expense.title}',
