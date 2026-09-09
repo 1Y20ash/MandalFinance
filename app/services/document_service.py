@@ -32,14 +32,6 @@ class DocumentService:
         return f"documents/{str(entity_type).lower()}/{doc_ref}/v{version_number}/{token}{suffix}"
 
     @staticmethod
-    def _validate_file(file_bytes, filename, file_type):
-        safe_name, mime = StorageDriver.validate_document(file_bytes, filename, file_type)
-        max_size = current_app.config.get('MAX_DOCUMENT_SIZE', 10 * 1024 * 1024) if False else 10 * 1024 * 1024
-        if len(file_bytes) > max_size:
-            raise ValueError(f'Document exceeds the {max_size // (1024 * 1024)} MB financial evidence limit.')
-        return safe_name, mime
-
-    @staticmethod
     def upload_document(file_bytes, filename, file_type, category, title, entity_type, uploader_user,
                         entity_id=None, description=None):
         """Validate, store and atomically create the document and its initial version."""
@@ -56,41 +48,24 @@ class DocumentService:
 
         try:
             doc = Document(
-                doc_ref=doc_ref,
-                category=category,
-                title=title,
-                description=description,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                original_filename=filename,
-                file_type=file_type,
-                file_size=file_size,
-                current_version_number=1,
-                current_sha256_hash=sha256_hash,
-                storage_provider=provider,
-                storage_path=storage_path,
-                uploaded_by_id=uploader_user.id,
+                doc_ref=doc_ref, category=category, title=title, description=description,
+                entity_type=entity_type, entity_id=entity_id, original_filename=filename,
+                file_type=file_type, file_size=file_size, current_version_number=1,
+                current_sha256_hash=sha256_hash, storage_provider=provider,
+                storage_path=storage_path, uploaded_by_id=uploader_user.id,
             )
             db.session.add(doc)
             db.session.flush()
 
             v1 = DocumentVersion(
-                document_id=doc.id,
-                version_number=1,
-                original_filename=filename,
-                file_type=file_type,
-                file_size=file_size,
-                sha256_hash=sha256_hash,
-                storage_provider=provider,
-                storage_path=storage_path,
-                replacement_reason='Initial upload',
-                uploaded_by_id=uploader_user.id,
+                document_id=doc.id, version_number=1, original_filename=filename,
+                file_type=file_type, file_size=file_size, sha256_hash=sha256_hash,
+                storage_provider=provider, storage_path=storage_path,
+                replacement_reason='Initial upload', uploaded_by_id=uploader_user.id,
             )
             db.session.add(v1)
             AuditService.log_action(
-                action='UPLOAD',
-                entity_type='DOCUMENT',
-                entity_id=doc.id,
+                action='UPLOAD', entity_type='DOCUMENT', entity_id=doc.id,
                 description=f"Uploaded document {doc_ref} ('{title}') with SHA-256 {sha256_hash[:10]}...",
                 commit=False,
             )
@@ -122,16 +97,11 @@ class DocumentService:
 
         try:
             new_version = DocumentVersion(
-                document_id=doc.id,
-                version_number=next_version,
-                original_filename=new_filename,
-                file_type=new_file_type,
-                file_size=file_size,
-                sha256_hash=sha256_hash,
-                storage_provider=provider,
-                storage_path=storage_path,
-                replacement_reason=replacement_reason.strip(),
-                uploaded_by_id=uploader_user.id,
+                document_id=doc.id, version_number=next_version,
+                original_filename=new_filename, file_type=new_file_type,
+                file_size=file_size, sha256_hash=sha256_hash,
+                storage_provider=provider, storage_path=storage_path,
+                replacement_reason=replacement_reason.strip(), uploaded_by_id=uploader_user.id,
             )
             db.session.add(new_version)
             doc.current_version_number = next_version
@@ -142,9 +112,7 @@ class DocumentService:
             doc.storage_provider = provider
             doc.storage_path = storage_path
             AuditService.log_action(
-                action='REPLACE',
-                entity_type='DOCUMENT',
-                entity_id=doc.id,
+                action='REPLACE', entity_type='DOCUMENT', entity_id=doc.id,
                 description=f"Replaced document {doc.doc_ref} creating version v{next_version}. Reason: {replacement_reason.strip()}",
                 commit=False,
             )
@@ -168,9 +136,7 @@ class DocumentService:
         doc.is_verified = is_match
         db.session.commit()
         AuditService.log_action(
-            action='VERIFY',
-            entity_type='DOCUMENT',
-            entity_id=doc.id,
+            action='VERIFY', entity_type='DOCUMENT', entity_id=doc.id,
             description=f"Verified integrity for {doc.doc_ref}: {'MATCH' if is_match else 'MISMATCH'}",
         )
         return (is_match, doc.current_sha256_hash, computed_hash)
@@ -206,19 +172,14 @@ class DocumentService:
         provider, storage_path = StorageDriver.upload_file(zip_bytes, pack_path, mime_type='application/zip')
         try:
             pack = EvidencePack(
-                pack_ref=pack_ref,
-                title=f'Evidence Pack for {entity_type} #{entity_id}',
-                entity_type=entity_type,
-                entity_id=entity_id,
-                zip_storage_path=storage_path,
-                sha256_hash=pack_hash,
-                created_by_id=user.id,
+                pack_ref=pack_ref, title=f'Evidence Pack for {entity_type} #{entity_id}',
+                entity_type=entity_type, entity_id=entity_id, zip_storage_path=storage_path,
+                sha256_hash=pack_hash, created_by_id=user.id,
             )
             db.session.add(pack)
+            db.session.flush()
             AuditService.log_action(
-                action='CREATE',
-                entity_type='EVIDENCE_PACK',
-                entity_id=pack.id,
+                action='CREATE', entity_type='EVIDENCE_PACK', entity_id=pack.id,
                 description=f'Generated Evidence Pack {pack_ref} with {len(docs)} document proofs',
                 commit=False,
             )
