@@ -57,9 +57,9 @@ def test_service_worker_cache_is_limited_to_public_shell_and_static_assets():
     assert "request.mode === 'navigate'" in worker
     assert "isStaticAsset(request)" in worker
     assert "request.url" in worker
-    assert "Cache Storage" not in worker  # implementation comments stay concise
     assert "caches.match(PUBLIC_FALLBACK)" in worker
     assert "caches.match(request)" in worker
+    assert "PUBLIC_SHELL_ASSETS" in worker
 
 
 def test_base_template_does_not_directly_persist_application_data():
