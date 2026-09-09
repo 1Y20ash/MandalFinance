@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app.models.auth import User, Role, Permission
 from app.models.audit import AuditLog
-from app.extensions import db
+from app.extensions import db, limiter
 from app.utils.decorators import admin_required
 from app.services.audit_service import AuditService
 
@@ -15,6 +15,7 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 @admin_bp.route('/users')
 @login_required
 @admin_required
+@limiter.limit('60 per minute')
 def list_users():
     users = User.query.order_by(User.created_at.desc()).all()
     roles = Role.query.all()
@@ -25,6 +26,7 @@ def list_users():
 @admin_bp.route('/users/<int:user_id>/approve', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def approve_user(user_id):
     user = db.session.get(User, user_id)
     if user is None:
@@ -60,6 +62,7 @@ def approve_user(user_id):
 @admin_bp.route('/users/<int:user_id>/reject', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def reject_user(user_id):
     user = db.session.get(User, user_id)
     if user is None:
@@ -96,6 +99,7 @@ def reject_user(user_id):
 @admin_bp.route('/users/<int:user_id>/roles', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def assign_user_roles(user_id):
     user = db.session.get(User, user_id)
     if user is None:
@@ -104,7 +108,6 @@ def assign_user_roles(user_id):
     role_ids = request.form.getlist('role_ids', type=int)
     selected_roles = Role.query.filter(Role.id.in_(role_ids)).all() if role_ids else []
 
-    # Treat role assignment as an auditable security-sensitive operation.
     old_role_names = sorted(role.name for role in user.roles)
     new_role_names = sorted(role.name for role in selected_roles)
 
@@ -135,6 +138,7 @@ def assign_user_roles(user_id):
 @admin_bp.route('/roles')
 @login_required
 @admin_required
+@limiter.limit('60 per minute')
 def list_roles():
     roles = Role.query.all()
     permissions = Permission.query.order_by(Permission.module.asc()).all()
@@ -144,6 +148,7 @@ def list_roles():
 @admin_bp.route('/roles/create', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def create_role():
     name = request.form.get('name', '').strip()
     description = request.form.get('description', '').strip()
@@ -170,6 +175,7 @@ def create_role():
 @admin_bp.route('/roles/<int:role_id>/edit', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def edit_role(role_id):
     role = db.session.get(Role, role_id)
     if role is None:
@@ -212,6 +218,7 @@ def edit_role(role_id):
 @admin_bp.route('/roles/<int:role_id>/delete', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def delete_role(role_id):
     role = db.session.get(Role, role_id)
     if role is None:
@@ -243,6 +250,7 @@ def delete_role(role_id):
 @admin_bp.route('/audit-logs')
 @login_required
 @admin_required
+@limiter.limit('60 per minute')
 def audit_logs():
     page = request.args.get('page', 1, type=int)
     action_filter = request.args.get('action', '').strip()
