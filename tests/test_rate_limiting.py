@@ -1,8 +1,6 @@
 import pytest
 
-from app import create_app
 from app.config import ProductionConfig
-from app.extensions import limiter
 
 
 def test_registration_rate_limit_returns_safe_429(client):
@@ -56,7 +54,20 @@ def test_health_probes_are_exempt_from_rate_limiting(client):
         assert response.status_code == 200
 
 
+def _set_valid_production_environment(monkeypatch):
+    monkeypatch.setenv('SECRET_KEY', 'test-secret')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql://example')
+    monkeypatch.setenv('SUPABASE_URL', 'https://example.supabase.co')
+    monkeypatch.setenv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test-key')
+    monkeypatch.setenv('PAYMENT_GATEWAY_DRIVER', 'razorpay')
+    monkeypatch.setenv('RAZORPAY_KEY_ID', 'test-key')
+    monkeypatch.setenv('RAZORPAY_KEY_SECRET', 'test-secret')
+    monkeypatch.setenv('SUPABASE_STORAGE_PRIVATE', 'true')
+    monkeypatch.setattr(ProductionConfig, 'PAYMENT_GATEWAY_DRIVER', 'razorpay')
+
+
 def test_production_requires_shared_persistent_rate_limit_storage(monkeypatch):
+    _set_valid_production_environment(monkeypatch)
     monkeypatch.delenv('RATELIMIT_STORAGE_URI', raising=False)
     monkeypatch.delenv('REDIS_URL', raising=False)
     monkeypatch.setattr(ProductionConfig, 'RATELIMIT_STORAGE_URI', None)
@@ -66,29 +77,17 @@ def test_production_requires_shared_persistent_rate_limit_storage(monkeypatch):
 
 
 def test_production_rejects_memory_rate_limit_storage(monkeypatch):
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv('RATELIMIT_STORAGE_URI', 'memory://')
     monkeypatch.setattr(ProductionConfig, 'RATELIMIT_STORAGE_URI', 'memory://')
-    monkeypatch.setenv('SECRET_KEY', 'test-secret')
-    monkeypatch.setenv('DATABASE_URL', 'postgresql://example')
-    monkeypatch.setenv('SUPABASE_URL', 'https://example.supabase.co')
-    monkeypatch.setenv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test-key')
-    monkeypatch.setenv('PAYMENT_GATEWAY_DRIVER', 'razorpay')
-    monkeypatch.setenv('RAZORPAY_KEY_ID', 'test-key')
-    monkeypatch.setenv('RAZORPAY_KEY_SECRET', 'test-secret')
-    monkeypatch.setenv('SUPABASE_STORAGE_PRIVATE', 'true')
 
     with pytest.raises(RuntimeError, match='RATELIMIT_STORAGE_URI or REDIS_URL'):
         ProductionConfig.validate()
 
 
 def test_production_accepts_non_memory_shared_storage(monkeypatch):
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv('RATELIMIT_STORAGE_URI', 'redis://localhost:6379/0')
     monkeypatch.setattr(ProductionConfig, 'RATELIMIT_STORAGE_URI', 'redis://localhost:6379/0')
-    monkeypatch.setenv('SECRET_KEY', 'test-secret')
-    monkeypatch.setenv('DATABASE_URL', 'postgresql://example')
-    monkeypatch.setenv('SUPABASE_URL', 'https://example.supabase.co')
-    monkeypatch.setenv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test-key')
-    monkeypatch.setenv('PAYMENT_GATEWAY_DRIVER', 'razorpay')
-    monkeypatch.setenv('RAZORPAY_KEY_ID', 'test-key')
-    monkeypatch.setenv('RAZORPAY_KEY_SECRET', 'test-secret')
-    monkeypatch.setenv('SUPABASE_STORAGE_PRIVATE', 'true')
 
     ProductionConfig.validate()
