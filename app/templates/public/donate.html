@@ -57,6 +57,13 @@
                     </select>
                 </div>
 
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" value="on" id="privacy_ack" name="privacy_ack" required>
+                    <label class="form-check-label" for="privacy_ack">
+                        I have read the <a href="{{ url_for('public.privacy') }}" target="_blank" rel="noopener noreferrer">Privacy Notice</a> and understand how my information will be used for donation processing, receipts, financial records and security.
+                    </label>
+                </div>
+
                 <div class="online-donation-security mb-4">
                     <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
                     <div>
