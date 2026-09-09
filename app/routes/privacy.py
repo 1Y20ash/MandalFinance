@@ -20,6 +20,22 @@ REQUEST_TYPES = {
     'WITHDRAW_CONSENT': 'Withdraw optional consent',
     'GRIEVANCE': 'Submit a privacy grievance',
 }
+REQUEST_STATUSES = {
+    'REQUESTED': 'Request received',
+    'IDENTITY_VERIFIED': 'Identity verified',
+    'REVIEWED': 'Under review',
+    'PROCESSED': 'Processed',
+    'COMPLETED': 'Completed',
+    'REJECTED': 'Rejected',
+}
+STATUS_TRANSITIONS = {
+    'REQUESTED': {'IDENTITY_VERIFIED', 'REJECTED'},
+    'IDENTITY_VERIFIED': {'REVIEWED', 'REJECTED'},
+    'REVIEWED': {'PROCESSED', 'REJECTED'},
+    'PROCESSED': {'COMPLETED'},
+    'COMPLETED': set(),
+    'REJECTED': set(),
+}
 
 
 @privacy_bp.route('/notice')
@@ -39,17 +55,18 @@ def center():
         item = PrivacyRequest(user_id=current_user.id, request_type=request_type, details=details or None)
         db.session.add(item)
         db.session.flush()
-        AuditService.log_action('PRIVACY_REQUEST', 'privacy_request', item.id,
-                                f'{request_type} request submitted by authenticated user.',
+        AuditService.log_action('PRIVACY_REQUEST_SUBMITTED', 'privacy_request', item.id,
+                                f'{request_type} privacy request submitted by authenticated user.',
                                 {'request_type': request_type}, commit=False)
         db.session.commit()
-        flash('Your privacy request has been recorded and is awaiting review.', 'success')
+        flash('Your privacy request has been recorded and is awaiting identity verification.', 'success')
         return redirect(url_for('privacy.center'))
+
     consents = ConsentRecord.query.filter_by(user_id=current_user.id).order_by(ConsentRecord.created_at.desc()).all()
     requests = PrivacyRequest.query.filter_by(user_id=current_user.id).order_by(PrivacyRequest.requested_at.desc()).all()
     return render_template('privacy/center.html', consents=consents, requests=requests,
                            consent_purposes=CONSENT_PURPOSES, request_types=REQUEST_TYPES,
-                           notice_version=NOTICE_VERSION)
+                           request_statuses=REQUEST_STATUSES, notice_version=NOTICE_VERSION)
 
 
 @privacy_bp.route('/consent', methods=['POST'])
@@ -60,59 +77,34 @@ def consent():
     if purpose not in CONSENT_PURPOSES or action not in {'GRANT', 'WITHDRAW'}:
         flash('Invalid consent request.', 'danger')
         return redirect(url_for('privacy.center'))
-
-    # Granting optional processing requires an explicit affirmative control.
-    # Withdrawal remains a one-step action and is never made harder than grant.
     if action == 'GRANT' and request.form.get('consent_confirm') != 'yes':
         flash('Please explicitly confirm this optional consent before granting it.', 'warning')
         return redirect(url_for('privacy.center'))
 
-    existing = ConsentRecord.query.filter_by(
-        user_id=current_user.id, purpose=purpose, notice_version=NOTICE_VERSION
-    ).first()
+    existing = ConsentRecord.query.filter_by(user_id=current_user.id, purpose=purpose,
+                                              notice_version=NOTICE_VERSION).first()
     now = datetime.utcnow()
     previous_status = existing.status if existing else 'NOT_GRANTED'
-
     if action == 'GRANT':
         if existing:
             existing.status, existing.granted_at, existing.withdrawn_at = 'GRANTED', now, None
         else:
-            existing = ConsentRecord(
-                user_id=current_user.id,
-                purpose=purpose,
-                status='GRANTED',
-                notice_version=NOTICE_VERSION,
-                source='web',
-                granted_at=now,
-            )
+            existing = ConsentRecord(user_id=current_user.id, purpose=purpose, status='GRANTED',
+                                     notice_version=NOTICE_VERSION, source='web', granted_at=now)
             db.session.add(existing)
     else:
         if existing:
             existing.status, existing.withdrawn_at = 'WITHDRAWN', now
         else:
-            existing = ConsentRecord(
-                user_id=current_user.id,
-                purpose=purpose,
-                status='WITHDRAWN',
-                notice_version=NOTICE_VERSION,
-                source='web',
-                granted_at=now,
-                withdrawn_at=now,
-            )
+            existing = ConsentRecord(user_id=current_user.id, purpose=purpose, status='WITHDRAWN',
+                                     notice_version=NOTICE_VERSION, source='web', granted_at=now, withdrawn_at=now)
             db.session.add(existing)
-
-    AuditService.log_action(
-        'CONSENT_CHANGE', 'consent', existing.id,
-        f'Optional {purpose} consent changed from {previous_status} to {existing.status}.',
-        {
-            'purpose': purpose,
-            'previous_status': previous_status,
-            'status': existing.status,
-            'notice_version': NOTICE_VERSION,
-            'source': 'web',
-        },
-        commit=False,
-    )
+    db.session.flush()
+    AuditService.log_action('CONSENT_CHANGE', 'consent', existing.id,
+                            f'Optional {purpose} consent changed from {previous_status} to {existing.status}.',
+                            {'purpose': purpose, 'previous_status': previous_status,
+                             'status': existing.status, 'notice_version': NOTICE_VERSION,
+                             'source': existing.source}, commit=False)
     db.session.commit()
     flash('Consent preference updated.', 'success')
     return redirect(url_for('privacy.center'))
@@ -130,8 +122,15 @@ def correction():
     if User.query.filter(User.email == email, User.id != current_user.id).first():
         flash('That email address is already in use.', 'danger')
         return redirect(url_for('privacy.center'))
-    current_user.full_name, current_user.phone, current_user.email = full_name, phone or None, email
+    requested_data = {'full_name': full_name, 'email': email, 'phone': phone or None}
+    item = PrivacyRequest(user_id=current_user.id, request_type='CORRECTION',
+                          details='Profile correction requested through the Privacy Center.',
+                          requested_data=requested_data)
+    db.session.add(item)
+    db.session.flush()
+    AuditService.log_action('PRIVACY_CORRECTION_REQUESTED', 'privacy_request', item.id,
+                            'Authenticated user submitted a profile correction request.',
+                            {'request_type': 'CORRECTION'}, commit=False)
     db.session.commit()
-    AuditService.log_action('PRIVACY_CORRECTION', 'user', current_user.id, 'Authenticated user corrected profile data.')
-    flash('Your profile data was corrected.', 'success')
+    flash('Your correction request was recorded and is awaiting identity verification.', 'success')
     return redirect(url_for('privacy.center'))
