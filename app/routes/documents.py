@@ -8,23 +8,20 @@ from app.services.audit_service import AuditService
 
 documents_bp = Blueprint('documents', __name__, url_prefix='/documents')
 
-ALLOWED_MIME = {
-    'application/pdf', 'text/plain', 'text/csv', 'application/zip',
-    'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'image/jpeg', 'image/png', 'image/gif'
-}
+ALLOWED_MIME = set(StorageDriver.ALLOWED_TYPES.values())
 
 
 def _validated_upload(file):
-    if not file or not file.filename: raise ValueError('Please select a valid file to upload.')
-    filename = StorageDriver.sanitize_filename(file.filename)
+    if not file or not file.filename:
+        raise ValueError('Please select a valid file to upload.')
     content = file.read()
     max_size = 10 * 1024 * 1024
-    if len(content) > max_size: raise ValueError('Document exceeds the 10 MB financial evidence limit.')
+    if len(content) > max_size:
+        raise ValueError('Document exceeds the 10 MB financial evidence limit.')
     mime = (file.mimetype or 'application/octet-stream').lower().split(';')[0].strip()
-    if mime not in ALLOWED_MIME: raise ValueError(f'Unsupported document type: {mime}.')
+    if mime not in ALLOWED_MIME:
+        raise ValueError(f'Unsupported document type: {mime}.')
+    filename, mime = StorageDriver.validate_document(content, file.filename, mime)
     return content, filename, mime
 
 
