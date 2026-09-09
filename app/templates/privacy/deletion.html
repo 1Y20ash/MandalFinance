@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Privacy & Data Deletion{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-9">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+            <div>
+                <div class="text-muted small fw-semibold">PRIVACY</div>
+                <h3 class="fw-bold mb-1">Request account deletion</h3>
+                <p class="text-muted mb-0">Your request is reviewed before any erasure occurs.</p>
+            </div>
+            <span class="badge rounded-pill text-bg-light border px-3 py-2">Controlled deletion</span>
+        </div>
+
+        <div class="alert alert-info border-0 shadow-sm">
+            <i class="fa-solid fa-shield-halved me-2"></i>
+            Account information and non-essential notifications can be erased after approval. Financial, payment, audit, and other legally required evidence is retained where necessary for compliance and accountability.
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Submit a request</h5>
+                <form method="post" onsubmit="return confirm('Submit this privacy deletion request for review?');">
+                    <label for="reason" class="form-label fw-semibold">Optional reason</label>
+                    <textarea id="reason" name="reason" class="form-control" rows="4" maxlength="5000" placeholder="Tell the administrator anything relevant to this request."></textarea>
+                    <div class="d-flex justify-content-end mt-3">
+                        <button class="btn btn-danger px-4" type="submit">
+                            <i class="fa-solid fa-user-slash me-2"></i>Request deletion
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Request history</h5>
+                {% for item in requests %}
+                    <div class="border rounded-3 p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="small text-muted">Request #{{ item.id }}</div>
+                                <div class="fw-semibold">{{ item.requested_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                            </div>
+                            <span class="badge rounded-pill {% if item.status == 'COMPLETED' %}text-bg-success{% elif item.status in ['REJECTED', 'BLOCKED'] %}text-bg-warning{% else %}text-bg-primary{% endif %}">{{ item.status }}</span>
+                        </div>
+                        {% if item.decision_reason %}<div class="small text-muted mt-2">{{ item.decision_reason }}</div>{% endif %}
+                        {% if item.status == 'PENDING' %}
+                            <form method="post" action="{{ url_for('privacy.cancel_deletion_request', request_id=item.id) }}" class="mt-3">
+                                <button class="btn btn-outline-secondary btn-sm" type="submit">Cancel request</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No deletion requests have been submitted.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
