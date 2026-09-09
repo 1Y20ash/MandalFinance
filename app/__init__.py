@@ -38,6 +38,9 @@ def create_app(config_name=None):
     @login_manager.user_loader
     def load_user(user_id):
         try:
+            # Keep an existing account session resolvable so authorization
+            # decorators can fail closed with 403 and audit the denial when the
+            # account becomes inactive or loses approval after authentication.
             return db.session.get(User, int(user_id))
         except (TypeError, ValueError):
             return None
