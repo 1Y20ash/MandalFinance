@@ -65,8 +65,11 @@ def _set_valid_production_environment(monkeypatch):
     monkeypatch.setenv('PAYMENT_GATEWAY_DRIVER', 'razorpay')
     monkeypatch.setenv('RAZORPAY_KEY_ID', 'test-key')
     monkeypatch.setenv('RAZORPAY_KEY_SECRET', 'test-secret')
+    monkeypatch.setenv('RAZORPAY_WEBHOOK_SECRET', 'test-webhook-secret')
     monkeypatch.setenv('SUPABASE_STORAGE_PRIVATE', 'true')
+    monkeypatch.setenv('REDIS_PROVIDER_NAME', 'test-redis-provider')
     monkeypatch.setattr(ProductionConfig, 'PAYMENT_GATEWAY_DRIVER', 'razorpay')
+    monkeypatch.setattr(ProductionConfig, 'REDIS_PROVIDER_NAME', 'test-redis-provider')
 
 
 def test_production_requires_shared_persistent_rate_limit_storage(monkeypatch):
