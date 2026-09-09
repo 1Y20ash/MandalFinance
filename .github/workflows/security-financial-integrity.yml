@@ -1,3 +1,4 @@
+# CI gate: every finalized PDP phase must pass on the exact main HEAD.
 name: Security and Financial Integrity
 on:
   push:
