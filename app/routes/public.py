@@ -28,6 +28,11 @@ def _online_donation_account():
     return account
 
 
+@public_bp.route('/privacy')
+def privacy():
+    return render_template('public/privacy.html')
+
+
 @public_bp.route('/transparency')
 def transparency():
     mandal = Mandal.query.first()
@@ -62,6 +67,8 @@ def public_donate():
             amount_dec = DonationService._normalize_amount(amount_str)
             if len(donor_name) < 2:
                 raise ValueError('Donor name must contain at least 2 characters.')
+            if request.form.get('privacy_ack') != 'on':
+                raise ValueError('Please acknowledge the privacy notice before continuing.')
 
             donation = Donation(
                 donation_number=DonationService._generate_donation_number(),
@@ -89,6 +96,9 @@ def public_donate():
                 order_info=order_info,
                 active_event=active_event,
             )
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), 'warning')
         except Exception:
             db.session.rollback()
             flash('Donation setup failed. Please try again later.', 'danger')
