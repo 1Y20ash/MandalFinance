@@ -22,6 +22,7 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 12. Security / financial-integrity testing | 🟢/🟡 | Dedicated hardening/security test matrix plus audit-integrity tests | Expand horizontal/vertical object access and locked-record cases | P0 |
 | 13. UI / UX / accessibility / performance | 🟡 | Premium glass UI and responsive templates | Full accessibility/mobile/performance audit | P1 |
 | 14. Production / release verification | 🟡 | Repeatable CI migration/regression verification, production preflight and structured application logging | Production DB/storage/secrets/backups/deployment smoke tests and E2E reconstruction | P0 |
+| 23. Security headers | 🟢 | CSP, HSTS in production, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP and CORP with automated tests | Replace remaining CSP `'unsafe-inline'` allowances with nonce/hash-based controls in a future hardening pass | P0 |
 
 ## Absolute financial integrity rules
 
@@ -44,6 +45,12 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 Phase 21 adds a dedicated immutable audit layer. `AuditLog` now carries a UUID event identifier, outcome, request correlation ID and SHA-256 integrity digest. The application rejects ORM updates/deletes, while PostgreSQL receives a database trigger that rejects direct `UPDATE`/`DELETE` operations. `AuditService` serializes structured metadata as JSON, redacts credential-like keys, supports atomic `commit=False` writes, and provides integrity verification.
 
 Authentication now records successful logins, failed credential attempts and blocked logins without storing passwords or raw credential material. The administrator audit page exposes the event outcome, request ID and digest prefix for investigation and traceability.
+
+## Phase 23 security headers
+
+Phase 23 adds a browser defense-in-depth policy at the Flask response boundary. All responses receive MIME-sniffing, framing, referrer, browser-capability, cross-origin isolation, and Content Security Policy controls. Production responses additionally receive one-year HSTS with subdomains. The CSP restricts resource origins and disables plugins/objects and cross-origin framing while retaining explicit allowances for the application's existing trusted CDN dependencies.
+
+`tests/test_security_headers.py` verifies the complete header policy and exercises the production-only HSTS branch. The remaining `'unsafe-inline'` CSP allowances are documented as a future hardening item rather than being hidden or treated as equivalent to a nonce/hash policy.
 
 ## Verification gate
 
