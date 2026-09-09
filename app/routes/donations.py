@@ -1,11 +1,13 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
 from flask_login import login_required, current_user
+from flask_limiter import Limiter
 from app.models.income import Donation
 from app.models.ledger import Account
 from app.models.mandal import Event
 from app.services.donation_service import DonationService
 from app.utils.pdf_generator import generate_donation_receipt_pdf
 from app.utils.decorators import permission_required
+from app.extensions import limiter
 
 donations_bp = Blueprint('donations', __name__, url_prefix='/donations')
 
@@ -32,6 +34,7 @@ def list_donations():
 @donations_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 @permission_required('donation.create')
+@limiter.limit('20 per minute', methods=['POST'])
 def create_donation():
     if request.method == 'POST':
         event_id = request.form.get('event_id', type=int)
@@ -84,6 +87,7 @@ def view_donation(donation_id):
 @donations_bp.route('/<int:donation_id>/receipt')
 @login_required
 @permission_required('donation.receipt')
+@limiter.limit('30 per minute')
 def download_receipt(donation_id):
     donation = Donation.query.get_or_404(donation_id)
     if donation.status != 'SUCCESS':
