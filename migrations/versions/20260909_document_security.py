@@ -4,9 +4,9 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = '20260909_doc_security'
-# This revision intentionally merges the Phase 11 financial-integrity branch
-# with the income-ledger-link branch before applying document hardening.
-down_revision = ('20260909_phase11_financial_integrity', '20260909_income_link')
+# Merge the financial-integrity and income-ledger-link branches before applying
+# document hardening. Both parent revisions are part of the same clean upgrade.
+down_revision = ('20260909_fin_integrity', '20260909_income_link')
 branch_labels = None
 depends_on = None
 
@@ -27,18 +27,15 @@ def upgrade() -> None:
     # PostgreSQL receives the database-level checks through the normal migration.
     dialect = bind.dialect.name
     if dialect != 'sqlite':
-        op.create_check_constraint(
-            'ck_documents_file_size_nonnegative', 'documents', 'file_size >= 0'
-        )
-        op.create_check_constraint(
-            'ck_documents_version_positive', 'documents', 'current_version_number >= 1'
-        )
-        op.create_check_constraint(
-            'ck_document_versions_file_size_nonnegative', 'document_versions', 'file_size >= 0'
-        )
-        op.create_check_constraint(
-            'ck_document_versions_version_positive', 'document_versions', 'version_number >= 1'
-        )
+        for name, table, condition in (
+            ('ck_documents_file_size_nonnegative', 'documents', 'file_size >= 0'),
+            ('ck_documents_version_positive', 'documents', 'current_version_number >= 1'),
+            ('ck_document_versions_file_size_nonnegative', 'document_versions', 'file_size >= 0'),
+            ('ck_document_versions_version_positive', 'document_versions', 'version_number >= 1'),
+        ):
+            existing_checks = {item['name'] for item in sa.inspect(bind).get_check_constraints(table)}
+            if name not in existing_checks:
+                op.create_check_constraint(name, table, condition)
 
 
 def downgrade() -> None:
