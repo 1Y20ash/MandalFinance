@@ -10,6 +10,7 @@ from app.models.mandal import Event
 from app.services.expense_service import ExpenseService
 from app.services.expense_category_service import ExpenseCategoryService
 from app.utils.decorators import permission_required, admin_required
+from app.extensions import limiter
 
 expenses_bp = Blueprint('expenses', __name__, url_prefix='/expenses')
 
@@ -59,6 +60,7 @@ def list_expense_categories():
 @expenses_bp.route('/categories/create', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def create_expense_category():
     try:
         ExpenseCategoryService.create(
@@ -75,6 +77,7 @@ def create_expense_category():
 @expenses_bp.route('/categories/<int:category_id>/edit', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def edit_expense_category(category_id):
     try:
         ExpenseCategoryService.update(
@@ -91,6 +94,7 @@ def edit_expense_category(category_id):
 @expenses_bp.route('/categories/<int:category_id>/toggle', methods=['POST'])
 @login_required
 @admin_required
+@limiter.limit('30 per minute', methods=['POST'])
 def toggle_expense_category(category_id):
     category = ExpenseCategory.query.get_or_404(category_id)
     try:
@@ -107,6 +111,7 @@ def toggle_expense_category(category_id):
 @expenses_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 @permission_required('expense.create')
+@limiter.limit('20 per minute', methods=['POST'])
 def create_expense():
     if request.method == 'POST':
         event_id = request.form.get('event_id', type=int)
@@ -152,6 +157,7 @@ def view_expense(expense_id):
 @expenses_bp.route('/<int:expense_id>/approve', methods=['POST'])
 @login_required
 @permission_required('expense.approve')
+@limiter.limit('30 per minute', methods=['POST'])
 def approve_expense(expense_id):
     comments = request.form.get('comments', '').strip()
     try:
@@ -165,6 +171,7 @@ def approve_expense(expense_id):
 @expenses_bp.route('/<int:expense_id>/reject', methods=['POST'])
 @login_required
 @permission_required('expense.reject')
+@limiter.limit('30 per minute', methods=['POST'])
 def reject_expense(expense_id):
     reason = request.form.get('rejection_reason', '').strip()
     if not reason:
@@ -181,6 +188,7 @@ def reject_expense(expense_id):
 @expenses_bp.route('/<int:expense_id>/pay', methods=['POST'])
 @login_required
 @permission_required('expense.pay')
+@limiter.limit('20 per minute', methods=['POST'])
 def pay_expense(expense_id):
     account_id = request.form.get('account_id', type=int)
     payment_mode = request.form.get('payment_mode', '').strip()
