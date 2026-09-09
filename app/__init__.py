@@ -7,7 +7,10 @@ from app.models.auth import User
 
 
 BASE_DIR = Path(__file__).resolve().parent
-TEMPLATE_DIR = BASE_DIR / 'templates'
+PROJECT_DIR = BASE_DIR.parent
+PACKAGE_TEMPLATE_DIR = BASE_DIR / 'templates'
+DEPLOYED_TEMPLATE_DIR = PROJECT_DIR / 'templates'
+TEMPLATE_DIR = DEPLOYED_TEMPLATE_DIR if DEPLOYED_TEMPLATE_DIR.exists() else PACKAGE_TEMPLATE_DIR
 
 
 def create_app(config_name=None):
