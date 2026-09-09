@@ -36,12 +36,15 @@ def login():
         user = User.query.filter((User.username == username) | (User.email == username)).first()
         if user and user.check_password(password):
             if user.approval_status == User.APPROVAL_PENDING:
+                AuditService.log_action('LOGIN_BLOCKED', 'USER', user.id, 'Login blocked because account approval is pending.', outcome='failure')
                 flash('Your registration is pending administrator approval. Please try again after your account is approved.', 'warning')
                 return render_template('auth/login.html')
             if user.approval_status == User.APPROVAL_REJECTED:
+                AuditService.log_action('LOGIN_BLOCKED', 'USER', user.id, 'Login blocked because registration was rejected.', outcome='failure')
                 flash('Your registration request was rejected. Please contact the Mandal Administrator for further details.', 'danger')
                 return render_template('auth/login.html')
             if not user.is_active:
+                AuditService.log_action('LOGIN_BLOCKED', 'USER', user.id, 'Login blocked because the account is inactive.', outcome='failure')
                 flash('Your account has been deactivated. Please contact the Mandal Administrator.', 'danger')
                 return render_template('auth/login.html')
             login_user(user, remember=remember)
@@ -50,6 +53,7 @@ def login():
             if not next_page or not next_page.startswith('/'):
                 next_page = url_for('dashboard.index')
             return redirect(next_page)
+        AuditService.log_action('LOGIN_FAILED', 'AUTH', None, 'A login attempt failed due to invalid credentials.', outcome='failure')
         flash('Invalid username or password.', 'danger')
     return render_template('auth/login.html')
 
