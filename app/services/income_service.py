@@ -66,6 +66,10 @@ class IncomeService:
                 transaction_ref=transaction_ref or None, notes=notes or None, created_by_id=created_by_id,
             )
             db.session.add(income)
+            # income.id is required by the ledger's source_id, while
+            # transaction_id is filled only after the ledger row exists.
+            # The entire operation remains one DB transaction and rolls back
+            # as a unit on any failure.
             db.session.flush()
 
             evidence = FinancialControlsService.check_evidence('INCOME', income.id, decimal_amount)
@@ -80,6 +84,9 @@ class IncomeService:
                 payment_mode=payment_mode, external_ref=transaction_ref,
                 category_id=category_id, event_id=event_id, commit=False,
             )
+            if txn is None or txn.id is None:
+                raise RuntimeError('Ledger posting did not return a transaction.')
+
             income.transaction_id = txn.id
             AuditService.log_action(
                 'CREATE', 'INCOME', income.id,
