@@ -29,6 +29,7 @@ class PrivacyRequest(db.Model):
     request_type = db.Column(db.String(30), nullable=False, index=True)
     status = db.Column(db.String(30), nullable=False, default='REQUESTED', index=True)
     details = db.Column(db.Text, nullable=True)
+    requested_data = db.Column(db.JSON, nullable=True)
     response_note = db.Column(db.Text, nullable=True)
     requested_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     verified_at = db.Column(db.DateTime, nullable=True)
