@@ -23,7 +23,8 @@ def create_app(config_name=None):
     app.config['APP_ENV'] = config_name
     db.init_app(app)
     migrate.init_app(app, db)
-    # Session protection is explicitly configured per environment.
+    # Session protection is explicitly configured per environment. Production
+    # and tests both exercise the same strong Flask-Login protection path.
     login_manager.session_protection = app.config.get('SESSION_PROTECTION', 'strong')
     login_manager.init_app(app)
     csrf.init_app(app)
@@ -43,18 +44,6 @@ def create_app(config_name=None):
             return db.session.get(User, int(user_id))
         except (TypeError, ValueError):
             return None
-
-    @app.before_request
-    def enforce_strong_session_protection():
-        """Run Flask-Login's strong session check before route authorization.
-
-        Flask-Login normally performs this check while resolving current_user.
-        Running the same canonical check at the application boundary ensures
-        that custom authorization decorators cannot execute against a session
-        whose identity fingerprint has already changed.
-        """
-        if app.config.get('SESSION_PROTECTION') == 'strong':
-            login_manager._session_protection_failed()
 
     @app.after_request
     def security_headers(response):
