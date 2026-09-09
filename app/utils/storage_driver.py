@@ -38,6 +38,24 @@ class StorageDriver:
         return f'{prefix}/{secrets.token_hex(24)}{suffix}'
 
     @staticmethod
+    def _supabase_config():
+        url = current_app.config.get('SUPABASE_URL')
+        key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
+        bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET')
+        if not url or not key or not bucket:
+            raise RuntimeError('Private Supabase storage configuration is missing.')
+        if not current_app.config.get('SUPABASE_STORAGE_PRIVATE', True):
+            raise RuntimeError('Private Supabase storage is required.')
+        return url.rstrip('/'), key, bucket
+
+    @staticmethod
+    def _supabase_headers(key, mime_type=None):
+        headers = {'Authorization': f'Bearer {key}', 'apikey': key}
+        if mime_type:
+            headers['Content-Type'] = mime_type
+        return headers
+
+    @staticmethod
     def upload_file(file_bytes, destination_path, mime_type='application/octet-stream'):
         if file_bytes is None:
             raise ValueError('File content is required.')
@@ -50,13 +68,11 @@ class StorageDriver:
         supabase_key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
         bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET')
         if supabase_url and supabase_key and bucket:
+            if not current_app.config.get('SUPABASE_STORAGE_PRIVATE', True):
+                raise RuntimeError('Private Supabase storage is required.')
             endpoint = f"{supabase_url.rstrip('/')}/storage/v1/object/{bucket}/{destination_path}"
-            headers = {
-                'Authorization': f'Bearer {supabase_key}',
-                'apikey': supabase_key,
-                'Content-Type': mime_type,
-                'x-upsert': 'false',
-            }
+            headers = StorageDriver._supabase_headers(supabase_key, mime_type)
+            headers['x-upsert'] = 'false'
             try:
                 response = requests.post(endpoint, data=file_bytes, headers=headers, timeout=20)
                 if response.status_code in (200, 201):
@@ -86,16 +102,12 @@ class StorageDriver:
     def get_file(storage_provider, storage_path):
         storage_path = StorageDriver.safe_relative_path(storage_path)
         if storage_provider == 'SUPABASE':
-            url = current_app.config.get('SUPABASE_URL')
-            key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
-            bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET')
-            if not url or not key or not bucket:
-                raise RuntimeError('Private Supabase storage configuration is missing.')
-            endpoint = f"{url.rstrip('/')}/storage/v1/object/{bucket}/{storage_path}"
+            url, key, bucket = StorageDriver._supabase_config()
+            endpoint = f"{url}/storage/v1/object/{bucket}/{storage_path}"
             try:
                 response = requests.get(
                     endpoint,
-                    headers={'Authorization': f'Bearer {key}', 'apikey': key},
+                    headers=StorageDriver._supabase_headers(key),
                     timeout=20,
                 )
                 if response.status_code == 200:
@@ -113,20 +125,85 @@ class StorageDriver:
         return full.read_bytes()
 
     @staticmethod
+    def create_signed_url(storage_provider, storage_path, expires_in=300):
+        """Create a short-lived private URL without ever exposing the service-role key."""
+        storage_path = StorageDriver.safe_relative_path(storage_path)
+        try:
+            expires_in = int(expires_in)
+        except (TypeError, ValueError):
+            raise ValueError('Signed URL expiry must be an integer.')
+        if not 60 <= expires_in <= 900:
+            raise ValueError('Signed URL expiry must be between 60 and 900 seconds.')
+
+        if storage_provider != 'SUPABASE':
+            raise ValueError('Signed URLs are only supported for Supabase storage.')
+
+        url, key, bucket = StorageDriver._supabase_config()
+        endpoint = f"{url}/storage/v1/object/sign/{bucket}/{storage_path}"
+        try:
+            response = requests.post(
+                endpoint,
+                json={'expiresIn': expires_in},
+                headers=StorageDriver._supabase_headers(key, 'application/json'),
+                timeout=10,
+            )
+        except requests.RequestException as exc:
+            raise RuntimeError('Secure signed URL service is unavailable.') from exc
+
+        if response.status_code not in (200, 201):
+            raise RuntimeError(f'Supabase signed URL request rejected ({response.status_code}).')
+        try:
+            signed_path = response.json().get('signedURL') or response.json().get('signedUrl')
+        except ValueError as exc:
+            raise RuntimeError('Supabase returned an invalid signed URL response.') from exc
+        if not signed_path or not isinstance(signed_path, str):
+            raise RuntimeError('Supabase returned no signed URL.')
+        if signed_path.startswith('/'):
+            return f'{url}{signed_path}'
+        if signed_path.startswith(url + '/'):
+            return signed_path
+        raise RuntimeError('Supabase returned an unexpected signed URL host.')
+
+    @staticmethod
+    def object_exists(storage_provider, storage_path):
+        """Check whether the exact controlled object exists without downloading it."""
+        storage_path = StorageDriver.safe_relative_path(storage_path)
+        if storage_provider == 'SUPABASE':
+            url, key, bucket = StorageDriver._supabase_config()
+            endpoint = f"{url}/storage/v1/object/{bucket}/{storage_path}"
+            try:
+                response = requests.head(
+                    endpoint,
+                    headers=StorageDriver._supabase_headers(key),
+                    timeout=10,
+                )
+            except requests.RequestException as exc:
+                raise RuntimeError('Secure object storage availability check failed.') from exc
+            if response.status_code == 200:
+                return True
+            if response.status_code == 404:
+                return False
+            raise RuntimeError(f'Supabase Storage availability check rejected ({response.status_code}).')
+
+        if storage_provider != 'LOCAL':
+            raise ValueError('Unsupported storage provider.')
+        base = Path(current_app.config.get('UPLOAD_FOLDER')).resolve()
+        full = (base / storage_path).resolve()
+        if base not in full.parents:
+            raise ValueError('Unsafe local storage path.')
+        return full.is_file()
+
+    @staticmethod
     def delete_file(storage_provider, storage_path):
         """Delete exactly one controlled object; callers must perform authorization first."""
         storage_path = StorageDriver.safe_relative_path(storage_path)
         if storage_provider == 'SUPABASE':
-            url = current_app.config.get('SUPABASE_URL')
-            key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
-            bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET')
-            if not url or not key or not bucket:
-                raise RuntimeError('Private Supabase storage configuration is missing.')
-            endpoint = f"{url.rstrip('/')}/storage/v1/object/{bucket}/{storage_path}"
+            url, key, bucket = StorageDriver._supabase_config()
+            endpoint = f"{url}/storage/v1/object/{bucket}/{storage_path}"
             try:
                 response = requests.delete(
                     endpoint,
-                    headers={'Authorization': f'Bearer {key}', 'apikey': key},
+                    headers=StorageDriver._supabase_headers(key),
                     timeout=20,
                 )
                 if response.status_code in (200, 204):
