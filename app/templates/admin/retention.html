@@ -5,14 +5,14 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <div>
         <h3 class="fw-bold mb-1"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Data Retention</h3>
-        <p class="text-muted mb-0">Review and maintain approved retention schedules. Expiry does not automatically delete data.</p>
+        <p class="text-muted mb-0">Review approved retention schedules and controlled disposal actions.</p>
     </div>
     <span class="badge rounded-pill text-bg-light border px-3 py-2">Admin only</span>
 </div>
 
 <div class="alert alert-info border-0 shadow-sm">
     <i class="fa-solid fa-shield-halved me-2"></i>
-    Retention is enforced as a controlled review policy. Destructive deletion is handled separately so financial evidence is not silently removed.
+    <strong>Delete</strong> is a governed disposal action only. It does not authorize deletion of legally required financial evidence, payment records, audit history, or retained documents.
 </div>
 
 <div class="row g-3">
@@ -43,6 +43,7 @@
                             <select id="action-{{ policy.id }}" name="disposal_action" class="form-select">
                                 <option value="REVIEW" {% if policy.disposal_action == 'REVIEW' %}selected{% endif %}>Review</option>
                                 <option value="ARCHIVE" {% if policy.disposal_action == 'ARCHIVE' %}selected{% endif %}>Archive</option>
+                                <option value="DELETE" {% if policy.disposal_action == 'DELETE' %}selected{% endif %}>Delete (governed)</option>
                             </select>
                         </div>
                     </div>
