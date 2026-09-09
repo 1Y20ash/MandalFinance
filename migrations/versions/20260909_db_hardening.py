@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = '20260909_db_hardening'
-down_revision = '20260909_doc_security'
+down_revision = '20260909_supabase_storage'
 branch_labels = None
 depends_on = None
 
@@ -35,17 +35,10 @@ def _index_exists(name: str) -> bool:
 
 def _add_constraint(table: str, name: str, expression: str) -> None:
     bind = op.get_bind()
-    if bind.dialect.name == 'postgresql':
-        if not _constraint_exists(name):
-            op.execute(sa.text(
-                f'ALTER TABLE {table} ADD CONSTRAINT {name} CHECK ({expression})'
-            ))
-        return
-
-    # SQLite's test/embedded schema is created from SQLAlchemy metadata. The
-    # production PostgreSQL migration is authoritative for existing databases.
-    # SQLite cannot add a CHECK constraint without table recreation, so avoid
-    # destructive migration work here.
+    if bind.dialect.name == 'postgresql' and not _constraint_exists(name):
+        op.execute(sa.text(
+            f'ALTER TABLE {table} ADD CONSTRAINT {name} CHECK ({expression})'
+        ))
 
 
 def _add_index(name: str, table: str, columns: str) -> None:
@@ -55,43 +48,42 @@ def _add_index(name: str, table: str, columns: str) -> None:
 
 
 def upgrade() -> None:
-    # Monetary invariants: no negative balances or impossible allocations.
-    _add_constraint('accounts', 'ck_accounts_current_balance_finite',
-                    'current_balance >= 0')
-    _add_constraint('financial_years', 'ck_financial_years_opening_balance_nonnegative',
-                    'opening_balance >= 0')
-    _add_constraint('budgets', 'ck_budgets_amounts_nonnegative',
-                    'total_income_target >= 0 AND total_expense_limit >= 0 '
-                    'AND actual_income >= 0 AND actual_expense >= 0')
+    _add_constraint('accounts', 'ck_accounts_current_balance_finite', 'current_balance >= 0')
+    _add_constraint('financial_years', 'ck_financial_years_opening_balance_nonnegative', 'opening_balance >= 0')
+    _add_constraint(
+        'budgets', 'ck_budgets_amounts_nonnegative',
+        'total_income_target >= 0 AND total_expense_limit >= 0 '
+        'AND actual_income >= 0 AND actual_expense >= 0'
+    )
     _add_constraint('budget_categories', 'ck_budget_categories_amounts_nonnegative',
                     'allocated_amount >= 0 AND spent_amount >= 0')
     _add_constraint('budget_categories', 'ck_budget_categories_spent_lte_allocated',
                     'spent_amount <= allocated_amount')
-
-    # Thresholds must be percentages and high warning must not precede the
-    # normal warning threshold.
-    _add_constraint('budget_categories', 'ck_budget_categories_warning_range',
-                    'warning_threshold_pct >= 0 AND warning_threshold_pct <= 100 '
-                    'AND high_warning_threshold_pct >= 0 AND high_warning_threshold_pct <= 100 '
-                    'AND high_warning_threshold_pct >= warning_threshold_pct')
+    _add_constraint(
+        'budget_categories', 'ck_budget_categories_warning_range',
+        'warning_threshold_pct >= 0 AND warning_threshold_pct <= 100 '
+        'AND high_warning_threshold_pct >= 0 AND high_warning_threshold_pct <= 100 '
+        'AND high_warning_threshold_pct >= warning_threshold_pct'
+    )
     _add_constraint('budgets', 'ck_budgets_revision_positive', 'revision_no >= 1')
 
-    # Contribution accounting invariants.
-    _add_constraint('sponsorships', 'ck_sponsorships_amounts_nonnegative',
-                    'committed_amount >= 0 AND received_amount >= 0 AND pending_amount >= 0')
+    _add_constraint(
+        'sponsorships', 'ck_sponsorships_amounts_nonnegative',
+        'committed_amount >= 0 AND received_amount >= 0 AND pending_amount >= 0'
+    )
     _add_constraint('sponsorships', 'ck_sponsorships_received_lte_committed',
                     'received_amount <= committed_amount')
     _add_constraint('sponsorships', 'ck_sponsorships_pending_matches',
                     'pending_amount = committed_amount - received_amount')
-    _add_constraint('member_contributions', 'ck_member_contributions_amounts_nonnegative',
-                    'target_amount >= 0 AND received_amount >= 0 AND pending_amount >= 0')
+    _add_constraint(
+        'member_contributions', 'ck_member_contributions_amounts_nonnegative',
+        'target_amount >= 0 AND received_amount >= 0 AND pending_amount >= 0'
+    )
     _add_constraint('member_contributions', 'ck_member_contributions_received_lte_target',
                     'received_amount <= target_amount')
     _add_constraint('member_contributions', 'ck_member_contributions_pending_matches',
                     'pending_amount = target_amount - received_amount')
 
-    # High-value query paths: event-scoped financial records and time-based
-    # reporting. Existing indexes are retained; these are additive indexes.
     _add_index('ix_donations_event_created', 'donations', 'event_id, created_at')
     _add_index('ix_expenses_event_date', 'expenses', 'event_id, expense_date')
     _add_index('ix_transactions_event_date', 'transactions', 'event_id, transaction_date')
