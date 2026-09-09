@@ -32,8 +32,30 @@ def create_app(config_name=None):
 
     @app.after_request
     def security_headers(response):
-        response.headers.setdefault('X-Content-Type-Options','nosniff');response.headers.setdefault('X-Frame-Options','DENY');response.headers.setdefault('Referrer-Policy','strict-origin-when-cross-origin');response.headers.setdefault('Permissions-Policy','camera=(), microphone=(), geolocation=()')
-        if config_name=='production': response.headers.setdefault('Strict-Transport-Security','max-age=31536000; includeSubDomains')
+        # Phase 23: explicit browser security policy. Keep the policy compatible
+        # with the existing server-rendered UI and its trusted CDN dependencies.
+        response.headers.setdefault('X-Content-Type-Options','nosniff')
+        response.headers.setdefault('X-Frame-Options','DENY')
+        response.headers.setdefault('Referrer-Policy','strict-origin-when-cross-origin')
+        response.headers.setdefault('Permissions-Policy','camera=(), microphone=(), geolocation=()')
+        response.headers.setdefault('Content-Security-Policy',
+            "default-src 'self'; "
+            "base-uri 'self'; "
+            "object-src 'none'; "
+            "frame-ancestors 'none'; "
+            "form-action 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self'; "
+            "manifest-src 'self'; "
+            "worker-src 'self'; "
+            "upgrade-insecure-requests")
+        response.headers.setdefault('Cross-Origin-Opener-Policy','same-origin')
+        response.headers.setdefault('Cross-Origin-Resource-Policy','same-origin')
+        if config_name=='production':
+            response.headers.setdefault('Strict-Transport-Security','max-age=31536000; includeSubDomains')
         return response
 
     from app.routes.main import main_bp
