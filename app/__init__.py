@@ -23,6 +23,9 @@ def create_app(config_name=None):
     app.config['APP_ENV'] = config_name
     db.init_app(app)
     migrate.init_app(app, db)
+    # Strong session protection invalidates the login session when Flask-Login
+    # detects an unexpected client identity change.
+    login_manager.session_protection = 'strong'
     login_manager.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
@@ -88,29 +91,3 @@ def create_app(config_name=None):
 
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
-    from app.routes.dashboard import dashboard_bp
-    from app.routes.donations import donations_bp
-    from app.routes.income import income_bp
-    from app.routes.expenses import expenses_bp
-    from app.routes.vendors import vendors_bp
-    from app.routes.budgets import budgets_bp
-    from app.routes.contributions import contributions_bp
-    from app.routes.documents import documents_bp
-    from app.routes.reports import reports_bp
-    from app.routes.admin import admin_bp
-    from app.routes.public import public_bp
-    from app.routes.financial_controls import controls_bp
-    from app.routes.reconciliation import reconciliation_bp
-    from app.routes.account_balances import account_balances_bp
-    from app.routes.health import health_bp
-    from app.routes.webhooks import webhooks_bp
-    from app.routes.privacy import privacy_bp
-    for bp in (main_bp, auth_bp, dashboard_bp, donations_bp, income_bp, expenses_bp, vendors_bp,
-               budgets_bp, contributions_bp, documents_bp, reports_bp, admin_bp, public_bp,
-               controls_bp, reconciliation_bp, account_balances_bp, health_bp, webhooks_bp, privacy_bp):
-        app.register_blueprint(bp)
-
-    @app.template_filter('currency')
-    def currency_filter(amount):
-        return '₹0.00' if amount is None else f'₹{amount:,.2f}'
-    return app
