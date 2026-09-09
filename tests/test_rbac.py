@@ -50,8 +50,6 @@ def test_finance_view_and_manage_permissions_are_distinct(client, app):
 
     with app.app_context():
         volunteer = User.query.filter_by(username='volunteer').first()
-        # Re-query both permissions after the request context. This avoids attaching
-        # stale ORM instances to a session whose identity map has been refreshed.
         finance_view = Permission.query.filter_by(name='finance.view').first()
         finance_manage = Permission.query.filter_by(name='finance.manage').first()
         manage_role = Role(name='Finance Manager')
@@ -72,7 +70,10 @@ def test_inactive_user_cannot_login(client, app):
         db.session.commit()
     response = _login(client, 'volunteer')
     assert response.status_code == 200
-    assert b'deactivated' in response.data.lower()
+    # Authentication failures deliberately use the same generic message so
+    # account state cannot be enumerated through the login endpoint.
+    assert b'Invalid username or password.' in response.data
+    assert b'deactivated' not in response.data.lower()
 
 
 def test_system_roles_cannot_be_modified_or_deleted(client, app):
