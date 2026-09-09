@@ -13,6 +13,7 @@ from app.models.controls import ContributionReceipt, CorrectionRequest, Reconcil
 from app.models.reconciliation import ReconciliationLine
 from app.models.contribution import SponsorshipPayment, MemberContributionPayment
 from app.models.retention import RetentionPolicy
+from app.models.deletion import DeletionRequest
 
 __all__ = [
     'User', 'Role', 'Permission', 'role_permissions', 'user_roles',
@@ -26,5 +27,5 @@ __all__ = [
     'AuditLog', 'Setting', 'Notification',
     'ContributionReceipt', 'CorrectionRequest', 'ReconciliationRecord', 'EvidenceRule',
     'ReconciliationLine', 'SponsorshipPayment', 'MemberContributionPayment',
-    'RetentionPolicy'
+    'RetentionPolicy', 'DeletionRequest'
 ]
