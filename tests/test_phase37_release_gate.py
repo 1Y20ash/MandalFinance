@@ -40,8 +40,8 @@ def test_matrix_preserves_release_and_financial_boundaries():
     required = [
         "This is an engineering implementation matrix, not a legal, statutory, accounting, or security certification.",
         "Absolute financial integrity rules",
-        "Phase 36",
-        "Phase 37",
+        "36. Final Security Review",
+        "37. Release Gate",
         "38. Single Clean Deployment",
         "39. Post-Deployment Verification",
         "40. PWA",
