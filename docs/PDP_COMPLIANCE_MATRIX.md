@@ -38,7 +38,7 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | **25. Data Breach Response** | **🟢 PASS** | `docs/DATA_BREACH_RESPONSE_PROCEDURE.md`; formal incident lifecycle; severity/escalation; evidence-preservation rules; affected-data assessment; DPDP notification workflow; processor escalation; remediation/review controls; automated Phase 25 documentation tests | Validate operational contacts and notification channels before production; keep procedure aligned with applicable law and provider terms | P0 |
 | **26. Public Transparency** | **🟢 PASS** | `docs/PUBLIC_TRANSPARENCY_POLICY.md`; public transparency route reviewed as aggregate-only; public template checked for sensitive-field leakage; authoritative-ledger disclosure boundary; automated Phase 26 tests | Re-review public disclosures whenever financial, payment, document, or personal-data processing changes | **P0** |
 | **27. Frontend Privacy** | **🟢 PASS** | `docs/FRONTEND_PRIVACY_POLICY.md`; browser storage boundary; PWA session-only UI state; donation CSRF token excluded from service-worker precache; service-worker GET/same-origin/static/public-shell restrictions; automated Phase 27 tests | Re-review whenever browser storage, SDKs, offline behavior, payment/document flows, or tracking changes | **P0** |
-| 28. Error Handling | 🟢/🟡 | Generic production-safe error handling and safe 429 response | Complete all exception-path review | P0 |
+| **28. Error Handling** | **🟢 PASS** | `docs/ERROR_HANDLING_POLICY.md`; generic HTML/JSON handling for expected HTTP errors; privacy-safe 500 handling with server-side logging and DB rollback; health-error detail suppression; automated Phase 28 regression tests | Re-review when new API surfaces, error classes, or external integrations are introduced | **P0** |
 | 29. Dependency Audit | 🟡 | `requirements.txt` includes Flask-Limiter and Redis support | Complete vulnerability/unused-dependency audit | P0 |
 | 30. Testing | 🟢/🟡 | Dedicated regression/security suite and phase-specific tests | Complete remaining privacy/payment/E2E coverage | P0 |
 | 31. Clean-Environment Test | 🟢/🟡 | Repeatable CI migration/regression verification | Expand clean-environment scenario matrix | P0 |
@@ -95,6 +95,14 @@ The service worker was hardened because the public donation template contains a 
 The frontend policy also records the current third-party browser-resource boundary and requires privacy/processor review before analytics, advertising, tracking, session replay, chat, telemetry, or other browser SDKs are enabled.
 
 Automated Phase 27 tests verify the storage policy, PWA storage boundary, donation CSRF/cache boundary, service-worker request restrictions, public/static cache boundary, and base-template client-persistence boundary.
+
+## Phase 28 — Error Handling evidence
+
+Phase 28 establishes `docs/ERROR_HANDLING_POLICY.md` as the controlled application error boundary. Expected HTTP failures receive generic browser-safe pages or an explicit JSON error contract. Unexpected exceptions are caught at the application boundary, logged through the existing structured logging controls, and returned to clients only as a generic 500 response. The current database session is rolled back before returning an unexpected-error response.
+
+The health endpoint no longer returns raw database exception text; detailed diagnostics remain server-side. Error responses do not disclose stack traces, SQL, connection strings, credentials, filesystem paths, document contents, payment secrets, or framework internals.
+
+Automated Phase 28 tests verify generic 404 HTML and JSON responses, generic 500 HTML and JSON responses, suppression of injected exception secrets, server-side exception logging, and health-endpoint error-detail suppression.
 
 ## Absolute financial integrity rules
 
