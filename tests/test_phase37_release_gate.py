@@ -39,7 +39,7 @@ def test_matrix_preserves_release_and_financial_boundaries():
     text = MATRIX.read_text(encoding="utf-8")
     required = [
         "This is an engineering implementation matrix, not a legal, statutory, accounting, or security certification.",
-        "absolute financial-integrity rules",
+        "Absolute financial integrity rules",
         "Phase 36",
         "Phase 37",
         "38. Single Clean Deployment",
