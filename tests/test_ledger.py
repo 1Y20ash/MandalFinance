@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models.audit import AuditLog
@@ -63,6 +64,33 @@ def test_duplicate_external_ref_is_rejected(app):
             LedgerService.record_income(account.id, '75.00', 'Duplicate gateway payment', 'PAYMENT', 2, user.id, external_ref='gateway-unique-1')
 
 
+def test_database_rejects_duplicate_active_source_and_external_reference(app):
+    with app.app_context():
+        user = User.query.filter_by(username='admin').first()
+        account = Account.query.filter_by(name='Main Cash').first()
+        first = LedgerService.record_income(account.id, '10.00', 'DB uniqueness', 'DB_UNIQUE', 77, user.id, external_ref='db-ref-77')
+        duplicate_source = Transaction(
+            transaction_ref='DB-DUP-SOURCE', event_id=first.event_id, account_id=account.id,
+            transaction_type='INCOME', amount=Decimal('10.00'), payment_mode='CASH',
+            description='duplicate source', source_module='DB_UNIQUE', source_id=77, created_by_id=user.id,
+        )
+        db.session.add(duplicate_source)
+        with pytest.raises(IntegrityError):
+            db.session.flush()
+        db.session.rollback()
+
+        duplicate_ref = Transaction(
+            transaction_ref='DB-DUP-REF', event_id=first.event_id, account_id=account.id,
+            transaction_type='INCOME', amount=Decimal('10.00'), payment_mode='CASH',
+            external_ref='db-ref-77', description='duplicate ref', source_module='DB_UNIQUE_2', source_id=78,
+            created_by_id=user.id,
+        )
+        db.session.add(duplicate_ref)
+        with pytest.raises(IntegrityError):
+            db.session.flush()
+        db.session.rollback()
+
+
 def test_reversal_requires_reason_and_cannot_reverse_reversal(app):
     with app.app_context():
         user = User.query.filter_by(username='admin').first()
@@ -75,6 +103,27 @@ def test_reversal_requires_reason_and_cannot_reverse_reversal(app):
             LedgerService.reverse_transaction(txn.id, user.id, 'Again')
         with pytest.raises(ValueError, match='Only INCOME and EXPENSE'):
             LedgerService.reverse_transaction(reversal.id, user.id, 'Invalid reversal')
+
+
+def test_reversal_is_atomic_when_audit_logging_fails(app, monkeypatch):
+    with app.app_context():
+        user = User.query.filter_by(username='admin').first()
+        account = Account.query.filter_by(name='Main Cash').first()
+        income = LedgerService.record_income(account.id, '90.00', 'Atomic reversal', 'REV_ATOMIC', 1, user.id)
+        before = account.current_balance
+
+        def failing_audit(*args, **kwargs):
+            raise RuntimeError('simulated reversal audit failure')
+
+        monkeypatch.setattr(AuditService, 'log_action', failing_audit)
+        with pytest.raises(RuntimeError, match='simulated reversal audit failure'):
+            LedgerService.reverse_transaction(income.id, user.id, 'Rollback test')
+
+        db.session.expire_all()
+        assert db.session.get(Account, account.id).current_balance == before
+        original = db.session.get(Transaction, income.id)
+        assert original.is_reversed is False
+        assert Transaction.query.filter_by(external_ref=f'REVERSAL-OF-{income.transaction_ref}').first() is None
 
 
 def test_ledger_rolls_back_when_audit_logging_fails(app, monkeypatch):
