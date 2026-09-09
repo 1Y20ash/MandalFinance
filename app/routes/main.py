@@ -21,19 +21,35 @@ def pwa_manifest():
     static_folder = os.path.join(current_app.root_path, 'static')
     return send_from_directory(static_folder, 'manifest.json', mimetype='application/json')
 
-@main_bp.route('/health')
-def health():
+
+def _database_health():
     try:
         db.session.execute(db.text('SELECT 1'))
-        db_status = 'HEALTHY'
+        return True
     except Exception:
-        current_app.logger.exception('Legacy health database check failed')
+        current_app.logger.exception('Health database check failed')
         db.session.rollback()
-        db_status = 'UNHEALTHY'
+        return False
 
+
+@main_bp.route('/health/live')
+def health_live():
+    return jsonify({'status': 'OK'}), 200
+
+
+@main_bp.route('/health/ready')
+def health_ready():
+    if not _database_health():
+        return jsonify({'status': 'UNHEALTHY', 'database': 'UNHEALTHY'}), 503
+    return jsonify({'status': 'READY', 'database': 'HEALTHY'}), 200
+
+
+@main_bp.route('/health')
+def health():
+    db_healthy = _database_health()
     return jsonify({
-        'status': 'OK' if db_status == 'HEALTHY' else 'DEGRADED',
-        'database': db_status,
+        'status': 'OK' if db_healthy else 'DEGRADED',
+        'database': 'HEALTHY' if db_healthy else 'UNHEALTHY',
         'app_name': 'Shree Ashtavinayak Ganesh Utsav Mandal Financial System',
         'version': '1.0.0'
-    })
+    }), 200
