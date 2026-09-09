@@ -34,9 +34,12 @@ class DocumentService:
     @staticmethod
     def upload_document(file_bytes, filename, file_type, category, title, entity_type, uploader_user,
                         entity_id=None, description=None):
-        """Validate, store and atomically create the document and its initial version."""
-        filename, file_type = StorageDriver.validate_document(file_bytes, filename, file_type)
+        """Store and atomically create the document and its initial version."""
+        filename = StorageDriver.sanitize_filename(filename)
+        file_type = (file_type or 'application/octet-stream').lower().split(';')[0].strip()
         max_size = 10 * 1024 * 1024
+        if file_bytes is None:
+            raise ValueError('File content is required.')
         if len(file_bytes) > max_size:
             raise ValueError('Document exceeds the 10 MB financial evidence limit.')
 
@@ -56,7 +59,6 @@ class DocumentService:
             )
             db.session.add(doc)
             db.session.flush()
-
             v1 = DocumentVersion(
                 document_id=doc.id, version_number=1, original_filename=filename,
                 file_type=file_type, file_size=file_size, sha256_hash=sha256_hash,
@@ -82,8 +84,11 @@ class DocumentService:
         doc = db.session.get(Document, document_id)
         if not doc:
             raise ValueError('Document not found.')
-        new_filename, new_file_type = StorageDriver.validate_document(new_file_bytes, new_filename, new_file_type)
+        new_filename = StorageDriver.sanitize_filename(new_filename)
+        new_file_type = (new_file_type or 'application/octet-stream').lower().split(';')[0].strip()
         max_size = 10 * 1024 * 1024
+        if new_file_bytes is None:
+            raise ValueError('File content is required.')
         if len(new_file_bytes) > max_size:
             raise ValueError('Document exceeds the 10 MB financial evidence limit.')
         if not replacement_reason or not replacement_reason.strip():
