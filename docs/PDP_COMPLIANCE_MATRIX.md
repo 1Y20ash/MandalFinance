@@ -1,7 +1,6 @@
 # MandalFinance PDP Compliance Matrix
 
-**Baseline:** `feat/premium-glass-ui` @ `3572d43201b333cb74abafe647cfa5f05c4a8712`  
-**Hardening branch:** `feat/pdp-full-hardening`  
+**Baseline:** `main`  
 **Principle:** Money → Transaction → Supporting Document → User → Approval → Payment → Audit History
 
 This is an engineering implementation matrix, not a legal, statutory, accounting, or security certification.
@@ -10,19 +9,19 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 |---|---|---|---|---|
 | 0. Baseline / architecture lock | 🟢 | Baseline matrix + CI-verified hardening branches | Keep matrix synchronized with future releases | P0 |
 | 1. Foundation / financial integrity | 🟢/🟡 | Decimal/Numeric money fields, central ledger, event/FY locking, duplicate-reference guards | Complete production DB invariant verification | P0 |
-| 2. Authentication / dynamic RBAC | 🟢/🟡 | Flask-Login, dynamic roles/permissions, dedicated `finance.view`/`finance.manage`, global finance-control authorization guard | Assign dedicated permissions to operational roles and complete object-level authorization tests | P0 |
+| 2. Authentication / dynamic RBAC | 🟢/🟡 | Flask-Login, dynamic roles/permissions, finance-control authorization guard | Expand object-level authorization tests | P0 |
 | 3. Mandal / event / ledger core | 🟢/🟡 | Event/FY locking and financial guard | Expand event/FY mutation tests across every module | P0 |
-| 4. Income / donations / receipts | 🟢/🟡 | Donation duplicate external-reference checks, evidence enforcement, central-ledger posting | Complete receipt/report lifecycle and production evidence policy configuration | P0 |
+| 4. Income / donations / receipts | 🟢/🟡 | Duplicate external-reference checks, evidence enforcement, central-ledger posting | Complete receipt/report lifecycle and production evidence policy configuration | P0 |
 | 5. Expenses / vendors / approval / payment | 🟢/🟡 | Submit → approve → pay, SOD, evidence gate, central ledger | Expand vendor lifecycle and negative-path matrix | P0 |
-| 6. Sponsorship / member / budget | 🟢/🟡 | Sponsorship/member receipt lifecycle, target/commitment limits, budget DRAFT → APPROVED → REVISED workflow, approval SOD | Add richer sponsor/member master-data and document/receipt UI | P1 |
-| 7. Cash / bank / UPI / reconciliation | 🟢/🟡 | Reconciliation records plus statement-line import, unique matching, unmatched blocking, finalization gate | Add CSV/Excel bank statement adapters and transfer-specific matching UX | P0 |
+| 6. Sponsorship / member / budget | 🟢/🟡 | Receipt lifecycle, target/commitment limits, budget workflow, approval SOD | Add richer sponsor/member master-data and document/receipt UI | P1 |
+| 7. Cash / bank / UPI / reconciliation | 🟢/🟡 | Reconciliation records, statement-line matching and finalization gates | Add richer bank statement adapters and transfer UX | P0 |
 | 8. Document vault / versioning / integrity | 🟡 | SHA-256, versions, protected access | Production storage hardening and full object-authorization matrix | P0 |
-| 9. Evidence / timeline / evidence packs | 🟢/🟡 | EvidenceRule enforcement on expense, contribution, offline/online donation payment paths | Configure production rules and add document pre-payment workflows where required | P0 |
-| 10. Audit / correction / reversal / reporting | 🟢/🟡 | Audit events for hardening actions, correction/reversal infrastructure | Full mutation coverage and reconstruction tests | P0 |
+| 9. Evidence / timeline / evidence packs | 🟢/🟡 | EvidenceRule enforcement on payment/posting boundaries | Configure production rules and expand evidence workflows | P0 |
+| 10. Audit / correction / reversal / reporting | 🟢 | Audit service, transactional audit writes, immutable ORM/database controls, SHA-256 row integrity, authentication security events, admin audit trail | Continue adding coverage when new privileged business events are introduced | P0 |
 | 11. Dashboard / analytics / transparency | 🟡 | Existing dashboard/reports/notifications | Unified search, public transparency and notification completeness | P1 |
-| 12. Security / financial-integrity testing | 🟢/🟡 | Dedicated hardening test matrix for RBAC, duplicates, over-collection, reconciliation and evidence | Expand horizontal/vertical object access, CSRF/API authorization and locked-record cases | P0 |
+| 12. Security / financial-integrity testing | 🟢/🟡 | Dedicated hardening/security test matrix plus audit-integrity tests | Expand horizontal/vertical object access and locked-record cases | P0 |
 | 13. UI / UX / accessibility / performance | 🟡 | Premium glass UI and responsive templates | Full accessibility/mobile/performance audit | P1 |
-| 14. Production / release verification | 🔴 | Repeatable CI migration/regression verification | Production DB/storage/secrets/backups/deployment smoke tests and E2E reconstruction | P0 |
+| 14. Production / release verification | 🟡 | Repeatable CI migration/regression verification, production preflight and structured application logging | Production DB/storage/secrets/backups/deployment smoke tests and E2E reconstruction | P0 |
 
 ## Absolute financial integrity rules
 
@@ -38,23 +37,13 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 10. Reports, dashboards, account balances, reconciliations, and evidence packs must derive from one authoritative ledger invariant.
 11. A reconciliation cannot be finalized while statement lines are unmatched or the balance difference is non-zero.
 12. Budget actuals are derived from finalized ledger transactions rather than duplicated module totals.
+13. Audit history is append-only and tamper-evident; security-sensitive events must not be silently discarded.
 
-## Hardening delivered in the current branch
+## Audit logging hardening
 
-### RBAC hardening
-All `/finance-controls` routes now pass through a second server-side authorization layer. Non-admin reads require `finance.view`; mutations require `finance.manage`. Existing handler-level checks remain in place as defense in depth. `budget.approve` is a dedicated permission for budget approval.
+Phase 21 adds a dedicated immutable audit layer. `AuditLog` now carries a UUID event identifier, outcome, request correlation ID and SHA-256 integrity digest. The application rejects ORM updates/deletes, while PostgreSQL receives a database trigger that rejects direct `UPDATE`/`DELETE` operations. `AuditService` serializes structured metadata as JSON, redacts credential-like keys, supports atomic `commit=False` writes, and provides integrity verification.
 
-### Reconciliation workflow
-Reconciliation now supports statement-line import, unique line references, matching by external reference or account/date/amount, duplicate-match prevention, unmatched-line blocking and finalization only when the ledger/statement difference is zero.
-
-### Sponsorship/member/budget lifecycle
-Sponsorship/member receipts validate active accounts, payment modes, external references, commitment/target limits and evidence before ledger posting. Budgets now have explicit DRAFT/APPROVED/REVISED lifecycle state, revision reasons, approval identity/time, segregation of duties, and ledger-derived actuals.
-
-### Evidence enforcement
-Evidence checks are enforced at the payment/posting boundary for expenses, contribution receipts, offline donations and gateway-confirmed donations. Missing required evidence prevents the ledger transaction from being finalized.
-
-### Financial-integrity/security tests
-`tests/test_pdp_hardening.py` covers dedicated finance permissions, duplicate external references, contribution over-collection, duplicate reconciliation periods, statement-line matching, unmatched reconciliation blocking, donation evidence blocking and budget approval separation.
+Authentication now records successful logins, failed credential attempts and blocked logins without storing passwords or raw credential material. The administrator audit page exposes the event outcome, request ID and digest prefix for investigation and traceability.
 
 ## Verification gate
 
