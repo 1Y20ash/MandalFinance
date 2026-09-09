@@ -6,7 +6,6 @@ from app.config import config_by_name
 from app.extensions import db, migrate, login_manager, csrf, limiter
 from app.models.auth import User
 
-
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 PACKAGE_TEMPLATE_DIR = BASE_DIR / 'templates'
@@ -52,10 +51,8 @@ def create_app(config_name=None):
     def handle_http_error(error):
         if error.code == 429:
             return render_template_string('<!doctype html><title>Too many requests</title><h1>Too many requests</h1><p>Please wait a moment and try again.</p>'), 429
-        return render_template_string('<!doctype html><title>{{ title }}</title><h1>{{ title }}</h1><p>{{ message }}</p>'), error.code, {
-            'title': error.name,
-            'message': error.description if error.code not in (401, 403) else 'You are not authorized to perform this action.',
-        }
+        message = error.description if error.code not in (401, 403) else 'You are not authorized to perform this action.'
+        return render_template_string('<!doctype html><title>{{ title }}</title><h1>{{ title }}</h1><p>{{ message }}</p>', title=error.name, message=message), error.code
 
     @app.errorhandler(Exception)
     def handle_unexpected_error(error):
