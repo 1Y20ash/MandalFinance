@@ -86,6 +86,23 @@ class User(UserMixin, db.Model):
     approved_by = db.relationship('User', remote_side=[id], foreign_keys=[approved_by_id],
                                   backref=db.backref('approved_users', lazy=True))
 
+    @property
+    def is_authenticated(self):
+        """Keep an already-authenticated session addressable after account revocation.
+
+        Flask-Login's ``UserMixin`` derives this property from ``is_active``. That
+        would turn a mid-session deactivation into an anonymous session and cause
+        ``login_required`` to redirect to login, bypassing the application's
+        authorization boundary. Login eligibility is still enforced by
+        ``login_user`` and the login route; existing sessions are denied with 403
+        by the authorization decorators when ``is_active`` or approval changes.
+        """
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
     def set_password(self, password):
         """Hash a password with a unique cryptographically random 32-byte salt."""
         if not isinstance(password, str) or len(password) < 8:
