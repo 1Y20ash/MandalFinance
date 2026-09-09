@@ -38,6 +38,17 @@ jobs:
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
       - name: Compile Python sources
         run: python -m compileall -q app api app.py
+      - name: Verify production configuration preflight
+        env:
+          SECRET_KEY: ci-production-test-secret-change-me-1234567890
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mandalfinance_ci
+          SUPABASE_URL: https://ci-example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-production-service-role-test-key
+          SUPABASE_STORAGE_PRIVATE: 'true'
+          PAYMENT_GATEWAY_DRIVER: razorpay
+          RAZORPAY_KEY_ID: rzp_test_ci_key
+          RAZORPAY_KEY_SECRET: ci-razorpay-secret
+        run: python scripts/verify_production_config.py
       - name: Check migration heads
         run: flask --app app.py db heads
       - name: Apply migrations on clean PostgreSQL
