@@ -1,8 +1,8 @@
 from decimal import Decimal
 
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
-from app.extensions import csrf, db
+from app.extensions import db
 from app.models.income import Donation
 from app.models.ledger import Account
 from app.models.mandal import Event, Mandal
@@ -89,9 +89,9 @@ def public_donate():
                 order_info=order_info,
                 active_event=active_event,
             )
-        except Exception as exc:
+        except Exception:
             db.session.rollback()
-            flash(f'Donation setup failed: {exc}', 'danger')
+            flash('Donation setup failed. Please try again later.', 'danger')
 
     return render_template('public/donate.html', active_event=active_event)
 
@@ -132,66 +132,9 @@ def confirm_online_payment():
             signature,
             account.id,
         )
-    except Exception as exc:
-        flash(f'Payment could not be recorded: {exc}', 'danger')
+    except Exception:
+        flash('Payment could not be recorded. Please contact the Mandal administrator if funds were debited.', 'danger')
         return redirect(url_for('public.public_donate'))
 
     flash(f'Thank you! Your donation was successful. Receipt No: {donation.receipt_number}', 'success')
     return redirect(url_for('donations.download_receipt', donation_id=donation.id))
-
-
-@csrf.exempt
-@public_bp.route('/donate/webhook', methods=['POST'])
-def payment_webhook():
-    payload = request.get_data()
-    signature = request.headers.get('X-Razorpay-Signature', '')
-    event_id = request.headers.get('x-razorpay-event-id', '')
-
-    gateway = get_payment_gateway()
-    if not gateway.verify_webhook_signature(payload, signature):
-        return jsonify({'status': 'invalid signature'}), 400
-
-    data = request.get_json(silent=True) or {}
-    event_type = data.get('event')
-    if event_type not in {'payment.captured', 'order.paid'}:
-        return jsonify({'status': 'ignored', 'event_id': event_id}), 200
-
-    payment_entity = data.get('payload', {}).get('payment', {}).get('entity', {})
-    order_entity = data.get('payload', {}).get('order', {}).get('entity', {})
-    order_id = payment_entity.get('order_id') or order_entity.get('id')
-    payment_id = payment_entity.get('id')
-
-    donation = Donation.query.filter_by(gateway_order_id=order_id).first()
-    if not donation:
-        return jsonify({'status': 'unknown order', 'event_id': event_id}), 200
-    if donation.status == 'SUCCESS':
-        return jsonify({'status': 'already processed', 'event_id': event_id}), 200
-
-    amount_paise = payment_entity.get('amount')
-    status = payment_entity.get('status')
-    captured = payment_entity.get('captured')
-    expected_paise = int(Decimal(str(donation.amount)) * 100)
-    if amount_paise is not None and int(amount_paise) != expected_paise:
-        return jsonify({'status': 'amount mismatch', 'event_id': event_id}), 400
-    if status not in (None, 'captured') and captured is not True:
-        return jsonify({'status': 'payment not captured', 'event_id': event_id}), 200
-    if not payment_id:
-        return jsonify({'status': 'missing payment id', 'event_id': event_id}), 400
-
-    try:
-        account = _online_donation_account()
-        DonationService.confirm_online_donation(
-            donation.id,
-            payment_id,
-            f'WEBHOOK_VERIFIED:{event_id or "unknown"}',
-            account.id,
-        )
-    except ValueError as exc:
-        if 'already exists' in str(exc).lower() or 'already' in str(exc).lower():
-            return jsonify({'status': 'already processed', 'event_id': event_id}), 200
-        return jsonify({'status': 'processing failed'}), 400
-    except Exception:
-        db.session.rollback()
-        return jsonify({'status': 'processing failed'}), 500
-
-    return jsonify({'status': 'ok', 'event_id': event_id}), 200
