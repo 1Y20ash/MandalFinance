@@ -51,9 +51,14 @@ jobs:
           PAYMENT_GATEWAY_DRIVER: razorpay
           RAZORPAY_KEY_ID: rzp_test_ci_key
           RAZORPAY_KEY_SECRET: ci-razorpay-secret
+          RAZORPAY_WEBHOOK_SECRET: ci-razorpay-webhook-secret
           RATELIMIT_STORAGE_URI: redis://localhost:6379/0
           REDIS_PROVIDER_NAME: ci-redis-service
         run: python scripts/verify_production_config.py
+      - name: Run production configuration simulation
+        env:
+          FLASK_ENV: testing
+        run: python -m pytest -q tests/test_phase32_production_configuration.py
       - name: Check migration heads
         run: flask --app server.py db heads
       - name: Apply migrations on clean PostgreSQL
