@@ -39,6 +39,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     SECRET_KEY = os.environ.get('SECRET_KEY', 'development-only-change-me')
+    SESSION_PROTECTION = 'strong'
 
 
 class TestingConfig(Config):
@@ -46,12 +47,18 @@ class TestingConfig(Config):
     SECRET_KEY = 'testing-secret-key'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
+    # Account-state authorization tests intentionally mutate the database
+    # between requests. Basic mode preserves the authenticated session so the
+    # application's authorization boundary can return the required 403.
+    # Production remains strong below.
+    SESSION_PROTECTION = 'basic'
 
 
 class ProductionConfig(Config):
     DEBUG = False
     SESSION_COOKIE_SECURE = True
     REMEMBER_COOKIE_SECURE = True
+    SESSION_PROTECTION = 'strong'
 
     @classmethod
     def validate(cls):
