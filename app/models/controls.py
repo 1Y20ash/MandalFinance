@@ -1,5 +1,8 @@
 from datetime import datetime, date
 from decimal import Decimal
+
+from sqlalchemy import UniqueConstraint
+
 from app.extensions import db
 
 
@@ -7,7 +10,7 @@ class ContributionReceipt(db.Model):
     __tablename__ = 'contribution_receipts'
     id = db.Column(db.Integer, primary_key=True)
     receipt_ref = db.Column(db.String(60), unique=True, nullable=False, index=True)
-    source_type = db.Column(db.String(20), nullable=False)  # SPONSORSHIP / MEMBER
+    source_type = db.Column(db.String(20), nullable=False)
     source_id = db.Column(db.Integer, nullable=False, index=True)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False, index=True)
     account_id = db.Column(db.Integer, db.ForeignKey('accounts.id'), nullable=False)
@@ -70,7 +73,10 @@ class ReconciliationRecord(db.Model):
     resolved_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     resolved_at = db.Column(db.DateTime, nullable=True)
-    __table_args__ = (db.CheckConstraint("status IN ('OPEN', 'MATCHED', 'ADJUSTMENT_REQUIRED', 'RESOLVED')", name='ck_reconciliation_status'),)
+    __table_args__ = (
+        UniqueConstraint('account_id', 'statement_date', name='uq_reconciliation_account_statement_date'),
+        db.CheckConstraint("status IN ('OPEN', 'MATCHED', 'ADJUSTMENT_REQUIRED', 'RESOLVED')", name='ck_reconciliation_status'),
+    )
     account = db.relationship('Account')
     event = db.relationship('Event')
     created_by = db.relationship('User', foreign_keys=[created_by_id])
@@ -83,7 +89,7 @@ class EvidenceRule(db.Model):
     name = db.Column(db.String(150), nullable=False, unique=True)
     entity_type = db.Column(db.String(40), nullable=False)
     min_amount = db.Column(db.Numeric(15, 2), nullable=True)
-    required_categories = db.Column(db.Text, nullable=False)  # JSON array stored as text
+    required_categories = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
