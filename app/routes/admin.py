@@ -5,10 +5,12 @@ from flask_login import login_required, current_user
 from app.models.auth import User, Role, Permission
 from app.models.audit import AuditLog
 from app.models.retention import RetentionPolicy
+from app.models.deletion import DeletionRequest
 from app.extensions import db
 from app.utils.decorators import admin_required
 from app.services.audit_service import AuditService
 from app.services.retention_service import RetentionService
+from app.services.deletion_service import DeletionService
 
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -266,7 +268,7 @@ def update_retention_policy(policy_id):
     if retention_days <= 0 or retention_days > 36500:
         flash('Retention must be between 1 and 36,500 days.', 'danger')
         return redirect(url_for('admin.retention_policies'))
-    if disposal_action not in {'REVIEW', 'ARCHIVE'}:
+    if disposal_action not in {'REVIEW', 'ARCHIVE', 'DELETE'}:
         flash('Invalid disposal action.', 'danger')
         return redirect(url_for('admin.retention_policies'))
 
@@ -287,6 +289,45 @@ def update_retention_policy(policy_id):
         flash('Unable to update the retention policy. No changes were saved.', 'danger')
 
     return redirect(url_for('admin.retention_policies'))
+
+
+@admin_bp.route('/deletion-requests')
+@login_required
+@admin_required
+def deletion_requests():
+    requests = DeletionRequest.query.order_by(DeletionRequest.requested_at.asc()).all()
+    return render_template('admin/deletion_requests.html', requests=requests)
+
+
+@admin_bp.route('/deletion-requests/<int:request_id>/review', methods=['POST'])
+@login_required
+@admin_required
+def review_deletion_request(request_id):
+    action = request.form.get('action', '').strip().upper()
+    decision_reason = request.form.get('decision_reason', '').strip()
+    legal_hold_reason = request.form.get('legal_hold_reason', '').strip()
+
+    if action not in {'APPROVE', 'REJECT', 'HOLD'}:
+        flash('Invalid deletion review action.', 'danger')
+        return redirect(url_for('admin.deletion_requests'))
+
+    try:
+        DeletionService.review(
+            request_id,
+            current_user,
+            approve=action == 'APPROVE',
+            decision_reason=decision_reason,
+            legal_hold=action == 'HOLD',
+            legal_hold_reason=legal_hold_reason,
+        )
+        flash('Deletion request review completed.', 'success')
+    except ValueError as exc:
+        flash(str(exc), 'warning')
+    except Exception:
+        db.session.rollback()
+        flash('Deletion review failed. No changes were saved.', 'danger')
+
+    return redirect(url_for('admin.deletion_requests'))
 
 
 @admin_bp.route('/audit-logs')
