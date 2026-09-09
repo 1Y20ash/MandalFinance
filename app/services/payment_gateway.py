@@ -23,8 +23,6 @@ class PaymentGatewayInterface(ABC):
 
 
 class MockPaymentGateway(PaymentGatewayInterface):
-    """Deterministic local/test gateway. It is never silently used for Razorpay."""
-
     def create_order(self, amount_decimal, donation_id, donor_name):
         order_id = f"order_mock_{uuid.uuid4().hex[:12]}"
         payment_id = f"pay_mock_{order_id}"
@@ -73,7 +71,6 @@ class RazorpayGateway(PaymentGatewayInterface):
                 'amount': int(amount * 100),
                 'currency': 'INR',
                 'receipt': f'don_{donation_id}',
-                'notes': {'donor_name': donor_name[:120]},
             },
             timeout=10,
         )
