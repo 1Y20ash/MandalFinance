@@ -213,19 +213,40 @@ def update_privacy_request(request_id):
         flash(f'Invalid workflow transition from {item.status} to {new_status}.', 'danger')
         return redirect(url_for('admin.privacy_requests'))
 
+    if new_status == 'PROCESSED' and item.request_type == 'CORRECTION':
+        data = item.requested_data or {}
+        full_name = str(data.get('full_name') or '').strip()
+        email = str(data.get('email') or '').strip().lower()
+        phone = str(data.get('phone') or '').strip()
+        if not full_name or len(full_name) > 120 or len(phone) > 20 or len(email) > 120 or '@' not in email:
+            flash('Correction request contains invalid profile values and cannot be processed.', 'danger')
+            return redirect(url_for('admin.privacy_requests'))
+        duplicate = User.query.filter(User.email == email, User.id != item.user_id).first()
+        if duplicate:
+            flash('Correction cannot be processed because the requested email is already in use.', 'danger')
+            return redirect(url_for('admin.privacy_requests'))
+        target_user = db.session.get(User, item.user_id)
+        if target_user is None:
+            flash('The request owner could not be found.', 'danger')
+            return redirect(url_for('admin.privacy_requests'))
+        target_user.full_name = full_name
+        target_user.email = email
+        target_user.phone = phone or None
+        AuditService.log_action('PRIVACY_CORRECTION_PROCESSED', 'user', target_user.id,
+                                'Authorized privacy correction request was processed.',
+                                {'privacy_request_id': item.id}, commit=False)
+
     now = datetime.utcnow()
     if new_status == 'IDENTITY_VERIFIED':
         item.verified_at = now
     if new_status == 'COMPLETED':
         item.completed_at = now
-
     item.status = new_status
     item.reviewed_by_id = current_user.id
     item.response_note = (request.form.get('response_note') or '').strip()[:4000] or None
-
     AuditService.log_action(
         'PRIVACY_REQUEST_STATUS', 'privacy_request', item.id,
-        f'Privacy request status changed from the previous workflow state to {new_status}.',
+        f'Privacy request status changed to {new_status}.',
         {'status': new_status, 'request_type': item.request_type}, commit=False,
     )
     db.session.commit()
