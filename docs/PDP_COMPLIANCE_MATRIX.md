@@ -48,7 +48,7 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 35. DPDP Compliance Matrix | 🟢 PASS | Authoritative matrix plus governance policy, traceability, evidence/environment/legal boundaries and downgrade rules; automated tests | Keep synchronized with material control changes | P0 |
 | 36. Final Security Review | 🟢 PASS | Cross-cutting review, negative-path inventory, CSP hardening note and automated review tests | Live production evidence remains Phases 38–39 | P0 |
 | **37. Release Gate** | **🟢 PASS** | `docs/RELEASE_GATE_POLICY.md`; independent release-blocker checklist; exact-HEAD requirement; production prerequisite boundaries; automated Phase 37 gate tests; exact-head GitHub Actions success | Proceed to Phase 38 only; do not infer live production health | **P0** |
-| 38. Single Clean Deployment | ⚪ | Not yet reached | Deploy only after release gate | P0 |
+| **38. Single Clean Deployment** | **🟢/🟡** | `docs/SINGLE_CLEAN_DEPLOYMENT_POLICY.md`; deployment-sequence and anti-hot-patch controls; dedicated Phase 38 CI tests; canonical Vercel/server entrypoint verified | Execute one real production deployment from an exact Phase-37-gated SHA and record non-secret deployment evidence; Vercel deployment remains environment evidence | **P0** |
 | 39. Post-Deployment Verification | ⚪ | Not yet reached | Execute full production verification | P0 |
 | 40. PWA | ⚪ | Deferred by authoritative PDP | Perform only after post-deployment stability | P1 |
 
@@ -63,6 +63,14 @@ Production prerequisites include PostgreSQL, private Supabase storage, Razorpay 
 `tests/test_phase37_release_gate.py` verifies the policy, confirms that phases 0–36 are not unreached, preserves the engineering/non-certification boundary, requires live-production evidence to remain separate from CI claims, and checks principal unsafe-production blockers. The CI workflow runs this dedicated gate before migration and the full regression/security suite.
 
 The Phase 37 PASS authorizes progression to Phase 38 only. It does not claim that production is deployed, that external providers are reachable, or that post-deployment verification has passed.
+
+## Phase 38 — Single Clean Deployment evidence
+
+Phase 38 establishes `docs/SINGLE_CLEAN_DEPLOYMENT_POLICY.md` as the controlled deployment procedure. The repository now enforces the deployment sequence, exact release-gated SHA boundary, canonical `server.py` entrypoint, production prerequisite checklist, controlled migration boundary, deployment evidence requirements, rollback boundary, and prohibition on manual production hot-patching.
+
+`tests/test_phase38_single_clean_deployment.py` verifies these controls and confirms the canonical Vercel/server deployment configuration. The dedicated CI step proves that the deployment policy and configuration are internally consistent; it does **not** claim that a live deployment has succeeded.
+
+Phase 38 therefore remains 🟢/🟡 until one real production deployment is completed from an exact Phase-37-gated SHA and non-secret deployment evidence is recorded. A hosting-provider rejection or rate limit must leave Phase 38 open rather than being represented as a PASS.
 
 ## Absolute financial integrity rules
 
