@@ -4,7 +4,9 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = '20260909_doc_security'
-down_revision = '20260909_phase11_financial_integrity'
+# This revision intentionally merges the Phase 11 financial-integrity branch
+# with the income-ledger-link branch before applying document hardening.
+down_revision = ('20260909_phase11_financial_integrity', '20260909_income_link')
 branch_labels = None
 depends_on = None
 
