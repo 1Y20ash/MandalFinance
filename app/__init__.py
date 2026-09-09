@@ -75,7 +75,7 @@ def create_app(config_name=None):
 
     @app.errorhandler(403)
     def forbidden(error):
-        return _safe_error_response(403, 'You are not authorised to perform this action.'),
+        return _safe_error_response(403, 'You are not authorised to perform this action.')
 
     @app.errorhandler(404)
     def not_found(error):
