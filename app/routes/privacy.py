@@ -21,9 +21,11 @@ REQUEST_TYPES = {
     'GRIEVANCE': 'Submit a privacy grievance',
 }
 
+
 @privacy_bp.route('/notice')
 def notice():
     return render_template('privacy/notice.html', notice_version=NOTICE_VERSION)
+
 
 @privacy_bp.route('/', methods=['GET', 'POST'])
 @login_required
@@ -49,6 +51,7 @@ def center():
                            consent_purposes=CONSENT_PURPOSES, request_types=REQUEST_TYPES,
                            notice_version=NOTICE_VERSION)
 
+
 @privacy_bp.route('/consent', methods=['POST'])
 @login_required
 def consent():
@@ -57,29 +60,63 @@ def consent():
     if purpose not in CONSENT_PURPOSES or action not in {'GRANT', 'WITHDRAW'}:
         flash('Invalid consent request.', 'danger')
         return redirect(url_for('privacy.center'))
-    existing = ConsentRecord.query.filter_by(user_id=current_user.id, purpose=purpose,
-                                              notice_version=NOTICE_VERSION).first()
+
+    # Granting optional processing requires an explicit affirmative control.
+    # Withdrawal remains a one-step action and is never made harder than grant.
+    if action == 'GRANT' and request.form.get('consent_confirm') != 'yes':
+        flash('Please explicitly confirm this optional consent before granting it.', 'warning')
+        return redirect(url_for('privacy.center'))
+
+    existing = ConsentRecord.query.filter_by(
+        user_id=current_user.id, purpose=purpose, notice_version=NOTICE_VERSION
+    ).first()
     now = datetime.utcnow()
+    previous_status = existing.status if existing else 'NOT_GRANTED'
+
     if action == 'GRANT':
         if existing:
             existing.status, existing.granted_at, existing.withdrawn_at = 'GRANTED', now, None
         else:
-            existing = ConsentRecord(user_id=current_user.id, purpose=purpose, status='GRANTED',
-                                     notice_version=NOTICE_VERSION, source='web', granted_at=now)
+            existing = ConsentRecord(
+                user_id=current_user.id,
+                purpose=purpose,
+                status='GRANTED',
+                notice_version=NOTICE_VERSION,
+                source='web',
+                granted_at=now,
+            )
             db.session.add(existing)
     else:
         if existing:
             existing.status, existing.withdrawn_at = 'WITHDRAWN', now
         else:
-            existing = ConsentRecord(user_id=current_user.id, purpose=purpose, status='WITHDRAWN',
-                                     notice_version=NOTICE_VERSION, source='web', granted_at=now, withdrawn_at=now)
+            existing = ConsentRecord(
+                user_id=current_user.id,
+                purpose=purpose,
+                status='WITHDRAWN',
+                notice_version=NOTICE_VERSION,
+                source='web',
+                granted_at=now,
+                withdrawn_at=now,
+            )
             db.session.add(existing)
-    AuditService.log_action('CONSENT_CHANGE', 'consent', existing.id,
-                            f'Optional {purpose} consent changed to {action}.',
-                            {'purpose': purpose, 'status': existing.status, 'notice_version': NOTICE_VERSION}, commit=False)
+
+    AuditService.log_action(
+        'CONSENT_CHANGE', 'consent', existing.id,
+        f'Optional {purpose} consent changed from {previous_status} to {existing.status}.',
+        {
+            'purpose': purpose,
+            'previous_status': previous_status,
+            'status': existing.status,
+            'notice_version': NOTICE_VERSION,
+            'source': 'web',
+        },
+        commit=False,
+    )
     db.session.commit()
     flash('Consent preference updated.', 'success')
     return redirect(url_for('privacy.center'))
+
 
 @privacy_bp.route('/profile/correction', methods=['POST'])
 @login_required
