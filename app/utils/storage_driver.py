@@ -21,8 +21,10 @@ class StorageDriver:
     @staticmethod
     def safe_relative_path(destination_path):
         raw = str(destination_path or '').replace('\\', '/')
-        path = PurePosixPath(raw.lstrip('/'))
-        if not raw or any(part in ('', '.', '..') for part in path.parts):
+        if not raw or raw.startswith('/'):
+            raise ValueError('Unsafe storage path.')
+        path = PurePosixPath(raw)
+        if any(part in ('', '.', '..') for part in path.parts):
             raise ValueError('Unsafe storage path.')
         normalized = '/'.join(path.parts)
         if len(normalized) > 500:
