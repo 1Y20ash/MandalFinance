@@ -8,7 +8,7 @@
             <div>
                 <span class="donation-kicker">Financial Income</span>
                 <h1 class="h3 mb-1">Record Offline Donation</h1>
-                <p class="mb-0 text-white-50">The donation, receipt and ledger entry are saved together.</p>
+                <p class="mb-0 text-white-50">Only information needed for accounting, reconciliation and the receipt is collected.</p>
             </div>
             <span class="donation-header-icon" aria-hidden="true"><i class="fa-solid fa-hand-holding-heart"></i></span>
         </div>
@@ -35,7 +35,7 @@
                     </div>
                 </div>
 
-                <div class="donation-section-title"><span>2</span><div><strong>Donor & Amount</strong><small>Capture the minimum information needed for the receipt.</small></div></div>
+                <div class="donation-section-title"><span>2</span><div><strong>Donor & Amount</strong><small>Capture only the minimum donor information needed for the receipt.</small></div></div>
                 <div class="row g-3 mb-4">
                     <div class="col-md-7">
                         <label class="form-label fw-semibold" for="donor_name">Donor Name</label>
@@ -49,30 +49,33 @@
 
                 <div class="donation-section-title"><span>3</span><div><strong>Payment Details</strong><small>Reference numbers are required for traceable non-cash payments.</small></div></div>
                 <div class="row g-3 mb-4">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label" for="payment_mode">Payment Mode</label>
                         <select id="payment_mode" name="payment_mode" class="form-select" required>
                             <option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank Transfer</option><option value="CHEQUE">Cheque</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label" for="transaction_ref">Transaction Ref / UTR / Cheque No.</label>
-                        <input id="transaction_ref" type="text" name="transaction_ref" class="form-control" placeholder="Required for UPI / bank / cheque">
+                        <input id="transaction_ref" type="text" name="transaction_ref" class="form-control" placeholder="Required for UPI / bank / cheque" maxlength="100">
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="donor_phone">Donor Phone</label>
-                        <input id="donor_phone" type="text" name="donor_phone" class="form-control" maxlength="20" placeholder="Optional">
+                    <div class="col-md-6">
+                        <label class="form-label" for="donor_phone">Donor Phone <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input id="donor_phone" type="text" name="donor_phone" class="form-control" maxlength="20" placeholder="Only if needed for donation-related contact">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="purpose">Purpose <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input id="purpose" type="text" name="purpose" class="form-control" maxlength="150" placeholder="General Donation">
                     </div>
                 </div>
 
-                <div class="donation-section-title"><span>4</span><div><strong>Additional Information</strong><small>Optional details for record keeping.</small></div></div>
-                <div class="row g-3 mb-4">
-                    <div class="col-md-6"><label class="form-label" for="pan_number">PAN Number</label><input id="pan_number" type="text" name="pan_number" class="form-control" maxlength="20" placeholder="Optional"></div>
-                    <div class="col-md-6"><label class="form-label" for="purpose">Purpose</label><input id="purpose" type="text" name="purpose" class="form-control" maxlength="150" placeholder="General Donation"></div>
-                    <div class="col-12"><label class="form-label" for="notes">Notes</label><textarea id="notes" name="notes" class="form-control" rows="3" maxlength="2000" placeholder="Optional internal note"></textarea></div>
+                <div class="donation-section-title"><span>4</span><div><strong>Internal Note</strong><small>Do not enter unnecessary personal or sensitive information.</small></div></div>
+                <div class="mb-4">
+                    <label class="form-label" for="notes">Note <span class="text-muted fw-normal">(Optional)</span></label>
+                    <textarea id="notes" name="notes" class="form-control" rows="3" maxlength="1000" placeholder="Operational note only — no PAN, address, payment credentials or unrelated personal data"></textarea>
                 </div>
 
-                <div class="donation-integrity-note"><i class="fa-solid fa-shield-halved"></i><div><strong>Accountability check</strong><p class="mb-0">Saving this form creates one donation record, one receipt number and one corresponding central-ledger income entry.</p></div></div>
+                <div class="donation-integrity-note"><i class="fa-solid fa-shield-halved"></i><div><strong>Privacy minimisation</strong><p class="mb-0">MandalFinance does not collect donor PAN, postal address or email in this workflow because they are not required for the core accounting process.</p></div></div>
                 <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
                     <a href="{{ url_for('donations.list_donations') }}" class="btn btn-outline-secondary">Cancel</a>
                     <button type="submit" class="btn btn-success px-4"><i class="fa-solid fa-check me-1"></i>Save Donation & Issue Receipt</button>
