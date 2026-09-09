@@ -35,8 +35,8 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 22. Security Headers | 🟢 | CSP, HSTS in production, browser hardening headers with automated tests | Replace CSP `unsafe-inline` allowances with nonce/hash controls in a future hardening pass | P0 |
 | 23. Rate Limiting | 🟢 PASS | Shared persistent production storage enforced; Redis backend selection verified; 300/min global ceiling; endpoint-specific limits; health-probe exemptions; safe 429 UI; automated tests; clean PostgreSQL CI | No Phase 23 implementation gap. Actual production Redis connectivity remains part of Phase 32 production configuration testing | P0 |
 | **24. Third-Party Processors** | **🟢 PASS** | `docs/THIRD_PARTY_PROCESSOR_REGISTER.md`; Supabase/Razorpay/Vercel/Redis register; browser CDN disclosure review; disabled-provider categories; minimum-data-sharing rules; production Redis provider identity configuration; automated Phase 24 tests | Record the actual production Redis provider/region and contractual evidence during Phase 32; update register before enabling any new provider | **P0** |
-| **25. Data Breach Response** | **🟢 PASS** | `docs/DATA_BREACH_RESPONSE_PROCEDURE.md`; formal incident lifecycle; severity/escalation; evidence-preservation rules; affected-data assessment; DPDP notification workflow; processor escalation; remediation/review controls; automated Phase 25 documentation tests | Validate operational contacts and notification channels before production; keep procedure aligned with applicable law and provider terms | **P0** |
-| 26. Public Transparency | 🟡 | Existing public transparency page | Complete privacy-leakage review | P0 |
+| **25. Data Breach Response** | **🟢 PASS** | `docs/DATA_BREACH_RESPONSE_PROCEDURE.md`; formal incident lifecycle; severity/escalation; evidence-preservation rules; affected-data assessment; DPDP notification workflow; processor escalation; remediation/review controls; automated Phase 25 documentation tests | Validate operational contacts and notification channels before production; keep procedure aligned with applicable law and provider terms | P0 |
+| **26. Public Transparency** | **🟢 PASS** | `docs/PUBLIC_TRANSPARENCY_POLICY.md`; public transparency route reviewed as aggregate-only; public template checked for sensitive-field leakage; authoritative-ledger disclosure boundary; automated Phase 26 tests | Re-review public disclosures whenever financial, payment, document, or personal-data processing changes | **P0** |
 | 27. Frontend Privacy | 🟡 | Existing server-rendered UI and PWA assets | Complete browser/client-side data audit | P0 |
 | 28. Error Handling | 🟢/🟡 | Generic production-safe error handling and safe 429 response | Complete all exception-path review | P0 |
 | 29. Dependency Audit | 🟡 | `requirements.txt` includes Flask-Limiter and Redis support | Complete vulnerability/unused-dependency audit | P0 |
@@ -73,6 +73,16 @@ The procedure explicitly ties investigation to the privacy-safe request logs and
 The procedure references the official MeitY publication of the Digital Personal Data Protection Rules, 2025 and records the current rule-7 notification workflow, including prompt notification expectations and the 72-hour detailed-information requirement subject to the applicable commencement/enforcement timeline and any permitted extension. The procedure must be reviewed when the legal framework, enforcement status, or application/provider architecture changes.
 
 Automated Phase 25 tests verify the lifecycle, evidence-preservation controls, financial/document impact assessment, DPDP notification guardrails, processor escalation, post-incident regression testing, and retention/destruction controls.
+
+## Phase 26 — Public Transparency evidence
+
+Phase 26 establishes `docs/PUBLIC_TRANSPARENCY_POLICY.md` as the controlled public-disclosure boundary. It permits aggregate approved income, approved expenses, approved balance, Mandal/event identity, and high-level accountability information while explicitly prohibiting public disclosure of donor identifiers, account credentials, payment secrets, private documents, audit/security telemetry, internal identifiers, administrative information, and infrastructure secrets.
+
+The existing unauthenticated `/transparency` route was reviewed and remains aggregate-oriented: it supplies the public template with Mandal/event context, the authoritative ledger summary, and an aggregate successful-donation count. The template itself renders only the approved financial aggregates and public-facing accountability content; it does not render donor, authentication, payment-secret, document, or audit fields.
+
+Public figures must continue to derive from the authoritative ledger rather than client-supplied or duplicated totals. Any future public disclosure requires a necessity, privacy, security, and source-of-truth review plus automated coverage of the disclosure boundary.
+
+Automated Phase 26 tests verify the policy controls, public template sensitive-field boundary, aggregate-only route implementation, and authoritative-ledger requirements.
 
 ## Absolute financial integrity rules
 
