@@ -41,8 +41,8 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | **28. Error Handling** | **🟢 PASS** | `docs/ERROR_HANDLING_POLICY.md`; generic HTML/JSON handling for expected HTTP errors; privacy-safe 500 handling with server-side logging and DB rollback; health-error detail suppression; automated Phase 28 regression tests | Re-review when new API surfaces, error classes, or external integrations are introduced | **P0** |
 | **29. Dependency Audit** | **🟢 PASS** | `docs/DEPENDENCY_SECURITY_POLICY.md`; clean CI dependency installation; exact `pip-audit==2.10.1` security gate against `requirements.txt`; Phase 29 dependency-policy regression tests | Re-audit on every dependency change and remediate newly disclosed vulnerabilities | **P0** |
 | **30. Testing** | **🟢 PASS** | `docs/TESTING_STRATEGY.md`; layered unit/service, route/integration, persistence, security, privacy, and critical-flow testing policy; automated Phase 30 test-inventory gate; payment/webhook cryptographic negative-path tests; public payment failure non-disclosure regression; clean CI PostgreSQL and full pytest gate | Expand scenario coverage as new privacy, payment, document, or E2E capabilities are introduced; production simulations remain in later PDP phases | **P0** |
-| 31. Clean-Environment Test | 🟢/🟡 | Repeatable CI migration/regression verification | Expand clean-environment scenario matrix | P0 |
-| 32. Production Configuration Test | 🟢/🟡 | Production preflight and persistent rate-limit configuration validation | Complete real deployment configuration smoke test | P0 |
+| **31. Clean-Environment Test** | **🟢 PASS** | Repeatable fresh-checkout CI dependency installation; isolated PostgreSQL 16 service; migration-head verification; database creation and migration from an empty database; complete regression/security suite; cleanup/teardown | Continue using clean-environment verification as a mandatory regression gate | **P0** |
+| **32. Production Configuration Test** | **🟢 PASS** | `docs/PRODUCTION_CONFIGURATION_TEST_POLICY.md`; fail-closed PostgreSQL/Razorpay/private-Supabase/persistent-Redis validation; synthetic production-shaped preflight; negative-path configuration simulations; secure-cookie assertions; CI-enforced dedicated Phase 32 test gate | Record actual production provider/region/configuration evidence without exposing secrets; perform final production smoke test in Phase 39 | **P0** |
 | 33. Deployment Architecture | 🟢/🟡 | Minimal Flask production entrypoint and CI verification | Final architecture review before deployment | P0 |
 | 34. Health Checks | 🟢/🟡 | Liveness/readiness endpoints; rate-limit exempt probes; production dependency checks | Complete production smoke test | P0 |
 | 35. DPDP Compliance Matrix | 🟢/🟡 | This evidence matrix | Keep synchronized with implemented controls | P0 |
@@ -51,6 +51,16 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 38. Single Clean Deployment | ⚪ | Not yet reached | Deploy only after release gate | P0 |
 | 39. Post-Deployment Verification | ⚪ | Not yet reached | Execute full production verification | P0 |
 | 40. PWA | ⚪ | Deferred by authoritative PDP | Perform only after post-deployment stability | P1 |
+
+## Phase 32 — Production Configuration Test evidence
+
+Phase 32 establishes `docs/PRODUCTION_CONFIGURATION_TEST_POLICY.md` as the controlled production-configuration verification standard. The policy requires PostgreSQL, private Supabase storage, Razorpay, persistent shared rate-limit storage, a recorded Redis provider identity, disabled production debug mode, and secure session cookies. Configuration validation must fail closed when these boundaries are missing or weakened.
+
+The repository now contains `tests/test_phase32_production_configuration.py`. The suite executes the actual production preflight script in isolated subprocesses so configuration is evaluated from fresh environment state rather than relying on imported test-process configuration. It verifies a valid production-shaped configuration and deliberately tests unsafe alternatives: SQLite, the mock payment gateway, public Supabase storage, memory-only rate limiting, missing Redis provider identity, and missing Razorpay webhook secret.
+
+The CI workflow runs the dedicated Phase 32 production-configuration simulation before migration and full regression testing. CI values are synthetic and are never production credentials. This verifies configuration semantics without making external payment, database, Supabase, or Redis connections from the preflight itself.
+
+Actual production provider identity, region/location where relevant, contractual evidence, and final production smoke verification remain environment-specific controls for the later deployment/post-deployment phases; they must not be represented as completed merely from synthetic CI configuration.
 
 ## Phase 30 — Testing evidence
 
