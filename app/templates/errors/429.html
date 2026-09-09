@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Too Many Requests · MandalFinance{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+            <div class="card border-0 shadow-sm text-center overflow-hidden">
+                <div class="card-body p-5">
+                    <div class="display-5 mb-3" aria-hidden="true">⏳</div>
+                    <span class="badge rounded-pill text-bg-warning mb-3">429 · Please slow down</span>
+                    <h1 class="h3 fw-bold mb-3">Too many requests</h1>
+                    <p class="text-body-secondary mb-4">
+                        This action has been temporarily limited to protect MandalFinance from automated abuse.
+                        Please wait a moment and try again.
+                    </p>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-primary" onclick="window.location.reload()">Try again</button>
+                        <a class="btn btn-outline-secondary" href="{{ url_for('main.index') }}">Return home</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
