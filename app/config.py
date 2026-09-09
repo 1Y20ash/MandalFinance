@@ -19,7 +19,7 @@ class ProductionConfig(Config):
     @classmethod
     def validate(cls):
         required=['SECRET_KEY','DATABASE_URL','SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY']
-        if cls.PAYMENT_GATEWAY_DRIVER=='razorpay':required += ['RAZORPAY_KEY_ID','RAZORPAY_KEY_SECRET','RAZORPAY_WEBHOOK_SECRET','ONLINE_DONATION_ACCOUNT_ID']
+        if cls.PAYMENT_GATEWAY_DRIVER=='razorpay':required += ['RAZORPAY_KEY_ID','RAZORPAY_KEY_SECRET','RAZORPAY_WEBHOOK_SECRET']
         elif cls.PAYMENT_GATEWAY_DRIVER=='mock': raise RuntimeError('Mock payment gateway is forbidden in production.')
         if not cls.SUPABASE_STORAGE_PRIVATE: raise RuntimeError('SUPABASE_STORAGE_PRIVATE must be true in production.')
         missing=[name for name in required if not os.environ.get(name)]
