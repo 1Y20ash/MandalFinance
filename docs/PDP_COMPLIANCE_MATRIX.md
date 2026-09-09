@@ -33,7 +33,7 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 20. Audit Log | 🟢 | Immutable, tamper-evident audit records with integrity verification | Add new privileged business events when introduced | P0 |
 | 21. Security Controls | 🟢 | CSRF, safe redirects, file validation and related automated controls | Continue OWASP-oriented negative-path expansion | P0 |
 | 22. Security Headers | 🟢 | CSP, HSTS in production, browser hardening headers with automated tests | Replace CSP `unsafe-inline` allowances with nonce/hash controls in a future hardening pass | P0 |
-| **23. Rate Limiting** | **🟢/🟡** | Shared persistent production storage validation; 300/min global ceiling; endpoint-specific limits for authentication, registration, donation/payment, financial writes, documents and admin; health-probe exemptions; safe 429 UI; automated rate-limit tests | Complete exact-head CI verification and production Redis smoke test | **P0** |
+| **23. Rate Limiting** | **🟢 PASS** | Shared persistent production storage enforced; Redis backend selection verified; 300/min global ceiling; endpoint-specific limits for authentication, registration, donation/payment, financial writes, documents and admin; health-probe exemptions; safe 429 UI; automated tests; clean PostgreSQL CI | No Phase 23 implementation gap. Actual production Redis connectivity remains part of Phase 32 production configuration testing | **P0** |
 | 24. Third-Party Processors | ⚪ | Not yet evaluated as the current phase | Build processor register and minimum-data-sharing review | P0 |
 | 25. Data Breach Response | ⚪ | Not yet evaluated as the current phase | Create incident response procedure | P0 |
 | 26. Public Transparency | 🟡 | Existing public transparency page | Complete privacy-leakage review | P0 |
@@ -61,6 +61,10 @@ The application has a **300 requests/minute per remote-address default ceiling**
 Health probes are explicitly exempt so monitoring remains reliable. Payment webhooks retain signature/event validation and are not subjected to an aggressive endpoint-specific limit because legitimate provider retries must not be blocked; the global ceiling remains in effect.
 
 A custom HTTP 429 page provides a responsive, user-facing explanation without exposing implementation details. Flask-Limiter headers are enabled so clients can respect retry information.
+
+Verification for this phase is recorded by CI run **#633** on the exact implementation commit immediately preceding this documentation-only update: dependency installation, Python compilation, production preflight, migration-head check, clean PostgreSQL migration, and the complete regression/security suite all passed. The phase-specific suite verified registration throttling, public donation throttling, health-probe exemptions, production rejection of missing/memory-only storage, acceptance of shared Redis configuration, and actual Flask-Limiter Redis backend selection.
+
+The remaining production Redis smoke test belongs to **PDP Phase 32 — Production Configuration Test** and is intentionally not treated as a Phase 23 implementation defect.
 
 ## Absolute financial integrity rules
 
