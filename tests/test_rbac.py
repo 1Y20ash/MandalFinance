@@ -135,15 +135,14 @@ def test_strong_session_protection_rejects_changed_client_identity(client, app):
     assert app.config['SESSION_PROTECTION'] == 'strong'
     assert _login(client, 'volunteer').status_code == 302
 
-    # Flask-Login's strong mode deletes the authenticated session when its
-    # identity fingerprint no longer matches the stored session identifier.
-    # Mutating the signed session value is deterministic in Flask's test client
-    # and directly exercises the same protection path without relying on
-    # Werkzeug test-client environ overrides, which Flask-Login documents as
-    # potentially unstable under session protection.
+    # Flask-Login only performs full session invalidation for a non-permanent
+    # session in strong mode. Explicitly model the normal non-remembered login
+    # contract so the test is deterministic and does not depend on test-client
+    # session defaults.
     with client.session_transaction() as session:
         original_identifier = session.get('_id')
         assert original_identifier
+        assert session.permanent is False
         session['_id'] = 'tampered-session-identity'
 
     response = client.get('/dashboard/')
