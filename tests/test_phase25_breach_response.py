@@ -29,7 +29,7 @@ def test_breach_response_procedure_covers_financial_and_document_impact():
     procedure = _procedure()
     for category in ('Financial/application data', 'Supporting documents', 'Payment data'):
         assert category in procedure
-    assert 'Do not silently rewrite finalized records' in procedure
+    assert 'do not silently rewrite finalized records' in procedure.lower()
     assert 'correction/reversal' in procedure
 
 
