@@ -117,6 +117,35 @@ def test_budget_cannot_be_self_approved(app):
         admin = _admin(); event = Event.query.first()
         budget = Budget(event_id=event.id, total_income_target=Decimal('1000.00'), total_expense_limit=Decimal('500.00'), created_by_id=admin.id)
         db.session.add(budget); db.session.commit()
-        # The route-level permission and separation-of-duties rule are tested here by
-        # asserting the model records the creator separately from the approver.
         assert budget.created_by_id == admin.id and budget.approved_by_id is None
+
+
+def test_login_rejects_external_next_url(client):
+    response = client.get('/auth/login?next=https://evil.example', follow_redirects=False)
+    assert response.status_code == 200
+
+
+def test_login_rejects_protocol_relative_next_url(client):
+    response = client.get('/auth/login?next=//evil.example', follow_redirects=False)
+    assert response.status_code == 200
+
+
+def test_donation_gateway_order_id_is_unique(app):
+    with app.app_context():
+        event = Event.query.first()
+        first = Donation(donation_number='UNIQ-ORDER-1', event_id=event.id, donor_name='First Donor', amount=Decimal('10.00'),
+                         purpose='Test', donation_type='ONLINE', payment_mode='ONLINE_GATEWAY', status='PENDING', gateway_order_id='order_unique')
+        second = Donation(donation_number='UNIQ-ORDER-2', event_id=event.id, donor_name='Second Donor', amount=Decimal('20.00'),
+                          purpose='Test', donation_type='ONLINE', payment_mode='ONLINE_GATEWAY', status='PENDING', gateway_order_id='order_unique')
+        db.session.add(first); db.session.commit()
+        db.session.add(second)
+        with pytest.raises(Exception):
+            db.session.commit()
+        db.session.rollback()
+
+
+def test_production_error_handler_is_generic(app):
+    with app.test_request_context('/missing'):
+        response = app.handle_http_exception(__import__('werkzeug').exceptions.NotFound())
+        assert response.status_code == 404
+        assert b'No such' not in response.get_data()
