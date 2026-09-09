@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Privacy Requests{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1>Privacy Requests</h1>
+  <p class="text-muted">Process Data Principal requests through the controlled workflow. Do not expose passwords, secrets or unrelated records.</p>
+  <div class="alert alert-info">Workflow: <strong>Requested → Identity Verified → Reviewed → Processed → Completed</strong>. Rejection is available from the review stages where appropriate.</div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}{% endwith %}
+
+  {% for item in items %}
+    <div class="card p-4 mb-3">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div><h2 class="h5 mb-1">Request #{{ item.id }} · {{ item.request_type }}</h2><div class="text-muted small">User ID {{ item.user_id }} · Requested {{ item.requested_at }}</div></div>
+        <span class="badge text-bg-{{ 'success' if item.status == 'COMPLETED' else ('danger' if item.status == 'REJECTED' else 'secondary') }}">{{ item.status }}</span>
+      </div>
+      {% if item.details %}<p class="mt-3 mb-2"><strong>Request details:</strong> {{ item.details }}</p>{% endif %}
+      {% if item.requested_data %}<div class="alert alert-warning mt-2"><strong>Submitted correction values:</strong> review these values before applying them.</div><dl class="row small">{% for key, value in item.requested_data.items() %}<dt class="col-sm-3">{{ key|replace('_',' ')|title }}</dt><dd class="col-sm-9">{{ value or 'Not provided' }}</dd>{% endfor %}</dl>{% endif %}
+      {% if item.response_note %}<div class="alert alert-light"><strong>Current response note:</strong> {{ item.response_note }}</div>{% endif %}
+      {% if item.verified_at %}<div class="small text-muted mb-2">Identity verified: {{ item.verified_at }}</div>{% endif %}
+      {% if item.completed_at %}<div class="small text-muted mb-2">Completed: {{ item.completed_at }}</div>{% endif %}
+
+      {% if item.status not in ['COMPLETED', 'REJECTED'] %}
+        <form method="post" action="{{ url_for('admin.update_privacy_request', request_id=item.id) }}" class="row g-2 align-items-end">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="col-md-4"><label class="form-label">Next workflow status</label><select name="status" class="form-select">
+            {% if item.status == 'REQUESTED' %}<option value="IDENTITY_VERIFIED">Identity verified</option><option value="REJECTED">Reject</option>
+            {% elif item.status == 'IDENTITY_VERIFIED' %}<option value="REVIEWED">Reviewed</option><option value="REJECTED">Reject</option>
+            {% elif item.status == 'REVIEWED' %}<option value="PROCESSED">Processed</option><option value="REJECTED">Reject</option>
+            {% elif item.status == 'PROCESSED' %}<option value="COMPLETED">Completed</option>{% endif %}
+          </select></div>
+          <div class="col-md-6"><label class="form-label">Response / decision note</label><input name="response_note" class="form-control" maxlength="4000" placeholder="Explain the decision or outcome"></div>
+          <div class="col-md-2"><button class="btn btn-primary w-100">Update</button></div>
+        </form>
+      {% endif %}
+    </div>
+  {% else %}<div class="card p-4"><p class="text-muted mb-0">No privacy requests.</p></div>{% endfor %}
+</div>
+{% endblock %}

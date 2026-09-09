@@ -2,37 +2,58 @@
 {% block title %}User Profile - Ashtavinayak Mandal{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row justify-content-center g-4">
     <div class="col-md-6">
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-sm border-0 h-100">
             <div class="card-header bg-dark text-white">
                 <h5 class="mb-0"><i class="fa-solid fa-user-circle me-2"></i>User Profile</h5>
             </div>
             <div class="card-body">
-                <table class="table align-middle">
+                <table class="table align-middle mb-0">
                     <tr><th>Full Name</th><td>{{ user.full_name }}</td></tr>
                     <tr><th>Username</th><td>{{ user.username }}</td></tr>
                     <tr><th>Email</th><td>{{ user.email }}</td></tr>
                     <tr><th>Phone</th><td>{{ user.phone or 'Not provided' }}</td></tr>
                     <tr><th>System Role(s)</th>
                         <td>
-                            {% if user.is_admin %}
-                                <span class="badge bg-danger">Super Administrator</span>
-                            {% endif %}
-                            {% for role in user.roles %}
-                                <span class="badge bg-primary me-1">{{ role.name }}</span>
-                            {% endfor %}
+                            {% if user.is_admin %}<span class="badge bg-danger">Super Administrator</span>{% endif %}
+                            {% for role in user.roles %}<span class="badge bg-primary me-1">{{ role.name }}</span>{% endfor %}
                         </td>
                     </tr>
                     <tr><th>Active Status</th><td><span class="badge bg-success">Active</span></td></tr>
                     <tr><th>Permissions Granted</th>
-                        <td>
-                            {% for perm in user.get_permissions() %}
-                                <span class="badge bg-secondary me-1 mb-1">{{ perm }}</span>
-                            {% endfor %}
-                        </td>
+                        <td>{% for perm in user.get_permissions() %}<span class="badge bg-secondary me-1 mb-1">{{ perm }}</span>{% endfor %}</td>
                     </tr>
                 </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fa-solid fa-key me-2"></i>Change Password</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Changing your password signs out the current session. You will need to sign in again with the new password.</p>
+                <form method="POST" action="{{ url_for('auth.change_password') }}" autocomplete="off">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label for="current_password" class="form-label fw-semibold">Current password</label>
+                        <input type="password" class="form-control" id="current_password" name="current_password" autocomplete="current-password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label fw-semibold">New password</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" minlength="8" autocomplete="new-password" required>
+                        <div class="form-text">Use at least 8 characters and avoid reusing your current password.</div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="confirm_password" class="form-label fw-semibold">Confirm new password</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                        <i class="fa-solid fa-shield-halved me-2"></i>Change Password Securely
+                    </button>
+                </form>
             </div>
         </div>
     </div>

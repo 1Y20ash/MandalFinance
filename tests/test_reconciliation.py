@@ -42,12 +42,15 @@ def test_reconciliation_rejects_duplicate_statement_date(app):
             FinancialControlsService.reconcile_account(account.id, statement_date, account.current_balance, user)
 
 
-def test_reconciliation_routes_require_finance_permission(app):
-    client = app.test_client()
-    volunteer = User.query.filter_by(username='volunteer').first()
-    with client.session_transaction() as session:
-        session['_user_id'] = str(volunteer.id)
-        session['_fresh'] = True
+def test_reconciliation_routes_require_finance_permission(client, app):
+    # Authenticate through the real login endpoint. Phase 9 enables strong
+    # Flask-Login session protection, so hand-written session identifiers are
+    # intentionally invalidated when their client identity is not established.
+    assert client.post(
+        '/auth/login',
+        data={'username': 'volunteer', 'password': 'password'},
+        follow_redirects=False,
+    ).status_code == 302
 
     with app.app_context():
         account = Account.query.filter_by(name='Main Cash').first()

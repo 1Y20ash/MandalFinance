@@ -1,4 +1,5 @@
-from app.extensions import db
+from flask import session
+from app.extensions import db, login_manager
 from app.models.auth import User, Role, Permission
 from app.models.audit import AuditLog
 
@@ -50,8 +51,6 @@ def test_finance_view_and_manage_permissions_are_distinct(client, app):
 
     with app.app_context():
         volunteer = User.query.filter_by(username='volunteer').first()
-        # Re-query both permissions after the request context. This avoids attaching
-        # stale ORM instances to a session whose identity map has been refreshed.
         finance_view = Permission.query.filter_by(name='finance.view').first()
         finance_manage = Permission.query.filter_by(name='finance.manage').first()
         manage_role = Role(name='Finance Manager')
@@ -72,7 +71,8 @@ def test_inactive_user_cannot_login(client, app):
         db.session.commit()
     response = _login(client, 'volunteer')
     assert response.status_code == 200
-    assert b'deactivated' in response.data.lower()
+    assert b'Invalid username or password.' in response.data
+    assert b'deactivated' not in response.data.lower()
 
 
 def test_system_roles_cannot_be_modified_or_deleted(client, app):
@@ -103,3 +103,55 @@ def test_role_changes_are_audited(client, app):
         audit = AuditLog.query.filter_by(action='ROLE_CHANGE', entity_type='USER', entity_id=str(volunteer_id)).order_by(AuditLog.created_at.desc()).first()
         assert audit is not None
         assert 'Volunteer' in audit.description
+
+
+def test_permission_denial_is_server_side_and_audited(client, app):
+    _login(client, 'volunteer')
+    response = client.get('/admin/roles')
+    assert response.status_code == 403
+    with app.app_context():
+        volunteer = User.query.filter_by(username='volunteer').first()
+        audit = AuditLog.query.filter_by(
+            action='ADMIN_AUTHORIZATION_DENIED', entity_type='AUTHORIZATION', entity_id=str(volunteer.id)
+        ).order_by(AuditLog.created_at.desc()).first()
+        assert audit is not None
+        assert '/admin/roles' in (audit.details or '') or '/admin/roles' in audit.description
+
+
+def test_ineligible_authenticated_user_cannot_retain_permission(client, app):
+    assert _login(client, 'volunteer').status_code == 302
+
+    with app.app_context():
+        volunteer = User.query.filter_by(username='volunteer').first()
+        volunteer.is_active = False
+        db.session.commit()
+
+    # The session remains authenticated, but the authorization boundary must
+    # re-check current account eligibility and fail closed with 403.
+    response = client.get('/dashboard/')
+    assert response.status_code == 403
+
+
+def test_strong_session_protection_rejects_changed_client_identity(app):
+    assert app.config['SESSION_PROTECTION'] == 'strong'
+    assert login_manager.session_protection == 'strong'
+
+    # Exercise Flask-Login's canonical protection function with a controlled
+    # non-permanent authenticated session. This avoids test-client cookie
+    # serialization masking the intentionally mismatched fingerprint.
+    with app.test_request_context(
+        '/dashboard/',
+        environ_overrides={
+            'REMOTE_ADDR': '203.0.113.10',
+            'HTTP_USER_AGENT': 'MandalFinance-Session-Test/1',
+        },
+    ):
+        session['_user_id'] = '1'
+        session['_fresh'] = True
+        session.permanent = False
+        session['_id'] = 'tampered-session-identity'
+
+        assert login_manager._session_protection_failed() is True
+        assert '_user_id' not in session
+        assert '_id' not in session
+        assert session['_remember'] == 'clear'

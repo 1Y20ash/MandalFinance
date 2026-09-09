@@ -57,7 +57,10 @@ def test_pending_user_cannot_login(client, app):
     _register(client)
     response = _login(client, 'newuser', 'StrongPass123')
     assert response.status_code == 200
-    assert b'pending administrator approval' in response.data
+    # Pending, rejected, inactive and unknown accounts intentionally share
+    # the same authentication response to prevent account-state disclosure.
+    assert b'Invalid username or password.' in response.data
+    assert b'pending administrator approval' not in response.data
 
 
 def test_admin_can_approve_registration(client, app):
@@ -79,9 +82,6 @@ def test_admin_can_approve_registration(client, app):
         assert [role.name for role in user.roles] == ['Volunteer']
         assert user.has_permission('dashboard.view') is True
 
-    # GET /auth/logout intentionally renders a CSRF-protected POST form; it
-    # does not mutate the session. Use the real POST logout before testing
-    # the newly approved user's login.
     client.post('/auth/logout', follow_redirects=True)
     response = _login(client, 'newuser', 'StrongPass123')
     assert response.status_code == 200
@@ -109,20 +109,21 @@ def test_admin_can_reject_registration_and_record_reason(client, app):
         assert user.approved_by_id is not None
         assert user.reviewed_at is not None
 
-    # GET /auth/logout intentionally renders a CSRF-protected POST form; it
-    # does not mutate the session. Use the real POST logout before checking
-    # the rejected account's login response.
     client.post('/auth/logout', follow_redirects=True)
     response = _login(client, 'newuser', 'StrongPass123')
     assert response.status_code == 200
-    assert b'registration request was rejected' in response.data
+    assert b'Invalid username or password.' in response.data
+    assert b'registration request was rejected' not in response.data
 
 
 def test_duplicate_registration_is_rejected(client, app):
     _register(client)
     response = _register(client, username='another', email='new@example.com')
     assert response.status_code == 200
-    assert b'already exists' in response.data
+    # Duplicate-account responses are deliberately generic to avoid revealing
+    # whether an email/username is already registered.
+    assert b'Registration could not be completed with the supplied account details.' in response.data
+    assert b'already exists' not in response.data
 
     with app.app_context():
         assert User.query.filter_by(email='new@example.com').count() == 1
