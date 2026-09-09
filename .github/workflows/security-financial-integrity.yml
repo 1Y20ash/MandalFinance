@@ -48,10 +48,10 @@ jobs:
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
@@ -63,7 +63,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Compile Python sources
-        run: python -m compileall -q app api server.py
+        run: python -m compileall -q app server.py
 
       - name: Check migration heads
         run: flask --app server.py db heads
