@@ -35,7 +35,7 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 22. Security Headers | 🟢 | CSP, HSTS in production, browser hardening headers with automated tests | Replace CSP `unsafe-inline` allowances with nonce/hash controls in a future hardening pass | P0 |
 | 23. Rate Limiting | 🟢 PASS | Shared persistent production storage enforced; Redis backend selection verified; 300/min global ceiling; endpoint-specific limits; health-probe exemptions; safe 429 UI; automated tests; clean PostgreSQL CI | No Phase 23 implementation gap. Actual production Redis connectivity remains part of Phase 32 production configuration testing | P0 |
 | **24. Third-Party Processors** | **🟢 PASS** | `docs/THIRD_PARTY_PROCESSOR_REGISTER.md`; Supabase/Razorpay/Vercel/Redis register; browser CDN disclosure review; disabled-provider categories; minimum-data-sharing rules; production Redis provider identity configuration; automated Phase 24 tests | Record the actual production Redis provider/region and contractual evidence during Phase 32; update register before enabling any new provider | **P0** |
-| 25. Data Breach Response | ⚪ | Not yet evaluated as the current phase | Create incident response procedure | P0 |
+| **25. Data Breach Response** | **🟢 PASS** | `docs/DATA_BREACH_RESPONSE_PROCEDURE.md`; formal incident lifecycle; severity/escalation; evidence-preservation rules; affected-data assessment; DPDP notification workflow; processor escalation; remediation/review controls; automated Phase 25 documentation tests | Validate operational contacts and notification channels before production; keep procedure aligned with applicable law and provider terms | **P0** |
 | 26. Public Transparency | 🟡 | Existing public transparency page | Complete privacy-leakage review | P0 |
 | 27. Frontend Privacy | 🟡 | Existing server-rendered UI and PWA assets | Complete browser/client-side data audit | P0 |
 | 28. Error Handling | 🟢/🟡 | Generic production-safe error handling and safe 429 response | Complete all exception-path review | P0 |
@@ -63,6 +63,16 @@ The register explicitly records processor categories that are not currently enab
 Production now requires a non-secret `REDIS_PROVIDER_NAME` so the actual Redis processor can be identified operationally without putting provider identity into source-code assumptions. The exact provider, region, contractual evidence, and live environment configuration remain deployment evidence and are re-verified in PDP Phase 32.
 
 Phase 24 automated tests verify that the register covers active infrastructure, records disabled processor categories, records the Redis provider identity configuration, keeps Razorpay's server-side order payload minimal, keeps Supabase service-role access server-side, and documents Vercel hosting.
+
+## Phase 25 — Data Breach Response evidence
+
+Phase 25 establishes `docs/DATA_BREACH_RESPONSE_PROCEDURE.md` as the controlled incident-response procedure. It defines the required **DETECT → INVESTIGATE → CONTAIN → ASSESS → IDENTIFY AFFECTED DATA → DOCUMENT → NOTIFY WHERE REQUIRED → REMEDIATE → REVIEW** lifecycle, severity classification, roles and escalation, evidence preservation, privacy-safe incident records, affected-data classification, financial/document integrity handling, processor escalation, remediation and post-incident testing, and evidence retention/destruction requirements.
+
+The procedure explicitly ties investigation to the privacy-safe request logs and tamper-evident audit history already implemented in Phases 19–20. It prohibits copying credentials, raw payment secrets, production databases, or unnecessary document contents into incident records. It also requires notification decisions to be checked against the law and rules in force for the incident date rather than treating a static engineering document as legal advice.
+
+The procedure references the official MeitY publication of the Digital Personal Data Protection Rules, 2025 and records the current rule-7 notification workflow, including prompt notification expectations and the 72-hour detailed-information requirement subject to the applicable commencement/enforcement timeline and any permitted extension. The procedure must be reviewed when the legal framework, enforcement status, or application/provider architecture changes.
+
+Automated Phase 25 tests verify the lifecycle, evidence-preservation controls, financial/document impact assessment, DPDP notification guardrails, processor escalation, post-incident regression testing, and retention/destruction controls.
 
 ## Absolute financial integrity rules
 
