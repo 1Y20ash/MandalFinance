@@ -1,6 +1,9 @@
 from pathlib import Path
 
+import pytest
+
 from app import create_app
+from app.config import ProductionConfig
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,17 +14,9 @@ def test_deployment_architecture_policy_exists_and_has_required_boundaries():
     text = policy.read_text(encoding='utf-8')
 
     required = [
-        'server.py',
-        'Vercel',
-        'PostgreSQL',
-        'Supabase private storage',
-        'Shared Redis',
-        'Razorpay',
-        'Flask-Migrate/Alembic',
-        'HTTPS',
-        'production configuration validation',
-        'SQLite',
-        'db.create_all()',
+        'server.py', 'Vercel', 'PostgreSQL', 'Supabase private storage',
+        'Shared Redis', 'Razorpay', 'Flask-Migrate/Alembic', 'HTTPS',
+        'production configuration validation', 'SQLite', 'db.create_all()',
     ]
     for item in required:
         assert item in text
@@ -34,7 +29,7 @@ def test_vercel_configuration_uses_canonical_production_entrypoint():
     assert 'templates/**' in text
 
 
-def test_production_app_is_created_through_application_factory(monkeypatch):
+def _set_valid_production_environment(monkeypatch):
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
     monkeypatch.setenv('DATABASE_URL', 'postgresql://example')
     monkeypatch.setenv('SUPABASE_URL', 'https://example.supabase.co')
@@ -47,6 +42,9 @@ def test_production_app_is_created_through_application_factory(monkeypatch):
     monkeypatch.setenv('RATELIMIT_STORAGE_URI', 'redis://localhost:6379/0')
     monkeypatch.setenv('REDIS_PROVIDER_NAME', 'test-redis')
 
+
+def test_production_app_is_created_through_application_factory(monkeypatch):
+    _set_valid_production_environment(monkeypatch)
     app = create_app('production')
     assert app.config['APP_ENV'] == 'production'
     assert app.config['DEBUG'] is False
@@ -59,10 +57,17 @@ def test_server_entrypoint_does_not_create_tables_directly():
     assert 'upgrade()' in text
 
 
-def test_production_architecture_does_not_fallback_to_sqlite():
-    config_text = (ROOT / 'app' / 'config.py').read_text(encoding='utf-8')
-    assert 'sqlite:///' not in config_text.lower()
-    assert 'ProductionConfig' in config_text
+def test_production_rejects_sqlite_database_configuration(monkeypatch):
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv('DATABASE_URL', 'sqlite:///production.db')
+    with pytest.raises(RuntimeError, match='PostgreSQL'):
+        ProductionConfig.validate()
+
+
+def test_production_architecture_preserves_sqlite_only_for_testing():
+    config_text = (ROOT / 'app' / 'config.py').read_text(encoding='utf-8').lower()
+    assert 'sqlite:///:memory:' in config_text
+    assert 'productionconfig' in config_text
 
 
 def test_production_architecture_keeps_secrets_out_of_base_template():
