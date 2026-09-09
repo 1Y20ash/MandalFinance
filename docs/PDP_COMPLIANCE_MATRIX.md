@@ -1,6 +1,6 @@
 # MandalFinance PDP Compliance Matrix
 
-**Authoritative PDP:** Final DPDP Compliance, Security & Production Readiness Plan  
+**Authoritative PDP:** Final DPDP Compliance & Production Readiness Plan  
 **Baseline:** `main`  
 **Principle:** Money → Transaction → Supporting Document → User → Approval → Payment → Audit History
 
@@ -33,8 +33,8 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 20. Audit Log | 🟢 | Immutable, tamper-evident audit records with integrity verification | Add new privileged business events when introduced | P0 |
 | 21. Security Controls | 🟢 | CSRF, safe redirects, file validation and related automated controls | Continue OWASP-oriented negative-path expansion | P0 |
 | 22. Security Headers | 🟢 | CSP, HSTS in production, browser hardening headers with automated tests | Replace CSP `unsafe-inline` allowances with nonce/hash controls in a future hardening pass | P0 |
-| **23. Rate Limiting** | **🟢 PASS** | Shared persistent production storage enforced; Redis backend selection verified; 300/min global ceiling; endpoint-specific limits for authentication, registration, donation/payment, financial writes, documents and admin; health-probe exemptions; safe 429 UI; automated tests; clean PostgreSQL CI | No Phase 23 implementation gap. Actual production Redis connectivity remains part of Phase 32 production configuration testing | **P0** |
-| 24. Third-Party Processors | ⚪ | Not yet evaluated as the current phase | Build processor register and minimum-data-sharing review | P0 |
+| 23. Rate Limiting | 🟢 PASS | Shared persistent production storage enforced; Redis backend selection verified; 300/min global ceiling; endpoint-specific limits; health-probe exemptions; safe 429 UI; automated tests; clean PostgreSQL CI | No Phase 23 implementation gap. Actual production Redis connectivity remains part of Phase 32 production configuration testing | P0 |
+| **24. Third-Party Processors** | **🟢 PASS** | `docs/THIRD_PARTY_PROCESSOR_REGISTER.md`; Supabase/Razorpay/Vercel/Redis register; browser CDN disclosure review; disabled-provider categories; minimum-data-sharing rules; production Redis provider identity configuration; automated Phase 24 tests | Record the actual production Redis provider/region and contractual evidence during Phase 32; update register before enabling any new provider | **P0** |
 | 25. Data Breach Response | ⚪ | Not yet evaluated as the current phase | Create incident response procedure | P0 |
 | 26. Public Transparency | 🟡 | Existing public transparency page | Complete privacy-leakage review | P0 |
 | 27. Frontend Privacy | 🟡 | Existing server-rendered UI and PWA assets | Complete browser/client-side data audit | P0 |
@@ -52,19 +52,17 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 39. Post-Deployment Verification | ⚪ | Not yet reached | Execute full production verification | P0 |
 | 40. PWA | ⚪ | Deferred by authoritative PDP | Perform only after post-deployment stability | P1 |
 
-## Phase 23 — Rate Limiting evidence
+## Phase 24 — Third-Party Processor evidence
 
-Phase 23 implements defense-in-depth rate limiting without relying on process-local production memory. Production startup validation requires `RATELIMIT_STORAGE_URI` or `REDIS_URL`, and production readiness checks require a non-memory rate-limit storage URI. Development/testing may use `memory://` intentionally.
+Phase 24 maintains a repository-controlled register of active and potential third parties. The register records the provider role, data shared or potentially exposed, purpose, storage/location considerations, security/minimisation controls, contract/terms evidence, and operational status.
 
-The application has a **300 requests/minute per remote-address default ceiling** and tighter limits on abuse-sensitive operations. Authentication uses the existing 5/minute IP + normalized-account login bucket; registration is 5/hour; public donation initiation is 10/hour; online payment confirmation is 20/minute; offline donation, income and expense creation are 20/minute; financial approval/payment/contribution operations are limited; document upload/replacement/download/integrity/evidence-pack operations have dedicated limits; and administrative endpoints have tighter read/write ceilings.
+Current application processors/infrastructure include Supabase for application/database and private object storage, Razorpay for online payment processing, Vercel for application hosting, and a deployment-selected managed Redis service for shared rate-limit state. Razorpay Checkout.js and browser CDN/font resources are separately recorded because browser requests can expose network metadata even though they do not receive MandalFinance application records by design.
 
-Health probes are explicitly exempt so monitoring remains reliable. Payment webhooks retain signature/event validation and are not subjected to an aggressive endpoint-specific limit because legitimate provider retries must not be blocked; the global ceiling remains in effect.
+The register explicitly records processor categories that are not currently enabled, including email, analytics, advertising/tracking, monitoring, support/chat, and additional payment providers. New third parties must be added to the register before enablement.
 
-A custom HTTP 429 page provides a responsive, user-facing explanation without exposing implementation details. Flask-Limiter headers are enabled so clients can respect retry information.
+Production now requires a non-secret `REDIS_PROVIDER_NAME` so the actual Redis processor can be identified operationally without putting provider identity into source-code assumptions. The exact provider, region, contractual evidence, and live environment configuration remain deployment evidence and are re-verified in PDP Phase 32.
 
-Verification for this phase is recorded by CI run **#633** on the exact implementation commit immediately preceding this documentation-only update: dependency installation, Python compilation, production preflight, migration-head check, clean PostgreSQL migration, and the complete regression/security suite all passed. The phase-specific suite verified registration throttling, public donation throttling, health-probe exemptions, production rejection of missing/memory-only storage, acceptance of shared Redis configuration, and actual Flask-Limiter Redis backend selection.
-
-The remaining production Redis smoke test belongs to **PDP Phase 32 — Production Configuration Test** and is intentionally not treated as a Phase 23 implementation defect.
+Phase 24 automated tests verify that the register covers active infrastructure, records disabled processor categories, records the Redis provider identity configuration, keeps Razorpay's server-side order payload minimal, keeps Supabase service-role access server-side, and documents Vercel hosting.
 
 ## Absolute financial integrity rules
 
