@@ -5,6 +5,16 @@ pipeline uses it immediately after a clean PostgreSQL migration so database
 constraints and indexes are tested against the same engine used in production.
 """
 
+from pathlib import Path
+import sys
+
+# When this file is executed directly (``python scripts/...``), Python puts
+# ``scripts/`` on sys.path rather than the repository root. Add the root so
+# the application package can be imported reliably in CI and locally.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from sqlalchemy import text
 
 from app import create_app
@@ -48,10 +58,13 @@ def main() -> None:
         if bind.dialect.name != 'postgresql':
             raise SystemExit('PostgreSQL schema verification requires PostgreSQL')
 
+        # Read the catalog once and compare sets in Python. This avoids driver-
+        # specific array binding behaviour for PostgreSQL's ``ANY(:names)``
+        # expression and makes the verifier deterministic across environments.
         constraint_rows = db.session.execute(text(
             "SELECT conname FROM pg_constraint "
-            "WHERE conname = ANY(:names)"
-        ), {'names': [name for names in REQUIRED_CONSTRAINTS.values() for name in names]}).scalars()
+            "WHERE connamespace = current_schema()::regnamespace"
+        )).scalars()
         found_constraints = set(constraint_rows)
         expected_constraints = {name for names in REQUIRED_CONSTRAINTS.values() for name in names}
         missing_constraints = expected_constraints - found_constraints
@@ -59,9 +72,8 @@ def main() -> None:
             raise SystemExit(f'Missing PostgreSQL constraints: {sorted(missing_constraints)}')
 
         index_rows = db.session.execute(text(
-            "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() "
-            "AND indexname = ANY(:names)"
-        ), {'names': list(REQUIRED_INDEXES)}).scalars()
+            "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()"
+        )).scalars()
         found_indexes = set(index_rows)
         missing_indexes = REQUIRED_INDEXES - found_indexes
         if missing_indexes:
