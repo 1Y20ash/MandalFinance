@@ -67,8 +67,8 @@ def create_donation():
             )
             flash(f'Donation recorded successfully! Receipt No: {donation.receipt_number}', 'success')
             return redirect(url_for('donations.view_donation', donation_id=donation.id))
-        except Exception as e:
-            flash(f'Error recording donation: {str(e)}', 'danger')
+        except Exception:
+            flash('Unable to record the donation. Please verify the details and try again.', 'danger')
 
     events = Event.query.filter_by(is_active=True).all()
     accounts = Account.query.filter_by(is_active=True).all()
