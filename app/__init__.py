@@ -75,7 +75,7 @@ def create_app(config_name=None):
 
     @app.errorhandler(403)
     def forbidden(error):
-        return _safe_error_response(403, 'You are not authorised to perform this action.')
+        return _safe_error_response(403, 'You are not authorised to perform this action.'),
 
     @app.errorhandler(404)
     def not_found(error):
@@ -112,7 +112,7 @@ def create_app(config_name=None):
     from app.routes.health import health_bp
     from app.routes.webhooks import webhooks_bp
     from app.routes.privacy import privacy_bp
-    for bp in (main_bp, auth_bp, dashboard_bp, donations_bp, income_bp, expenses_bp, vendors,
+    for bp in (main_bp, auth_bp, dashboard_bp, donations_bp, income_bp, expenses_bp, vendors_bp,
                budgets_bp, contributions_bp, documents_bp, reports_bp, admin_bp, public_bp,
                controls_bp, reconciliation_bp, account_balances_bp, health_bp, webhooks_bp, privacy_bp):
         app.register_blueprint(bp)
