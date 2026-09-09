@@ -24,11 +24,12 @@ def pwa_manifest():
 @main_bp.route('/health')
 def health():
     try:
-        # Check DB connectivity
         db.session.execute(db.text('SELECT 1'))
-        db_status = "HEALTHY"
-    except Exception as e:
-        db_status = f"UNHEALTHY: {str(e)}"
+        db_status = 'HEALTHY'
+    except Exception:
+        current_app.logger.exception('Legacy health database check failed')
+        db.session.rollback()
+        db_status = 'UNHEALTHY'
 
     return jsonify({
         'status': 'OK' if db_status == 'HEALTHY' else 'DEGRADED',
