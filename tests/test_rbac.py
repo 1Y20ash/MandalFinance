@@ -70,8 +70,6 @@ def test_inactive_user_cannot_login(client, app):
         db.session.commit()
     response = _login(client, 'volunteer')
     assert response.status_code == 200
-    # Authentication failures deliberately use the same generic message so
-    # account state cannot be enumerated through the login endpoint.
     assert b'Invalid username or password.' in response.data
     assert b'deactivated' not in response.data.lower()
 
@@ -104,3 +102,26 @@ def test_role_changes_are_audited(client, app):
         audit = AuditLog.query.filter_by(action='ROLE_CHANGE', entity_type='USER', entity_id=str(volunteer_id)).order_by(AuditLog.created_at.desc()).first()
         assert audit is not None
         assert 'Volunteer' in audit.description
+
+
+def test_permission_denial_is_server_side_and_audited(client, app):
+    _login(client, 'volunteer')
+    response = client.get('/admin/roles')
+    assert response.status_code == 403
+    with app.app_context():
+        volunteer = User.query.filter_by(username='volunteer').first()
+        audit = AuditLog.query.filter_by(
+            action='ADMIN_AUTHORIZATION_DENIED', entity_type='AUTHORIZATION', entity_id=str(volunteer.id)
+        ).order_by(AuditLog.created_at.desc()).first()
+        assert audit is not None
+        assert '/admin/roles' in (audit.details or '') or '/admin/roles' in audit.description
+
+
+def test_ineligible_authenticated_user_cannot_retain_permission(client, app):
+    _login(client, 'volunteer')
+    with app.app_context():
+        volunteer = User.query.filter_by(username='volunteer').first()
+        volunteer.is_active = False
+        db.session.commit()
+    response = client.get('/dashboard/')
+    assert response.status_code == 403
