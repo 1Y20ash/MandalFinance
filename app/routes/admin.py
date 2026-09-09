@@ -201,20 +201,33 @@ def update_privacy_request(request_id):
     if item is None:
         abort(404)
     new_status = (request.form.get('status') or '').upper()
-    allowed = {'IDENTITY_VERIFIED', 'REVIEWED', 'PROCESSED', 'COMPLETED', 'REJECTED'}
-    if new_status not in allowed:
-        flash('Invalid privacy request status.', 'danger')
+    transitions = {
+        'REQUESTED': {'IDENTITY_VERIFIED', 'REJECTED'},
+        'IDENTITY_VERIFIED': {'REVIEWED', 'REJECTED'},
+        'REVIEWED': {'PROCESSED', 'REJECTED'},
+        'PROCESSED': {'COMPLETED'},
+        'COMPLETED': set(),
+        'REJECTED': set(),
+    }
+    if new_status not in transitions.get(item.status, set()):
+        flash(f'Invalid workflow transition from {item.status} to {new_status}.', 'danger')
         return redirect(url_for('admin.privacy_requests'))
+
+    now = datetime.utcnow()
+    if new_status == 'IDENTITY_VERIFIED':
+        item.verified_at = now
+    if new_status == 'COMPLETED':
+        item.completed_at = now
+
     item.status = new_status
     item.reviewed_by_id = current_user.id
-    if new_status == 'IDENTITY_VERIFIED' and item.verified_at is None:
-        item.verified_at = datetime.utcnow()
-    if new_status == 'COMPLETED':
-        item.completed_at = datetime.utcnow()
     item.response_note = (request.form.get('response_note') or '').strip()[:4000] or None
-    AuditService.log_action('PRIVACY_REQUEST_STATUS', 'privacy_request', item.id,
-                            f'Privacy request status changed to {new_status}.',
-                            {'status': new_status}, commit=False)
+
+    AuditService.log_action(
+        'PRIVACY_REQUEST_STATUS', 'privacy_request', item.id,
+        f'Privacy request status changed from the previous workflow state to {new_status}.',
+        {'status': new_status, 'request_type': item.request_type}, commit=False,
+    )
     db.session.commit()
     flash('Privacy request workflow updated.', 'success')
     return redirect(url_for('admin.privacy_requests'))
