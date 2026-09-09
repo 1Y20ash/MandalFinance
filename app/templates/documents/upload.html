@@ -1,38 +1,46 @@
 {% extends "base.html" %}
-{% block title %}Upload Document - Ashtavinayak Mandal{% endblock %}
+{% block title %}Secure Document Upload - Ashtavinayak Mandal{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-7">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white fw-bold">
-                <i class="fa-solid fa-cloud-arrow-up me-2"></i>Upload Financial Document Proof
+    <div class="col-xl-8 col-lg-9">
+        <div class="card shadow-sm border-0 overflow-hidden">
+            <div class="card-header bg-dark text-white p-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-primary bg-opacity-25 p-3"><i class="fa-solid fa-shield-halved fa-lg"></i></div>
+                    <div>
+                        <h4 class="mb-1 fw-bold">Secure Financial Evidence Upload</h4>
+                        <div class="small text-white-50">Private storage • SHA-256 integrity • Immutable version history</div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body p-4">
-                <form method="POST" enctype="multipart/form-data">
+            <div class="card-body p-4 p-lg-5">
+                <form method="POST" enctype="multipart/form-data" id="documentUploadForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Select File (PDF, Image, Scan)</label>
-                        <input type="file" name="file" class="form-control" required>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Financial evidence file</label>
+                        <input type="file" name="file" id="documentFile" class="form-control form-control-lg" required
+                               accept=".pdf,.txt,.csv,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif">
+                        <div class="form-text d-flex justify-content-between flex-wrap gap-2">
+                            <span>Accepted files are validated by extension, MIME type and content signature.</span>
+                            <span class="fw-semibold">Maximum 10 MB</span>
+                        </div>
+                        <div id="fileStatus" class="small mt-2 text-muted"></div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Document Title</label>
-                            <input type="text" name="title" class="form-control" placeholder="e.g. Stage Vendor Invoice #104" required>
+                            <input type="text" name="title" maxlength="150" class="form-control" placeholder="e.g. Stage Vendor Invoice #104" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Category</label>
                             <select name="category" class="form-select" required>
-                                <option value="BILL">BILL</option>
-                                <option value="INVOICE">INVOICE</option>
-                                <option value="RECEIPT">RECEIPT</option>
-                                <option value="PAYMENT_PROOF">PAYMENT PROOF</option>
-                                <option value="DONATION_PROOF">DONATION PROOF</option>
-                                <option value="BANK_STATEMENT">BANK STATEMENT</option>
-                                <option value="QUOTATION">QUOTATION</option>
-                                <option value="AGREEMENT">AGREEMENT</option>
-                                <option value="OTHER">OTHER</option>
+                                <option value="BILL">BILL</option><option value="INVOICE">INVOICE</option>
+                                <option value="RECEIPT">RECEIPT</option><option value="PAYMENT_PROOF">PAYMENT PROOF</option>
+                                <option value="DONATION_PROOF">DONATION PROOF</option><option value="BANK_STATEMENT">BANK STATEMENT</option>
+                                <option value="QUOTATION">QUOTATION</option><option value="AGREEMENT">AGREEMENT</option><option value="OTHER">OTHER</option>
                             </select>
                         </div>
                     </div>
@@ -50,22 +58,49 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Linked Entity ID</label>
-                            <input type="number" name="entity_id" class="form-control" value="{{ entity_id or '' }}" placeholder="ID of linked expense/donation">
+                            <input type="number" name="entity_id" min="1" class="form-control" value="{{ entity_id or '' }}" placeholder="Optional linked record ID">
                         </div>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">Description / Rationale</label>
-                        <textarea name="description" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+                        <textarea name="description" maxlength="2000" class="form-control" rows="3" placeholder="Optional notes explaining the evidence..."></textarea>
+                    </div>
+
+                    <div class="alert alert-light border d-flex gap-3 align-items-start mb-4">
+                        <i class="fa-solid fa-lock text-success mt-1"></i>
+                        <div class="small"><strong>Security notice:</strong> the original filename is sanitized and is never used as the storage object path. Downloads are authenticated and served through the application; storage objects are not public.</div>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
-                        <a href="{{ url_for('documents.list_documents') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary px-4"><i class="fa-solid fa-upload me-1"></i>Upload & Compute SHA-256 Hash</button>
+                        <a href="{{ url_for('documents.list_documents') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" id="uploadButton" class="btn btn-primary px-4">
+                            <i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Securely
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+(() => {
+    const input = document.getElementById('documentFile');
+    const status = document.getElementById('fileStatus');
+    const form = document.getElementById('documentUploadForm');
+    const button = document.getElementById('uploadButton');
+    input?.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (!file) { status.textContent = ''; return; }
+        const mb = file.size / (1024 * 1024);
+        status.textContent = `${file.name} • ${mb.toFixed(2)} MB`;
+        status.className = `small mt-2 ${mb > 10 ? 'text-danger fw-semibold' : 'text-success'}`;
+    });
+    form?.addEventListener('submit', () => {
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Validating & uploading...';
+    });
+})();
+</script>
 {% endblock %}
