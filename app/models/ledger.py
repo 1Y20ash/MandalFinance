@@ -1,5 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
+
+from sqlalchemy import Index
+
 from app.extensions import db
 
 
@@ -83,8 +86,28 @@ class Transaction(db.Model):
             "payment_mode IN ('CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE', 'GATEWAY')",
             name='ck_transactions_payment_mode',
         ),
+        db.CheckConstraint(
+            "is_reversed = FALSE OR reversed_by_txn_id IS NOT NULL",
+            name='ck_transactions_reversed_has_reversal',
+        ),
+        db.CheckConstraint(
+            "transaction_type <> 'REVERSAL' OR external_ref LIKE 'REVERSAL-OF-%'",
+            name='ck_transactions_reversal_reference',
+        ),
         db.Index('ix_transactions_source', 'source_module', 'source_id'),
         db.Index('ix_transactions_account_date', 'account_id', 'transaction_date'),
+        Index(
+            'uq_transactions_active_source', 'source_module', 'source_id',
+            unique=True,
+            postgresql_where=db.text('source_id IS NOT NULL AND is_reversed = FALSE'),
+            sqlite_where=db.text('source_id IS NOT NULL AND is_reversed = 0'),
+        ),
+        Index(
+            'uq_transactions_external_ref', 'external_ref',
+            unique=True,
+            postgresql_where=db.text('external_ref IS NOT NULL'),
+            sqlite_where=db.text('external_ref IS NOT NULL'),
+        ),
     )
 
     account = db.relationship('Account', backref=db.backref('transactions', lazy=True))
