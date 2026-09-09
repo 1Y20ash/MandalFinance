@@ -1,7 +1,7 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models.contribution import SponsorshipPayment, MemberContributionPayment
 from app.models.income import Sponsorship, MemberContribution
 from app.models.ledger import Account
@@ -30,6 +30,7 @@ def index():
 @contributions_bp.post('/sponsorships/create')
 @login_required
 @permission_required('finance.manage')
+@limiter.limit('20 per minute')
 def create_sponsorship():
     event = Event.query.filter_by(is_active=True).first()
     if not event:
@@ -53,6 +54,7 @@ def create_sponsorship():
 @contributions_bp.post('/members/create')
 @login_required
 @permission_required('finance.manage')
+@limiter.limit('20 per minute')
 def create_member_contribution():
     event = Event.query.filter_by(is_active=True).first()
     if not event:
@@ -75,6 +77,7 @@ def create_member_contribution():
 @contributions_bp.post('/sponsorships/<int:sponsorship_id>/payments')
 @login_required
 @permission_required('finance.manage')
+@limiter.limit('20 per minute')
 def record_sponsorship_payment(sponsorship_id):
     try:
         ContributionService.record_sponsorship_payment(
@@ -93,6 +96,7 @@ def record_sponsorship_payment(sponsorship_id):
 @contributions_bp.post('/members/<int:contribution_id>/payments')
 @login_required
 @permission_required('finance.manage')
+@limiter.limit('20 per minute')
 def record_member_payment(contribution_id):
     try:
         ContributionService.record_member_payment(
