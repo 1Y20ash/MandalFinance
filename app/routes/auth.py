@@ -1,4 +1,5 @@
 from datetime import datetime
+import hmac
 
 from flask import Blueprint, render_template, render_template_string, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
@@ -13,13 +14,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
 def login_rate_limit_key():
-    """Rate-limit each IP/account combination independently.
-
-    A shared IP-only bucket lets a deliberate test of one account's failed
-    logins lock out every other account from the same network. Combining the
-    remote address with the normalized login identifier preserves brute-force
-    protection without cross-account interference.
-    """
+    """Rate-limit each IP/account combination independently."""
     username = request.form.get('username', '').strip().lower()
     return f"{get_remote_address()}:{username}"
 
@@ -35,16 +30,14 @@ def login():
         remember = bool(request.form.get('remember'))
         user = User.query.filter((User.username == username) | (User.email == username)).first()
         if user and user.check_password(password):
-            if user.approval_status == User.APPROVAL_PENDING:
-                flash('Your registration is pending administrator approval. Please try again after your account is approved.', 'warning')
+            if user.approval_status != User.APPROVAL_APPROVED or not user.is_active:
+                AuditService.log_action(
+                    'LOGIN_BLOCKED', 'USER', user.id,
+                    'Login blocked because the account is not currently eligible for authentication.',
+                )
+                flash('Invalid username or password.', 'danger')
                 return render_template('auth/login.html')
-            if user.approval_status == User.APPROVAL_REJECTED:
-                flash('Your registration request was rejected. Please contact the Mandal Administrator for further details.', 'danger')
-                return render_template('auth/login.html')
-            if not user.is_active:
-                flash('Your account has been deactivated. Please contact the Mandal Administrator.', 'danger')
-                return render_template('auth/login.html')
-            login_user(user, remember=remember)
+            login_user(user, remember=remember, fresh=True)
             AuditService.log_action('LOGIN', 'USER', user.id, f"User {user.username} logged in successfully.")
             next_page = request.args.get('next')
             if not next_page or not next_page.startswith('/'):
@@ -74,11 +67,9 @@ def register():
         if password != confirm_password:
             flash('Passwords do not match. Please try again.', 'warning')
             return render_template('auth/register.html')
-        if User.query.filter_by(username=username).first():
-            flash('Username is already taken. Please choose a different username.', 'warning')
-            return render_template('auth/register.html')
-        if User.query.filter_by(email=email).first():
-            flash('An account with this email address already exists.', 'warning')
+        if User.query.filter_by(username=username).first() or User.query.filter_by(email=email).first():
+            # Do not reveal whether a particular username/email already exists.
+            flash('Registration could not be completed with the supplied account details.', 'warning')
             return render_template('auth/register.html')
         try:
             new_user = User(full_name=full_name, username=username, email=email, phone=phone or None,
@@ -100,6 +91,38 @@ def register():
             db.session.rollback()
             flash('Registration failed. Please try again later.', 'danger')
     return render_template('auth/register.html')
+
+
+@auth_bp.route('/password/change', methods=['POST'])
+@login_required
+def change_password():
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not current_user.check_password(current_password):
+        AuditService.log_action('PASSWORD_CHANGE_FAILED', 'USER', current_user.id,
+                                'Password change rejected because the current password was invalid.')
+        flash('The current password is incorrect.', 'danger')
+        return redirect(url_for('auth.profile'))
+    if len(new_password) < 8:
+        flash('New password must contain at least 8 characters.', 'warning')
+        return redirect(url_for('auth.profile'))
+    if new_password != confirm_password:
+        flash('New passwords do not match.', 'warning')
+        return redirect(url_for('auth.profile'))
+    if hmac.compare_digest(current_password, new_password):
+        flash('New password must be different from the current password.', 'warning')
+        return redirect(url_for('auth.profile'))
+
+    user_id = current_user.id
+    current_user.set_password(new_password)
+    db.session.commit()
+    AuditService.log_action('PASSWORD_CHANGED', 'USER', user_id,
+                            'User password was changed successfully.', user_override=current_user)
+    logout_user()
+    flash('Password changed successfully. Please sign in again.', 'success')
+    return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/logout', methods=['GET'])
