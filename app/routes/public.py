@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from sqlalchemy.exc import IntegrityError
@@ -9,6 +9,7 @@ from app.models.income import Donation
 from app.models.ledger import Account
 from app.models.mandal import Event, Mandal
 from app.models.payment_event import PaymentWebhookEvent
+from app.services.audit_service import AuditService
 from app.services.donation_service import DonationService
 from app.services.ledger_service import LedgerService
 from app.services.payment_gateway import get_payment_gateway
@@ -46,6 +47,12 @@ def _verified_payment_or_raise(gateway, donation, payment_id):
         donation.amount,
         expected_currency='INR',
     )
+
+
+def _webhook_log(level, message, **fields):
+    """Emit diagnostics without logging signatures, secrets, donor data, or payloads."""
+    safe_fields = {key: str(value)[:120] for key, value in fields.items() if value is not None}
+    getattr(current_app.logger, level)(message, extra={'webhook': safe_fields})
 
 
 @public_bp.route('/transparency')
@@ -142,65 +149,128 @@ def confirm_online_payment():
 @csrf.exempt
 @public_bp.route('/donate/webhook', methods=['POST'])
 def payment_webhook():
-    payload = request.get_data()
-    signature = request.headers.get('X-Razorpay-Signature', '')
-    event_id = request.headers.get('x-razorpay-event-id', '').strip()
+    payload = request.get_data(cache=True)
+    signature = request.headers.get('X-Razorpay-Signature', '').strip()
+    event_id = request.headers.get('X-Razorpay-Event-Id', '').strip()
     gateway = get_payment_gateway()
-    if not gateway.verify_webhook_signature(payload, signature):
+
+    # Signature validation always happens before JSON parsing. Razorpay signs
+    # the exact raw request body, so re-serialized JSON must never be verified.
+    try:
+        signature_valid = gateway.verify_webhook_signature(payload, signature)
+    except Exception:
+        signature_valid = False
+    if not signature_valid:
+        _webhook_log('warning', 'Rejected payment webhook: invalid signature')
         return jsonify({'status': 'invalid signature'}), 400
-    if not event_id:
-        return jsonify({'status': 'missing event id'}), 400
+
+    if not event_id or len(event_id) > 100:
+        _webhook_log('warning', 'Rejected payment webhook: invalid event id')
+        return jsonify({'status': 'invalid event id'}), 400
 
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
+        _webhook_log('warning', 'Rejected payment webhook: invalid JSON payload', event_id=event_id)
         return jsonify({'status': 'invalid payload'}), 400
+
     event_type = data.get('event')
+    if not isinstance(event_type, str) or not event_type.strip():
+        return jsonify({'status': 'invalid event type', 'event_id': event_id}), 400
+    event_type = event_type.strip()
+
+    # Only payment-success events can mutate the financial ledger. Other valid
+    # signed Razorpay events are durably acknowledged as ignored, so retries do
+    # not repeatedly enter the processing path.
     if event_type not in {'payment.captured', 'order.paid'}:
         try:
-            db.session.add(PaymentWebhookEvent(event_id=event_id,
-                                               event_type=str(event_type or 'unknown')[:80],
-                                               status='IGNORED'))
+            db.session.add(PaymentWebhookEvent(
+                event_id=event_id,
+                event_type=event_type[:80],
+                status='IGNORED',
+            ))
+            AuditService.log_action(
+                'WEBHOOK_IGNORED', 'RAZORPAY', event_id,
+                f'Ignored signed Razorpay event: {event_type[:80]}',
+                details={'event': event_type[:80], 'event_id': event_id},
+                commit=False,
+            )
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
         return jsonify({'status': 'ignored', 'event_id': event_id}), 200
 
-    payment_entity = data.get('payload', {}).get('payment', {}).get('entity', {})
-    order_entity = data.get('payload', {}).get('order', {}).get('entity', {})
-    order_id = payment_entity.get('order_id') or order_entity.get('id')
+    payload_root = data.get('payload')
+    if not isinstance(payload_root, dict):
+        return jsonify({'status': 'invalid payload structure', 'event_id': event_id}), 400
+    payment_wrapper = payload_root.get('payment')
+    order_wrapper = payload_root.get('order')
+    payment_entity = payment_wrapper.get('entity') if isinstance(payment_wrapper, dict) else None
+    order_entity = order_wrapper.get('entity') if isinstance(order_wrapper, dict) else None
+    if not isinstance(payment_entity, dict) or not isinstance(order_entity, dict):
+        return jsonify({'status': 'invalid payment structure', 'event_id': event_id}), 400
+
+    order_id = payment_entity.get('order_id')
+    order_entity_id = order_entity.get('id')
     payment_id = payment_entity.get('id')
-    if not order_id or not payment_id:
-        return jsonify({'status': 'missing payment identity'}), 400
+    if not isinstance(order_id, str) or not isinstance(order_entity_id, str) or not isinstance(payment_id, str):
+        return jsonify({'status': 'missing payment identity', 'event_id': event_id}), 400
+    if order_id != order_entity_id:
+        return jsonify({'status': 'order identity mismatch', 'event_id': event_id}), 400
+    if len(order_id) > 100 or len(payment_id) > 100:
+        return jsonify({'status': 'invalid payment identity', 'event_id': event_id}), 400
+
     if PaymentWebhookEvent.query.filter_by(event_id=event_id).first():
         return jsonify({'status': 'already processed', 'event_id': event_id}), 200
 
     donation = Donation.query.filter_by(gateway_order_id=order_id).first()
     if not donation:
+        _webhook_log('warning', 'Ignored signed webhook for unknown order', event_id=event_id, order_id=order_id)
         return jsonify({'status': 'unknown order', 'event_id': event_id}), 200
 
     amount_paise = payment_entity.get('amount')
     currency = payment_entity.get('currency')
     status = payment_entity.get('status')
     captured = payment_entity.get('captured')
-    expected_paise = int(Decimal(str(donation.amount)) * 100)
-    if amount_paise is None or int(amount_paise) != expected_paise:
+    try:
+        expected_paise = int(Decimal(str(donation.amount)) * 100)
+        received_paise = int(amount_paise)
+    except (InvalidOperation, TypeError, ValueError):
+        return jsonify({'status': 'invalid amount', 'event_id': event_id}), 400
+
+    if received_paise != expected_paise:
+        _webhook_log('warning', 'Rejected webhook: amount mismatch', event_id=event_id, order_id=order_id)
         return jsonify({'status': 'amount mismatch', 'event_id': event_id}), 400
     if currency != 'INR':
         return jsonify({'status': 'currency mismatch', 'event_id': event_id}), 400
     if status != 'captured' or captured is not True:
+        # Do not mark a donation failed merely because an asynchronous event
+        # arrived before a later captured event. Razorpay explicitly warns that
+        # webhook delivery order is not guaranteed.
         return jsonify({'status': 'payment not captured', 'event_id': event_id}), 200
 
     try:
         verified = _verified_payment_or_raise(gateway, donation, payment_id)
         account = _online_donation_account()
+
         event_record = PaymentWebhookEvent(
-            event_id=event_id, event_type=event_type, order_id=order_id,
-            payment_id=payment_id, donation_id=donation.id, status='PROCESSED',
+            event_id=event_id,
+            event_type=event_type,
+            order_id=order_id,
+            payment_id=payment_id,
+            donation_id=donation.id,
+            status='PROCESSED',
         )
         db.session.add(event_record)
         db.session.flush()
+
         if donation.status == 'SUCCESS':
             event_record.status = 'IGNORED'
+            AuditService.log_action(
+                'WEBHOOK_IGNORED', 'RAZORPAY', event_id,
+                'Captured payment webhook arrived after donation was already confirmed.',
+                details={'event': event_type, 'event_id': event_id, 'order_id': order_id},
+                commit=False,
+            )
             db.session.commit()
             return jsonify({'status': 'already processed', 'event_id': event_id}), 200
 
@@ -209,11 +279,24 @@ def payment_webhook():
             verified_order_id=verified['order_id'], verified_amount_paise=verified['amount'],
             verified_currency=verified['currency'], verified_status=verified['status'], commit=False,
         )
+        AuditService.log_action(
+            'WEBHOOK_PROCESSED', 'RAZORPAY', event_id,
+            f'Processed verified Razorpay payment event: {event_type}',
+            details={'event': event_type, 'event_id': event_id, 'order_id': order_id},
+            commit=False,
+        )
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({'status': 'already processed', 'event_id': event_id}), 200
+        # The durable unique event_id is the idempotency boundary. A concurrent
+        # delivery that loses the insert race is safely acknowledged as a duplicate.
+        if PaymentWebhookEvent.query.filter_by(event_id=event_id).first():
+            return jsonify({'status': 'already processed', 'event_id': event_id}), 200
+        _webhook_log('error', 'Webhook database integrity failure', event_id=event_id, order_id=order_id)
+        return jsonify({'status': 'processing failed', 'event_id': event_id}), 500
     except Exception:
         db.session.rollback()
+        _webhook_log('error', 'Webhook processing failed', event_id=event_id, order_id=order_id)
         return jsonify({'status': 'processing failed', 'event_id': event_id}), 500
+
     return jsonify({'status': 'ok', 'event_id': event_id}), 200
