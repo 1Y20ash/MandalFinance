@@ -1,4 +1,5 @@
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from flask import Blueprint, render_template, render_template_string, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
@@ -13,15 +14,19 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
 def login_rate_limit_key():
-    """Rate-limit each IP/account combination independently.
-
-    A shared IP-only bucket lets a deliberate test of one account's failed
-    logins lock out every other account from the same network. Combining the
-    remote address with the normalized login identifier preserves brute-force
-    protection without cross-account interference.
-    """
     username = request.form.get('username', '').strip().lower()
     return f"{get_remote_address()}:{username}"
+
+
+def _safe_next_url(value):
+    """Accept only a local absolute path; reject protocol-relative/external URLs."""
+    if not value:
+        return None
+    value = value.strip()
+    parsed = urlsplit(value)
+    if parsed.scheme or parsed.netloc or not value.startswith('/') or value.startswith('//'):
+        return None
+    return value
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -46,10 +51,8 @@ def login():
                 return render_template('auth/login.html')
             login_user(user, remember=remember)
             AuditService.log_action('LOGIN', 'USER', user.id, f"User {user.username} logged in successfully.")
-            next_page = request.args.get('next')
-            if not next_page or not next_page.startswith('/'):
-                next_page = url_for('dashboard.index')
-            return redirect(next_page)
+            next_page = _safe_next_url(request.args.get('next'))
+            return redirect(next_page or url_for('dashboard.index'))
         flash('Invalid username or password.', 'danger')
     return render_template('auth/login.html')
 
@@ -105,7 +108,6 @@ def register():
 @auth_bp.route('/logout', methods=['GET'])
 @login_required
 def logout_get():
-    """Render a CSRF-protected POST form for the existing navbar logout link."""
     return render_template_string('''<!doctype html><html><head><title>Signing out…</title></head>
 <body><form id="logout-form" method="post" action="{{ action }}">
 <input type="hidden" name="csrf_token" value="{{ token }}"></form>
