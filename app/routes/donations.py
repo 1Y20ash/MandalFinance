@@ -37,9 +37,6 @@ def create_donation():
         event_id = request.form.get('event_id', type=int)
         donor_name = request.form.get('donor_name', '').strip()
         donor_phone = request.form.get('donor_phone', '').strip()
-        donor_email = request.form.get('donor_email', '').strip()
-        donor_address = request.form.get('donor_address', '').strip()
-        pan_number = request.form.get('pan_number', '').strip()
         amount = request.form.get('amount')
         purpose = request.form.get('purpose', 'General Donation').strip()
         payment_mode = request.form.get('payment_mode')
@@ -56,9 +53,6 @@ def create_donation():
                 account_id=account_id,
                 created_by_id=current_user.id,
                 donor_phone=donor_phone,
-                donor_email=donor_email,
-                donor_address=donor_address,
-                pan_number=pan_number,
                 purpose=purpose,
                 transaction_ref=transaction_ref,
                 notes=notes
