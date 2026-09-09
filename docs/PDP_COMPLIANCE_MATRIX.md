@@ -43,7 +43,7 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | **30. Testing** | **🟢 PASS** | `docs/TESTING_STRATEGY.md`; layered unit/service, route/integration, persistence, security, privacy, and critical-flow testing policy; automated Phase 30 test-inventory gate; payment/webhook cryptographic negative-path tests; public payment failure non-disclosure regression; clean CI PostgreSQL and full pytest gate | Expand scenario coverage as new privacy, payment, document, or E2E capabilities are introduced; production simulations remain in later PDP phases | **P0** |
 | **31. Clean-Environment Test** | **🟢 PASS** | Repeatable fresh-checkout CI dependency installation; isolated PostgreSQL 16 service; migration-head verification; database creation and migration from an empty database; complete regression/security suite; cleanup/teardown | Continue using clean-environment verification as a mandatory regression gate | **P0** |
 | **32. Production Configuration Test** | **🟢 PASS** | `docs/PRODUCTION_CONFIGURATION_TEST_POLICY.md`; fail-closed PostgreSQL/Razorpay/private-Supabase/persistent-Redis validation; synthetic production-shaped preflight; negative-path configuration simulations; secure-cookie assertions; CI-enforced dedicated Phase 32 test gate | Record actual production provider/region/configuration evidence without exposing secrets; perform final production smoke test in Phase 39 | **P0** |
-| 33. Deployment Architecture | 🟢/🟡 | Minimal Flask production entrypoint and CI verification | Final architecture review before deployment | P0 |
+| **33. Deployment Architecture** | **🟢 PASS** | `docs/DEPLOYMENT_ARCHITECTURE.md`; canonical `server.py` production entrypoint; Vercel function configuration; application-factory boundary; PostgreSQL/Supabase/Redis/Razorpay stateful-system boundaries; controlled Flask-Migrate/Alembic schema ownership; production anti-patterns; automated Phase 33 architecture tests and CI gate | Validate actual deployed topology and live dependency connectivity in later deployment/post-deployment phases | **P0** |
 | 34. Health Checks | 🟢/🟡 | Liveness/readiness endpoints; rate-limit exempt probes; production dependency checks | Complete production smoke test | P0 |
 | 35. DPDP Compliance Matrix | 🟢/🟡 | This evidence matrix | Keep synchronized with implemented controls | P0 |
 | 36. Final Security Review | ⚪ | Not yet final | OWASP/security review after all phases | P0 |
@@ -51,6 +51,16 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 38. Single Clean Deployment | ⚪ | Not yet reached | Deploy only after release gate | P0 |
 | 39. Post-Deployment Verification | ⚪ | Not yet reached | Execute full production verification | P0 |
 | 40. PWA | ⚪ | Deferred by authoritative PDP | Perform only after post-deployment stability | P1 |
+
+## Phase 33 — Deployment Architecture evidence
+
+Phase 33 establishes `docs/DEPLOYMENT_ARCHITECTURE.md` as the controlled deployment topology and responsibility boundary. The documented architecture uses `server.py` as the canonical Flask production entrypoint, with the application factory owning route registration and security extensions. Vercel is the repository-configured hosting boundary, while PostgreSQL remains the authoritative database, Supabase remains private object storage, Redis remains shared rate-limit state, and Razorpay remains the production payment provider.
+
+The deployment contract explicitly separates ephemeral application execution from persistent system-of-record state. Production schema changes are owned by Flask-Migrate/Alembic rather than direct `db.create_all()` calls, and payment verification, authorization, financial ledger mutation, and private-document authorization remain server-side responsibilities.
+
+Automated coverage in `tests/test_phase33_deployment_architecture.py` verifies the architecture document, Vercel's canonical `server.py` function entrypoint and template packaging, production application-factory initialization, absence of direct table creation in the production entrypoint, fail-closed rejection of a SQLite production database, and absence of sensitive provider secrets from the base template. The GitHub Actions workflow executes this dedicated architecture gate before migrations and the full regression suite.
+
+This phase does not claim that a live production deployment is healthy. Actual deployed topology, live provider connectivity, deployment smoke paths, and post-deployment behavior remain environment-specific evidence for later PDP phases.
 
 ## Phase 32 — Production Configuration Test evidence
 
