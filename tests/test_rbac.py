@@ -119,9 +119,28 @@ def test_permission_denial_is_server_side_and_audited(client, app):
 
 def test_ineligible_authenticated_user_cannot_retain_permission(client, app):
     _login(client, 'volunteer')
+
+    # Strong session protection intentionally rejects a request when the client
+    # fingerprint changes. Preserve the legitimate session binding here so this
+    # test isolates server-side account eligibility and RBAC authorization.
+    with client.session_transaction() as session:
+        session_identifier = session.get('_id')
+        assert session.get('_user_id') is not None
+        assert session_identifier
+
     with app.app_context():
         volunteer = User.query.filter_by(username='volunteer').first()
         volunteer.is_active = False
         db.session.commit()
+
+    with client.session_transaction() as session:
+        session['_id'] = session_identifier
+
     response = client.get('/dashboard/')
     assert response.status_code == 403
+
+
+def test_strong_session_protection_rejects_changed_client_identity(client):
+    assert _login(client, 'volunteer').status_code == 302
+    response = client.get('/dashboard/', headers={'User-Agent': 'MandalFinance-Test-Attacker/1.0'})
+    assert response.status_code == 302
