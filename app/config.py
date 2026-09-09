@@ -14,6 +14,8 @@ class Config:
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', str(BASE_DIR / 'uploads'))
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
     MAX_DOCUMENT_SIZE = int(os.environ.get('MAX_DOCUMENT_SIZE', 10 * 1024 * 1024))
+    AUDIT_FINANCIAL_RETENTION_DAYS = int(os.environ.get('AUDIT_FINANCIAL_RETENTION_DAYS', 2555))
+    AUDIT_SECURITY_RETENTION_DAYS = int(os.environ.get('AUDIT_SECURITY_RETENTION_DAYS', 180))
     SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
     SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
     SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'mandal-financial-documents')
@@ -45,29 +47,18 @@ class ProductionConfig(Config):
 
     @classmethod
     def validate(cls):
-        required = [
-            'SECRET_KEY',
-            'DATABASE_URL',
-            'SUPABASE_URL',
-            'SUPABASE_SERVICE_ROLE_KEY',
-        ]
+        required = ['SECRET_KEY', 'DATABASE_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
         if cls.PAYMENT_GATEWAY_DRIVER == 'razorpay':
-            required += [
-                'RAZORPAY_KEY_ID',
-                'RAZORPAY_KEY_SECRET',
-                'RAZORPAY_WEBHOOK_SECRET',
-                'ONLINE_DONATION_ACCOUNT_ID',
-            ]
+            required += ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET', 'ONLINE_DONATION_ACCOUNT_ID']
         elif cls.PAYMENT_GATEWAY_DRIVER == 'mock':
             raise RuntimeError('Mock payment gateway is forbidden in production.')
         if not cls.SUPABASE_STORAGE_PRIVATE:
             raise RuntimeError('SUPABASE_STORAGE_PRIVATE must be true in production.')
+        if cls.AUDIT_FINANCIAL_RETENTION_DAYS < 365 or cls.AUDIT_SECURITY_RETENTION_DAYS < 30:
+            raise RuntimeError('Configured audit retention periods are below the production safety minimum.')
         missing = [name for name in required if not os.environ.get(name)]
         if missing:
-            raise RuntimeError(
-                'Missing required production environment variables: '
-                + ', '.join(sorted(set(missing)))
-            )
+            raise RuntimeError('Missing required production environment variables: ' + ', '.join(sorted(set(missing))))
 
 
 config_by_name = {
