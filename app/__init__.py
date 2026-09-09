@@ -1,12 +1,15 @@
+import logging
 import os
 from pathlib import Path
-from flask import Flask
+from flask import Flask, jsonify, render_template, request
+from werkzeug.exceptions import HTTPException
 from app.config import config_by_name
 from app.extensions import db, migrate, login_manager, csrf, limiter
 from app.models.auth import User
 
 BASE_DIR = Path(__file__).resolve().parent
 PACKAGE_TEMPLATE_DIR = BASE_DIR / 'templates'
+logger = logging.getLogger(__name__)
 
 
 def create_app(config_name=None):
@@ -31,7 +34,10 @@ def create_app(config_name=None):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        try:
+            return db.session.get(User, int(user_id))
+        except (TypeError, ValueError):
+            return None
 
     @app.after_request
     def security_headers(response):
@@ -50,6 +56,35 @@ def create_app(config_name=None):
         if config_name == 'production':
             response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
         return response
+
+    def _safe_error_response(status, message):
+        if request.accept_mimetypes.best == 'application/json' or request.path.startswith('/api/'):
+            return jsonify(error=message), status
+        return render_template('errors/generic.html', status_code=status, message=message), status
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return _safe_error_response(400, 'The request could not be processed.')
+
+    @app.errorhandler(403)
+    def forbidden(error):
+        return _safe_error_response(403, 'You are not authorised to perform this action.')
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return _safe_error_response(404, 'The requested resource was not found.')
+
+    @app.errorhandler(429)
+    def too_many_requests(error):
+        return _safe_error_response(429, 'Too many requests. Please try again later.')
+
+    @app.errorhandler(Exception)
+    def unhandled_exception(error):
+        if isinstance(error, HTTPException):
+            return _safe_error_response(error.code, error.description)
+        logger.exception('Unhandled application exception', extra={'path': request.path, 'method': request.method})
+        db.session.rollback()
+        return _safe_error_response(500, 'An unexpected error occurred. Please try again later.')
 
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
