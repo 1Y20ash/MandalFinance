@@ -30,6 +30,8 @@ class Document(db.Model):
         db.CheckConstraint('file_size >= 0', name='ck_documents_file_size_nonnegative'),
         db.CheckConstraint('current_version_number >= 1', name='ck_documents_version_positive'),
         db.CheckConstraint("length(current_sha256_hash) = 64", name='ck_documents_sha256_length'),
+        db.CheckConstraint("storage_provider IN ('LOCAL', 'SUPABASE')", name='ck_documents_storage_provider'),
+        db.CheckConstraint("length(trim(storage_path)) > 0", name='ck_documents_storage_path_nonempty'),
     )
 
     uploaded_by = db.relationship('User', foreign_keys=[uploaded_by_id])
@@ -64,6 +66,8 @@ class DocumentVersion(db.Model):
         db.CheckConstraint('version_number >= 1', name='ck_document_versions_version_positive'),
         db.CheckConstraint('file_size >= 0', name='ck_document_versions_file_size_nonnegative'),
         db.CheckConstraint("length(sha256_hash) = 64", name='ck_document_versions_sha256_length'),
+        db.CheckConstraint("storage_provider IN ('LOCAL', 'SUPABASE')", name='ck_document_versions_storage_provider'),
+        db.CheckConstraint("length(trim(storage_path)) > 0", name='ck_document_versions_storage_path_nonempty'),
     )
 
     uploaded_by = db.relationship('User', foreign_keys=[uploaded_by_id])
