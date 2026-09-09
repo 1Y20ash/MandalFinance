@@ -41,10 +41,10 @@ def create_app(config_name=None):
         response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
         response.headers.setdefault(
             'Content-Security-Policy',
-            "default-src 'self'; script-src 'self' https://checkout.razorpay.com; "
-            "style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; "
-            "font-src 'self' https: data:; connect-src 'self' https://api.razorpay.com; "
-            "frame-src https://api.razorpay.com https://checkout.razorpay.com; "
+            "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://checkout.razorpay.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+            "img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+            "connect-src 'self' https://api.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com; "
             "object-src 'none'; base-uri 'self'; form-action 'self' https://api.razorpay.com; frame-ancestors 'none'"
         )
         if config_name == 'production':
