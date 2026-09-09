@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app
 from flask_login import login_required, current_user
 from app.models.document import Document
 from app.services.document_service import DocumentService
@@ -37,7 +37,6 @@ def _has_expected_signature(content, mime):
         'image/gif': content.startswith((b'GIF87a', b'GIF89a')),
         'application/zip': content.startswith(b'PK\x03\x04') or content.startswith(b'PK\x05\x06'),
     }
-    # Text and legacy Office formats have no universally safe short magic signature.
     return signatures.get(mime, True)
 
 
@@ -123,7 +122,7 @@ def download_document(doc_id):
     doc = Document.query.filter_by(id=doc_id, is_archived=False).first_or_404()
     try:
         file_bytes = StorageDriver.get_file(doc.storage_provider, doc.storage_path)
-        if not file_bytes:
+        if file_bytes is None:
             raise RuntimeError('Requested document file could not be retrieved from secure storage.')
         AuditService.log_action('DOWNLOAD', 'DOCUMENT', doc.id,
                                 f'Document {doc.doc_ref} downloaded by authorized user.', commit=True)
