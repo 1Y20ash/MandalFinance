@@ -25,7 +25,9 @@ def create_app(config_name=None):
     install_rbac_guard(app)
 
     @login_manager.user_loader
-    def load_user(user_id): return db.session.get(User,int(user_id))
+    def load_user(user_id):
+        user = db.session.get(User, int(user_id))
+        return user if user and user.is_active else None
 
     @app.after_request
     def security_headers(response):
