@@ -17,24 +17,6 @@ branch_labels = None
 depends_on = None
 
 
-def _canonical(row):
-    return json.dumps({
-        'event_id': row.event_id,
-        'user_id': row.user_id,
-        'user_email': row.user_email,
-        'action': row.action,
-        'entity_type': row.entity_type,
-        'entity_id': row.entity_id,
-        'description': row.description,
-        'details': row.details,
-        'outcome': row.outcome,
-        'request_id': row.request_id,
-        'ip_address': row.ip_address,
-        'user_agent': row.user_agent,
-        'created_at': row.created_at.isoformat() if row.created_at else None,
-    }, sort_keys=True, separators=(',', ':'))
-
-
 def _backfill(bind):
     table = sa.table(
         'audit_logs',
@@ -87,10 +69,20 @@ def _backfill(bind):
 
 def upgrade():
     bind = op.get_bind()
-    op.add_column('audit_logs', sa.Column('event_id', sa.String(length=36), nullable=True))
-    op.add_column('audit_logs', sa.Column('outcome', sa.String(length=20), nullable=True))
-    op.add_column('audit_logs', sa.Column('request_id', sa.String(length=128), nullable=True))
-    op.add_column('audit_logs', sa.Column('integrity_hash', sa.String(length=64), nullable=True))
+    inspector = sa.inspect(bind)
+    columns = {column['name'] for column in inspector.get_columns('audit_logs')}
+
+    # The bootstrap revision builds the current SQLAlchemy metadata on a clean
+    # database. Existing installations may still have the original columns,
+    # so this revision is intentionally idempotent across both shapes.
+    if 'event_id' not in columns:
+        op.add_column('audit_logs', sa.Column('event_id', sa.String(length=36), nullable=True))
+    if 'outcome' not in columns:
+        op.add_column('audit_logs', sa.Column('outcome', sa.String(length=20), nullable=True))
+    if 'request_id' not in columns:
+        op.add_column('audit_logs', sa.Column('request_id', sa.String(length=128), nullable=True))
+    if 'integrity_hash' not in columns:
+        op.add_column('audit_logs', sa.Column('integrity_hash', sa.String(length=64), nullable=True))
 
     _backfill(bind)
 
@@ -104,10 +96,15 @@ def upgrade():
         op.alter_column('audit_logs', 'outcome', existing_type=sa.String(length=20), nullable=False)
         op.alter_column('audit_logs', 'integrity_hash', existing_type=sa.String(length=64), nullable=False)
 
-    op.create_index('ix_audit_logs_event_id', 'audit_logs', ['event_id'], unique=True)
-    op.create_index('ix_audit_logs_integrity_hash', 'audit_logs', ['integrity_hash'], unique=True)
-    op.create_index('ix_audit_logs_request_id', 'audit_logs', ['request_id'], unique=False)
-    op.create_index('ix_audit_logs_outcome', 'audit_logs', ['outcome'], unique=False)
+    index_names = {index['name'] for index in sa.inspect(bind).get_indexes('audit_logs')}
+    if 'ix_audit_logs_event_id' not in index_names:
+        op.create_index('ix_audit_logs_event_id', 'audit_logs', ['event_id'], unique=True)
+    if 'ix_audit_logs_integrity_hash' not in index_names:
+        op.create_index('ix_audit_logs_integrity_hash', 'audit_logs', ['integrity_hash'], unique=True)
+    if 'ix_audit_logs_request_id' not in index_names:
+        op.create_index('ix_audit_logs_request_id', 'audit_logs', ['request_id'], unique=False)
+    if 'ix_audit_logs_outcome' not in index_names:
+        op.create_index('ix_audit_logs_outcome', 'audit_logs', ['outcome'], unique=False)
 
     if bind.dialect.name == 'postgresql':
         op.execute(sa.text("""
@@ -121,6 +118,7 @@ def upgrade():
             $$;
         """))
         op.execute(sa.text("""
+            DROP TRIGGER IF EXISTS audit_logs_immutable ON audit_logs;
             CREATE TRIGGER audit_logs_immutable
             BEFORE UPDATE OR DELETE ON audit_logs
             FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_mutation();
@@ -133,11 +131,18 @@ def downgrade():
         op.execute(sa.text('DROP TRIGGER IF EXISTS audit_logs_immutable ON audit_logs'))
         op.execute(sa.text('DROP FUNCTION IF EXISTS prevent_audit_log_mutation()'))
 
-    op.drop_index('ix_audit_logs_outcome', table_name='audit_logs')
-    op.drop_index('ix_audit_logs_request_id', table_name='audit_logs')
-    op.drop_index('ix_audit_logs_integrity_hash', table_name='audit_logs')
-    op.drop_index('ix_audit_logs_event_id', table_name='audit_logs')
-    op.drop_column('audit_logs', 'integrity_hash')
-    op.drop_column('audit_logs', 'request_id')
-    op.drop_column('audit_logs', 'outcome')
-    op.drop_column('audit_logs', 'event_id')
+    inspector = sa.inspect(bind)
+    index_names = {index['name'] for index in inspector.get_indexes('audit_logs')}
+    for name in (
+        'ix_audit_logs_outcome',
+        'ix_audit_logs_request_id',
+        'ix_audit_logs_integrity_hash',
+        'ix_audit_logs_event_id',
+    ):
+        if name in index_names:
+            op.drop_index(name, table_name='audit_logs')
+
+    columns = {column['name'] for column in sa.inspect(bind).get_columns('audit_logs')}
+    for name in ('integrity_hash', 'request_id', 'outcome', 'event_id'):
+        if name in columns:
+            op.drop_column('audit_logs', name)
