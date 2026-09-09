@@ -17,7 +17,7 @@ class RetentionPolicy(db.Model):
 
     __table_args__ = (
         db.CheckConstraint('retention_days > 0', name='ck_retention_policies_days_positive'),
-        db.CheckConstraint("disposal_action IN ('REVIEW', 'ARCHIVE')", name='ck_retention_policies_action'),
+        db.CheckConstraint("disposal_action IN ('REVIEW', 'ARCHIVE', 'DELETE')", name='ck_retention_policies_action'),
     )
 
     def expires_at(self, created_at):
