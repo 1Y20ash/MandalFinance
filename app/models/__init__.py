@@ -3,6 +3,7 @@ from app.models.mandal import Mandal, Event, FinancialYear
 from app.models.ledger import Account, TransactionCategory, Transaction
 from app.models.income import Donation, Sponsorship, MemberContribution
 from app.models.income_entry import Income
+from app.models.payment_event import PaymentWebhookEvent
 from app.models.vendor import Vendor
 from app.models.expense import ExpenseCategory, Expense, Approval
 from app.models.budget import BudgetCategory, Budget
@@ -16,7 +17,7 @@ __all__ = [
     'User', 'Role', 'Permission', 'role_permissions', 'user_roles',
     'Mandal', 'Event', 'FinancialYear',
     'Account', 'TransactionCategory', 'Transaction',
-    'Donation', 'Sponsorship', 'MemberContribution', 'Income',
+    'Donation', 'Sponsorship', 'MemberContribution', 'Income', 'PaymentWebhookEvent',
     'Vendor',
     'ExpenseCategory', 'Expense', 'Approval',
     'BudgetCategory', 'Budget',
