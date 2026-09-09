@@ -44,13 +44,23 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | **31. Clean-Environment Test** | **🟢 PASS** | Repeatable fresh-checkout CI dependency installation; isolated PostgreSQL 16 service; migration-head verification; database creation and migration from an empty database; complete regression/security suite; cleanup/teardown | Continue using clean-environment verification as a mandatory regression gate | **P0** |
 | **32. Production Configuration Test** | **🟢 PASS** | `docs/PRODUCTION_CONFIGURATION_TEST_POLICY.md`; fail-closed PostgreSQL/Razorpay/private-Supabase/persistent-Redis validation; synthetic production-shaped preflight; negative-path configuration simulations; secure-cookie assertions; CI-enforced dedicated Phase 32 test gate | Record actual production provider/region/configuration evidence without exposing secrets; perform final production smoke test in Phase 39 | **P0** |
 | **33. Deployment Architecture** | **🟢 PASS** | `docs/DEPLOYMENT_ARCHITECTURE.md`; canonical `server.py` production entrypoint; Vercel function configuration; application-factory boundary; PostgreSQL/Supabase/Redis/Razorpay stateful-system boundaries; controlled Flask-Migrate/Alembic schema ownership; production anti-patterns; automated Phase 33 architecture tests and CI gate | Validate actual deployed topology and live dependency connectivity in later deployment/post-deployment phases | **P0** |
-| 34. Health Checks | 🟢/🟡 | Liveness/readiness endpoints; rate-limit exempt probes; production dependency checks | Complete production smoke test | P0 |
+| **34. Health Checks** | **🟢 PASS** | `docs/HEALTH_CHECK_POLICY.md`; dedicated `/health/live` liveness probe; database-backed `/health/ready` readiness probe with safe HTTP 503 failure; backward-compatible `/health`; server-side exception logging; rate-limit-exempt probes; automated Phase 34 tests and CI gate | Validate live probe behavior against the actual production deployment during Phase 39 | **P0** |
 | 35. DPDP Compliance Matrix | 🟢/🟡 | This evidence matrix | Keep synchronized with implemented controls | P0 |
 | 36. Final Security Review | ⚪ | Not yet final | OWASP/security review after all phases | P0 |
 | 37. Release Gate | ⚪ | Not yet reached | All checklist controls must PASS | P0 |
 | 38. Single Clean Deployment | ⚪ | Not yet reached | Deploy only after release gate | P0 |
 | 39. Post-Deployment Verification | ⚪ | Not yet reached | Execute full production verification | P0 |
 | 40. PWA | ⚪ | Deferred by authoritative PDP | Perform only after post-deployment stability | P1 |
+
+## Phase 34 — Health Checks evidence
+
+Phase 34 establishes `docs/HEALTH_CHECK_POLICY.md` as the controlled health-check standard. The application now exposes `/health/live` for process-level liveness and `/health/ready` for PostgreSQL-backed readiness. Liveness intentionally performs no dependency query; readiness returns HTTP 503 when the required database check fails and exposes only generic dependency state.
+
+The existing `/health` endpoint remains backward-compatible while using the same safe database health boundary. Database exceptions are logged server-side and rolled back without returning exception details, connection strings, SQL errors, credentials, or infrastructure paths to callers. Health endpoints remain exempt from application rate limiting so infrastructure probes are reliable.
+
+`tests/test_phase34_health_checks.py` verifies liveness behavior, healthy readiness, fail-closed readiness on a simulated database error, privacy-safe legacy health degradation, and probe rate-limit behavior. The CI workflow runs this dedicated health-check gate before migration and the full regression/security suite.
+
+This phase does not claim live production health. Actual deployed probe responses and dependency connectivity remain environment-specific evidence for Phase 39.
 
 ## Phase 33 — Deployment Architecture evidence
 
