@@ -1,28 +1,66 @@
 # MandalFinance PDP Compliance Matrix
 
+**Authoritative PDP:** Final DPDP Compliance, Security & Production Readiness Plan  
 **Baseline:** `main`  
 **Principle:** Money → Transaction → Supporting Document → User → Approval → Payment → Audit History
 
 This is an engineering implementation matrix, not a legal, statutory, accounting, or security certification.
 
+## Current authoritative phase evidence
+
 | PDP phase | Current state | Evidence in repository | Remaining work | Priority |
 |---|---|---|---|---|
-| 0. Baseline / architecture lock | 🟢 | Baseline matrix + CI-verified hardening branches | Keep matrix synchronized with future releases | P0 |
-| 1. Foundation / financial integrity | 🟢/🟡 | Decimal/Numeric money fields, central ledger, event/FY locking, duplicate-reference guards | Complete production DB invariant verification | P0 |
-| 2. Authentication / dynamic RBAC | 🟢/🟡 | Flask-Login, dynamic roles/permissions, finance-control authorization guard | Expand object-level authorization tests | P0 |
-| 3. Mandal / event / ledger core | 🟢/🟡 | Event/FY locking and financial guard | Expand event/FY mutation tests across every module | P0 |
-| 4. Income / donations / receipts | 🟢/🟡 | Duplicate external-reference checks, evidence enforcement, central-ledger posting | Complete receipt/report lifecycle and production evidence policy configuration | P0 |
-| 5. Expenses / vendors / approval / payment | 🟢/🟡 | Submit → approve → pay, SOD, evidence gate, central ledger | Expand vendor lifecycle and negative-path matrix | P0 |
-| 6. Sponsorship / member / budget | 🟢/🟡 | Receipt lifecycle, target/commitment limits, budget workflow, approval SOD | Add richer sponsor/member master-data and document/receipt UI | P1 |
-| 7. Cash / bank / UPI / reconciliation | 🟢/🟡 | Reconciliation records, statement-line matching and finalization gates | Add richer bank statement adapters and transfer UX | P0 |
-| 8. Document vault / versioning / integrity | 🟡 | SHA-256, versions, protected access | Production storage hardening and full object-authorization matrix | P0 |
-| 9. Evidence / timeline / evidence packs | 🟢/🟡 | EvidenceRule enforcement on payment/posting boundaries | Configure production rules and expand evidence workflows | P0 |
-| 10. Audit / correction / reversal / reporting | 🟢 | Audit service, transactional audit writes, immutable ORM/database controls, SHA-256 row integrity, authentication security events, admin audit trail | Continue adding coverage when new privileged business events are introduced | P0 |
-| 11. Dashboard / analytics / transparency | 🟡 | Existing dashboard/reports/notifications | Unified search, public transparency and notification completeness | P1 |
-| 12. Security / financial-integrity testing | 🟢/🟡 | Dedicated hardening/security test matrix plus audit-integrity tests | Expand horizontal/vertical object access and locked-record cases | P0 |
-| 13. UI / UX / accessibility / performance | 🟡 | Premium glass UI and responsive templates | Full accessibility/mobile/performance audit | P1 |
-| 14. Production / release verification | 🟡 | Repeatable CI migration/regression verification, production preflight and structured application logging | Production DB/storage/secrets/backups/deployment smoke tests and E2E reconstruction | P0 |
-| 23. Security headers | 🟢 | CSP, HSTS in production, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP and CORP with automated tests | Replace remaining CSP `'unsafe-inline'` allowances with nonce/hash-based controls in a future hardening pass | P0 |
+| 0. Freeze current system | 🟢 | Preserved `main` history and incremental hardening commits | Maintain baseline discipline | P0 |
+| 1. Complete repository audit | 🟢/🟡 | Existing security/financial hardening tests and documented architecture evidence | Continue repository-wide defect tracking as later phases expose gaps | P0 |
+| 2. Clean architecture | 🟢/🟡 | Flask factory, app package, routes/services/models split, `server.py` entrypoint | Continue removing legacy structural inconsistencies only when verified | P0 |
+| 3. Configuration security | 🟢 | Production validation for PostgreSQL, private Supabase storage, Razorpay and persistent rate-limit storage | Verify actual production environment values without exposing secrets | P0 |
+| 4. Personal data inventory | 🟡 | Existing models and privacy/security documentation | Complete field-level inventory | P0 |
+| 5. Data minimisation | 🟡 | Existing collection paths audited during security work | Complete necessity review for every personal-data field | P0 |
+| 6. Privacy Notice | 🟡 | Privacy work tracked in repository | Complete standalone notice and verification | P0 |
+| 7. Consent Management | 🟡 | No false PASS asserted | Implement applicable consent evidence and withdrawal workflow | P0 |
+| 8. Data Principal Rights | 🟡 | No false PASS asserted | Implement controlled privacy-request workflow | P0 |
+| 9. Authentication | 🟢/🟡 | Flask-Login, secure sessions, login rate limiting, generic login failures | Complete password-reset coverage if that feature is introduced | P0 |
+| 10. Authorization | 🟢/🟡 | Dynamic RBAC and server-side permission guards | Continue object-level authorization coverage | P0 |
+| 11. Financial Integrity | 🟢/🟡 | Central ledger, transaction controls, audit trail and financial guards | Continue full negative-path verification | P0 |
+| 12. Payment Security | 🟢/🟡 | Server-side Razorpay verification and protected confirmation flow | Complete production payment simulation | P0 |
+| 13. Webhook Security | 🟢/🟡 | Signature verification and duplicate-safe financial confirmation | Complete production webhook simulation | P0 |
+| 14. Document Security | 🟢/🟡 | MIME/signature validation, protected storage access, controlled downloads, integrity verification | Complete production object-authorization verification | P0 |
+| 15. Supabase Security | 🟢/🟡 | Private-storage configuration and server-only service key handling | Verify production storage policy | P0 |
+| 16. Database | 🟢/🟡 | PostgreSQL migration verification and financial constraints | Continue clean-environment reconstruction testing | P0 |
+| 17. Retention | 🟡 | No false PASS asserted | Define category-specific retention schedule | P0 |
+| 18. Deletion | 🟡 | No false PASS asserted | Implement deliberate deletion workflow | P0 |
+| 19. Logging | 🟢 | Structured/redacted operational logging with request correlation | Continue review as new endpoints are introduced | P0 |
+| 20. Audit Log | 🟢 | Immutable, tamper-evident audit records with integrity verification | Add new privileged business events when introduced | P0 |
+| 21. Security Controls | 🟢 | CSRF, safe redirects, file validation and related automated controls | Continue OWASP-oriented negative-path expansion | P0 |
+| 22. Security Headers | 🟢 | CSP, HSTS in production, browser hardening headers with automated tests | Replace CSP `unsafe-inline` allowances with nonce/hash controls in a future hardening pass | P0 |
+| **23. Rate Limiting** | **🟢/🟡** | Shared persistent production storage validation; 300/min global ceiling; endpoint-specific limits for authentication, registration, donation/payment, financial writes, documents and admin; health-probe exemptions; safe 429 UI; automated rate-limit tests | Complete exact-head CI verification and production Redis smoke test | **P0** |
+| 24. Third-Party Processors | ⚪ | Not yet evaluated as the current phase | Build processor register and minimum-data-sharing review | P0 |
+| 25. Data Breach Response | ⚪ | Not yet evaluated as the current phase | Create incident response procedure | P0 |
+| 26. Public Transparency | 🟡 | Existing public transparency page | Complete privacy-leakage review | P0 |
+| 27. Frontend Privacy | 🟡 | Existing server-rendered UI and PWA assets | Complete browser/client-side data audit | P0 |
+| 28. Error Handling | 🟢/🟡 | Generic production-safe error handling and safe 429 response | Complete all exception-path review | P0 |
+| 29. Dependency Audit | 🟡 | `requirements.txt` includes Flask-Limiter and Redis support | Complete vulnerability/unused-dependency audit | P0 |
+| 30. Testing | 🟢/🟡 | Dedicated regression/security suite and phase-specific tests | Complete remaining privacy/payment/E2E coverage | P0 |
+| 31. Clean-Environment Test | 🟢/🟡 | Repeatable CI migration/regression verification | Expand clean-environment scenario matrix | P0 |
+| 32. Production Configuration Test | 🟢/🟡 | Production preflight and persistent rate-limit configuration validation | Complete real deployment configuration smoke test | P0 |
+| 33. Deployment Architecture | 🟢/🟡 | Minimal Flask production entrypoint and CI verification | Final architecture review before deployment | P0 |
+| 34. Health Checks | 🟢/🟡 | Liveness/readiness endpoints; rate-limit exempt probes; production dependency checks | Complete production smoke test | P0 |
+| 35. DPDP Compliance Matrix | 🟢/🟡 | This evidence matrix | Keep synchronized with implemented controls | P0 |
+| 36. Final Security Review | ⚪ | Not yet final | OWASP/security review after all phases | P0 |
+| 37. Release Gate | ⚪ | Not yet reached | All checklist controls must PASS | P0 |
+| 38. Single Clean Deployment | ⚪ | Not yet reached | Deploy only after release gate | P0 |
+| 39. Post-Deployment Verification | ⚪ | Not yet reached | Execute full production verification | P0 |
+| 40. PWA | ⚪ | Deferred by authoritative PDP | Perform only after post-deployment stability | P1 |
+
+## Phase 23 — Rate Limiting evidence
+
+Phase 23 implements defense-in-depth rate limiting without relying on process-local production memory. Production startup validation requires `RATELIMIT_STORAGE_URI` or `REDIS_URL`, and production readiness checks require a non-memory rate-limit storage URI. Development/testing may use `memory://` intentionally.
+
+The application has a **300 requests/minute per remote-address default ceiling** and tighter limits on abuse-sensitive operations. Authentication uses the existing 5/minute IP + normalized-account login bucket; registration is 5/hour; public donation initiation is 10/hour; online payment confirmation is 20/minute; offline donation, income and expense creation are 20/minute; financial approval/payment/contribution operations are limited; document upload/replacement/download/integrity/evidence-pack operations have dedicated limits; and administrative endpoints have tighter read/write ceilings.
+
+Health probes are explicitly exempt so monitoring remains reliable. Payment webhooks retain signature/event validation and are not subjected to an aggressive endpoint-specific limit because legitimate provider retries must not be blocked; the global ceiling remains in effect.
+
+A custom HTTP 429 page provides a responsive, user-facing explanation without exposing implementation details. Flask-Limiter headers are enabled so clients can respect retry information.
 
 ## Absolute financial integrity rules
 
@@ -39,18 +77,6 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 11. A reconciliation cannot be finalized while statement lines are unmatched or the balance difference is non-zero.
 12. Budget actuals are derived from finalized ledger transactions rather than duplicated module totals.
 13. Audit history is append-only and tamper-evident; security-sensitive events must not be silently discarded.
-
-## Audit logging hardening
-
-Phase 21 adds a dedicated immutable audit layer. `AuditLog` now carries a UUID event identifier, outcome, request correlation ID and SHA-256 integrity digest. The application rejects ORM updates/deletes, while PostgreSQL receives a database trigger that rejects direct `UPDATE`/`DELETE` operations. `AuditService` serializes structured metadata as JSON, redacts credential-like keys, supports atomic `commit=False` writes, and provides integrity verification.
-
-Authentication now records successful logins, failed credential attempts and blocked logins without storing passwords or raw credential material. The administrator audit page exposes the event outcome, request ID and digest prefix for investigation and traceability.
-
-## Phase 23 security headers
-
-Phase 23 adds a browser defense-in-depth policy at the Flask response boundary. All responses receive MIME-sniffing, framing, referrer, browser-capability, cross-origin isolation, and Content Security Policy controls. Production responses additionally receive one-year HSTS with subdomains. The CSP restricts resource origins and disables plugins/objects and cross-origin framing while retaining explicit allowances for the application's existing trusted CDN dependencies.
-
-`tests/test_security_headers.py` verifies the complete header policy and exercises the production-only HSTS branch. The remaining `'unsafe-inline'` CSP allowances are documented as a future hardening item rather than being hidden or treated as equivalent to a nonce/hash policy.
 
 ## Verification gate
 
