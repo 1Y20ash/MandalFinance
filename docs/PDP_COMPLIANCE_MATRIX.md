@@ -40,7 +40,7 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | **27. Frontend Privacy** | **🟢 PASS** | `docs/FRONTEND_PRIVACY_POLICY.md`; browser storage boundary; PWA session-only UI state; donation CSRF token excluded from service-worker precache; service-worker GET/same-origin/static/public-shell restrictions; automated Phase 27 tests | Re-review whenever browser storage, SDKs, offline behavior, payment/document flows, or tracking changes | **P0** |
 | **28. Error Handling** | **🟢 PASS** | `docs/ERROR_HANDLING_POLICY.md`; generic HTML/JSON handling for expected HTTP errors; privacy-safe 500 handling with server-side logging and DB rollback; health-error detail suppression; automated Phase 28 regression tests | Re-review when new API surfaces, error classes, or external integrations are introduced | **P0** |
 | **29. Dependency Audit** | **🟢 PASS** | `docs/DEPENDENCY_SECURITY_POLICY.md`; clean CI dependency installation; exact `pip-audit==2.10.1` security gate against `requirements.txt`; Phase 29 dependency-policy regression tests | Re-audit on every dependency change and remediate newly disclosed vulnerabilities | **P0** |
-| 30. Testing | 🟢/🟡 | Dedicated regression/security suite and phase-specific tests | Complete remaining privacy/payment/E2E coverage | P0 |
+| **30. Testing** | **🟢 PASS** | `docs/TESTING_STRATEGY.md`; layered unit/service, route/integration, persistence, security, privacy, and critical-flow testing policy; automated Phase 30 test-inventory gate; payment/webhook cryptographic negative-path tests; public payment failure non-disclosure regression; clean CI PostgreSQL and full pytest gate | Expand scenario coverage as new privacy, payment, document, or E2E capabilities are introduced; production simulations remain in later PDP phases | **P0** |
 | 31. Clean-Environment Test | 🟢/🟡 | Repeatable CI migration/regression verification | Expand clean-environment scenario matrix | P0 |
 | 32. Production Configuration Test | 🟢/🟡 | Production preflight and persistent rate-limit configuration validation | Complete real deployment configuration smoke test | P0 |
 | 33. Deployment Architecture | 🟢/🟡 | Minimal Flask production entrypoint and CI verification | Final architecture review before deployment | P0 |
@@ -52,67 +52,15 @@ This is an engineering implementation matrix, not a legal, statutory, accounting
 | 39. Post-Deployment Verification | ⚪ | Not yet reached | Execute full production verification | P0 |
 | 40. PWA | ⚪ | Deferred by authoritative PDP | Perform only after post-deployment stability | P1 |
 
-## Phase 24 — Third-Party Processor evidence
+## Phase 30 — Testing evidence
 
-Phase 24 maintains a repository-controlled register of active and potential third parties. The register records the provider role, data shared or potentially exposed, purpose, storage/location considerations, security/minimisation controls, contract/terms evidence, and operational status.
+Phase 30 establishes `docs/TESTING_STRATEGY.md` as the controlled application testing standard. The strategy defines layered unit/service, route/integration, persistence, security-regression, privacy-regression, and critical-flow testing, with explicit test-isolation and CI-gate requirements.
 
-Current application processors/infrastructure include Supabase for application/database and private object storage, Razorpay for online payment processing, Vercel for application hosting, and a deployment-selected managed Redis service for shared rate-limit state. Razorpay Checkout.js and browser CDN/font resources are separately recorded because browser requests can expose network metadata even though they do not receive MandalFinance application records by design.
+The repository now enforces a critical regression inventory through `tests/test_phase30_testing.py`. The inventory ensures that authentication, donations, financial controls, ledger/reconciliation, document security, audit logging, operational logging, dependency controls, and the Phase 30 testing controls themselves remain represented by automated test modules.
 
-The register explicitly records processor categories that are not currently enabled, including email, analytics, advertising/tracking, monitoring, support/chat, and additional payment providers. New third parties must be added to the register before enablement.
+Phase 30 also adds direct cryptographic negative-path coverage for Razorpay payment signatures and webhook signatures, including tampered payload/payment identifiers and missing signatures. The public online-donation setup path is tested against an injected provider failure to ensure an internal exception string is not returned to the user. The associated route handling was hardened to return generic failure messages and roll back the database session.
 
-Production now requires a non-secret `REDIS_PROVIDER_NAME` so the actual Redis processor can be identified operationally without putting provider identity into source-code assumptions. The exact provider, region, contractual evidence, and live environment configuration remain deployment evidence and are re-verified in PDP Phase 32.
-
-Phase 24 automated tests verify that the register covers active infrastructure, records disabled processor categories, records the Redis provider identity configuration, keeps Razorpay's server-side order payload minimal, keeps Supabase service-role access server-side, and documents Vercel hosting.
-
-## Phase 25 — Data Breach Response evidence
-
-Phase 25 establishes `docs/DATA_BREACH_RESPONSE_PROCEDURE.md` as the controlled incident-response procedure. It defines the required **DETECT → INVESTIGATE → CONTAIN → ASSESS → IDENTIFY AFFECTED DATA → DOCUMENT → NOTIFY WHERE REQUIRED → REMEDIATE → REVIEW** lifecycle, severity classification, roles and escalation, evidence preservation, privacy-safe incident records, affected-data classification, financial/document integrity handling, processor escalation, remediation and post-incident testing, and evidence retention/destruction requirements.
-
-The procedure explicitly ties investigation to the privacy-safe request logs and tamper-evident audit history already implemented in Phases 19–20. It prohibits copying credentials, raw payment secrets, production databases, or unnecessary document contents into incident records. It also requires notification decisions to be checked against the law and rules in force for the incident date rather than treating a static engineering document as legal advice.
-
-The procedure references the official MeitY publication of the Digital Personal Data Protection Rules, 2025 and records the current rule-7 notification workflow, including prompt notification expectations and the 72-hour detailed-information requirement subject to the applicable commencement/enforcement timeline and any permitted extension. The procedure must be reviewed when the legal framework, enforcement status, or application/provider architecture changes.
-
-Automated Phase 25 tests verify the lifecycle, evidence-preservation controls, financial/document impact assessment, DPDP notification guardrails, processor escalation, post-incident regression testing, and retention/destruction controls.
-
-## Phase 26 — Public Transparency evidence
-
-Phase 26 establishes `docs/PUBLIC_TRANSPARENCY_POLICY.md` as the controlled public-disclosure boundary. It permits aggregate approved income, approved expenses, approved balance, Mandal/event identity, and high-level accountability information while explicitly prohibiting public disclosure of donor identifiers, account credentials, payment secrets, private documents, audit/security telemetry, internal identifiers, administrative information, and infrastructure secrets.
-
-The existing unauthenticated `/transparency` route was reviewed and remains aggregate-oriented: it supplies the public template with Mandal/event context, the authoritative ledger summary, and an aggregate successful-donation count. The template itself renders only the approved financial aggregates and public-facing accountability content; it does not render donor, authentication, payment-secret, document, or audit fields.
-
-Public figures must continue to derive from the authoritative ledger rather than client-supplied or duplicated totals. Any future public disclosure requires a necessity, privacy, security, and source-of-truth review plus automated coverage of the disclosure boundary.
-
-Automated Phase 26 tests verify the policy controls, public template sensitive-field boundary, aggregate-only route implementation, and authoritative-ledger requirements.
-
-## Phase 27 — Frontend Privacy evidence
-
-Phase 27 establishes `docs/FRONTEND_PRIVACY_POLICY.md` as the controlled browser-side privacy boundary. It prohibits persistent client-side storage of passwords, reset tokens, session identifiers, CSRF tokens, authentication tokens, API keys, donor personal data, payment credentials, financial records, administrative records, audit logs, and document contents.
-
-The existing PWA installation prompt uses `sessionStorage` only for a non-sensitive, session-scoped UI flag and keeps the browser installation event in memory. It does not use `localStorage`, cookies, authorization headers, or other client persistence for application data.
-
-The service worker was hardened because the public donation template contains a server-generated CSRF token. `/donate` is therefore excluded from precaching. The worker now handles only same-origin GET requests, uses network-first navigation with an explicitly approved public transparency fallback, and limits cache-first behavior to static assets. It does not cache arbitrary application responses, authenticated pages, financial records, reports, audit logs, documents, payment responses, or non-GET requests.
-
-The frontend policy also records the current third-party browser-resource boundary and requires privacy/processor review before analytics, advertising, tracking, session replay, chat, telemetry, or other browser SDKs are enabled.
-
-Automated Phase 27 tests verify the storage policy, PWA storage boundary, donation CSRF/cache boundary, service-worker request restrictions, public/static cache boundary, and base-template client-persistence boundary.
-
-## Phase 28 — Error Handling evidence
-
-Phase 28 establishes `docs/ERROR_HANDLING_POLICY.md` as the controlled application error boundary. Expected HTTP failures receive generic browser-safe pages or an explicit JSON error contract. Unexpected exceptions are caught at the application boundary, logged through the existing structured logging controls, and returned to clients only as a generic 500 response. The current database session is rolled back before returning an unexpected-error response.
-
-The health endpoint no longer returns raw database exception text; detailed diagnostics remain server-side. Error responses do not disclose stack traces, SQL, connection strings, credentials, filesystem paths, document contents, payment secrets, or framework internals.
-
-Automated Phase 28 tests verify generic 404 HTML and JSON responses, generic 500 HTML and JSON responses, suppression of injected exception secrets, server-side exception logging, and health-endpoint error-detail suppression.
-
-## Phase 29 — Dependency Audit evidence
-
-Phase 29 establishes `docs/DEPENDENCY_SECURITY_POLICY.md` as the controlled software-supply-chain boundary. `requirements.txt` remains the declared direct dependency manifest and every direct dependency carries an explicit version constraint. CI installs the declared manifest in a clean environment and then runs the exact `pip-audit==2.10.1` tool against that manifest.
-
-The dependency gate covers resolved transitive dependencies as well as direct packages and is intentionally fail-closed: a known vulnerability reported by the audit causes CI failure. The policy prohibits silently suppressing findings and requires removal, replacement, upgrade, or a documented time-bounded exception with compensating controls when immediate remediation is impossible.
-
-The audit tool is kept out of the production runtime manifest because it is a CI security tool rather than an application dependency. Dependency changes remain subject to the complete regression/security suite, and new third-party packages or browser SDKs must also pass the applicable privacy, processor, and security reviews.
-
-Automated Phase 29 tests verify that the dependency manifest exists and uses explicit constraints, the dependency security policy exists, CI pins the audit tool, CI invokes `pip-audit -r requirements.txt`, and the policy requires failure on known vulnerabilities including transitive dependencies.
+The CI workflow remains the mandatory gate: dependency installation and security scanning, compilation, production preflight, migration-head verification, clean PostgreSQL migration, and the complete pytest regression/security suite must all succeed before the phase can close. Production payment simulations and real deployment smoke tests are deliberately deferred to the later PDP phases that own those environments.
 
 ## Absolute financial integrity rules
 
