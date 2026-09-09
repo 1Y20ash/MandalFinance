@@ -23,9 +23,10 @@ def create_app(config_name=None):
     app.config['APP_ENV'] = config_name
     db.init_app(app)
     migrate.init_app(app, db)
-    # Strong session protection invalidates the login session when Flask-Login
-    # detects an unexpected client identity change.
-    login_manager.session_protection = 'strong'
+    # Session protection is explicitly configured per environment. Production
+    # uses strong protection; tests use basic mode so account-state authorization
+    # tests can deliberately mutate eligibility without changing client identity.
+    login_manager.session_protection = app.config.get('SESSION_PROTECTION', 'strong')
     login_manager.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
@@ -111,7 +112,7 @@ def create_app(config_name=None):
     from app.routes.health import health_bp
     from app.routes.webhooks import webhooks_bp
     from app.routes.privacy import privacy_bp
-    for bp in (main_bp, auth_bp, dashboard_bp, donations_bp, income_bp, expenses_bp, vendors_bp,
+    for bp in (main_bp, auth_bp, dashboard_bp, donations_bp, income_bp, expenses_bp, vendors,
                budgets_bp, contributions_bp, documents_bp, reports_bp, admin_bp, public_bp,
                controls_bp, reconciliation_bp, account_balances_bp, health_bp, webhooks_bp, privacy_bp):
         app.register_blueprint(bp)
