@@ -19,7 +19,7 @@ def test_single_clean_deployment_policy_exists_and_has_release_boundaries():
         "Persistent shared Redis",
         "HTTPS and secure session cookies",
         "Debug mode is disabled",
-        "apply only the required database migrations",
+        "only the required database migrations",
         "Phase 39",
         "Phase 38 remains open",
         "A repository-only CI pass is insufficient for Phase 38 PASS",
