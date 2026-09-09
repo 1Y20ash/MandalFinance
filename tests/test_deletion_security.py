@@ -102,6 +102,16 @@ def test_last_admin_cannot_be_erased(app):
         assert db.session.get(User, admin.id).is_admin is True
 
 
+def test_erased_account_is_not_reloaded_into_a_session(app):
+    with app.app_context():
+        user = db.session.query(User).filter_by(username='volunteer').one()
+        user.is_active = False
+        db.session.commit()
+        with app.test_request_context('/'):
+            loaded = app.login_manager._user_callback(str(user.id))
+        assert loaded is None
+
+
 def test_admin_deletion_review_endpoint_is_protected_and_available(client, app):
     response = client.get('/admin/deletion-requests', follow_redirects=False)
     assert response.status_code in (302, 401)
