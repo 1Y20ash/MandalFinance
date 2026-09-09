@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Privacy Center{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 1100px;">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div><h1>Privacy Center</h1><p class="text-muted mb-0">Manage your privacy choices and submit Data Principal requests.</p></div>
+    <a class="btn btn-outline-primary" href="{{ url_for('privacy.notice') }}">Read Privacy Notice</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}
+  {% endwith %}
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card p-4 h-100">
+        <h2>My personal data</h2>
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Name</dt><dd class="col-sm-8">{{ current_user.full_name }}</dd>
+          <dt class="col-sm-4">Username</dt><dd class="col-sm-8">{{ current_user.username }}</dd>
+          <dt class="col-sm-4">Email</dt><dd class="col-sm-8">{{ current_user.email }}</dd>
+          <dt class="col-sm-4">Phone</dt><dd class="col-sm-8">{{ current_user.phone or 'Not provided' }}</dd>
+          <dt class="col-sm-4">Account created</dt><dd class="col-sm-8">{{ current_user.created_at }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card p-4 h-100">
+        <h2>Correct profile data</h2>
+        <form method="post" action="{{ url_for('privacy.correction') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label">Full name</label><input class="form-control mb-2" name="full_name" value="{{ current_user.full_name }}" maxlength="120" required>
+          <label class="form-label">Email</label><input class="form-control mb-2" type="email" name="email" value="{{ current_user.email }}" maxlength="120" required>
+          <label class="form-label">Phone</label><input class="form-control mb-3" name="phone" value="{{ current_user.phone or '' }}" maxlength="20">
+          <button class="btn btn-primary">Save correction</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="card p-4">
+        <h2>Optional consent</h2>
+        <p class="text-muted">Core account and financial processing is not bundled with these optional preferences.</p>
+        {% for purpose, description in consent_purposes.items() %}
+          {% set current = consents | selectattr('purpose', 'equalto', purpose) | first %}
+          <div class="border rounded p-3 mb-2">
+            <strong>{{ purpose|title }}</strong><p class="mb-2">{{ description }}</p>
+            <span class="badge text-bg-{{ 'success' if current and current.status == 'GRANTED' else 'secondary' }}">{{ current.status if current else 'NOT GRANTED' }}</span>
+            <form class="d-inline" method="post" action="{{ url_for('privacy.consent') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="purpose" value="{{ purpose }}">
+              <input type="hidden" name="action" value="{{ 'WITHDRAW' if current and current.status == 'GRANTED' else 'GRANT' }}">
+              <button class="btn btn-sm btn-outline-primary ms-2">{{ 'Withdraw' if current and current.status == 'GRANTED' else 'Grant' }}</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card p-4">
+        <h2>Submit a request</h2>
+        <form method="post" action="{{ url_for('privacy.center') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label">Request type</label>
+          <select class="form-select mb-3" name="request_type" required>
+            {% for key, label in request_types.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+          <label class="form-label">Details (optional)</label>
+          <textarea class="form-control mb-3" name="details" maxlength="2000" rows="5" placeholder="Describe the information or correction you are requesting."></textarea>
+          <button class="btn btn-primary w-100">Submit privacy request</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card p-4">
+        <h2>Request history</h2>
+        {% if requests %}
+          <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Type</th><th>Status</th><th>Requested</th><th>Completed</th></tr></thead><tbody>
+          {% for item in requests %}<tr><td>{{ request_types.get(item.request_type, item.request_type) }}</td><td><span class="badge text-bg-secondary">{{ item.status }}</span></td><td>{{ item.requested_at }}</td><td>{{ item.completed_at or '—' }}</td></tr>{% endfor %}
+          </tbody></table></div>
+        {% else %}<p class="text-muted mb-0">No privacy requests have been submitted.</p>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
