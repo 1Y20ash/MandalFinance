@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
       - name: Dependency security scan
-        run: python -m pip install pip-audit==2.10.1 && pip-audit --local --strict
+        run: python -m pip install --upgrade setuptools && python -m pip install pip-audit==2.10.1 && pip-audit --local --strict
       - name: Compile Python sources
         run: python -m compileall -q app server.py scripts tests
       - name: Verify production configuration preflight
