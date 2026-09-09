@@ -1,9 +1,10 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required, logout_user
+from flask_login import current_user, login_required
 
+from app.extensions import db
 from app.models.deletion import DeletionRequest
+from app.services.audit_service import AuditService
 from app.services.deletion_service import DeletionService
-from app.utils.decorators import admin_required
 
 
 privacy_bp = Blueprint('privacy', __name__, url_prefix='/privacy')
@@ -39,8 +40,6 @@ def cancel_deletion_request(request_id):
 
     deletion.status = 'REJECTED'
     deletion.decision_reason = 'Cancelled by the requesting user.'
-    from app.extensions import db
-    from app.services.audit_service import AuditService
     AuditService.log_action(
         'CANCEL_DELETION', 'DELETION_REQUEST', deletion.id,
         'User cancelled their pending privacy deletion request.',
@@ -49,23 +48,3 @@ def cancel_deletion_request(request_id):
     db.session.commit()
     flash('Deletion request cancelled.', 'info')
     return redirect(url_for('privacy.deletion_request'))
-
-
-@privacy_bp.route('/deletion/<int:request_id>/complete')
-@login_required
-@admin_required
-def admin_complete_deletion(request_id):
-    deletion = DeletionRequest.query.filter_by(id=request_id).first()
-    if deletion is None:
-        return ('Deletion request not found.', 404)
-    try:
-        DeletionService.review(
-            request_id,
-            current_user,
-            approve=True,
-            decision_reason='Approved by administrator.',
-        )
-        flash('Deletion request processed.', 'success')
-    except ValueError as exc:
-        flash(str(exc), 'warning')
-    return redirect(url_for('admin.deletion_requests'))
