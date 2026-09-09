@@ -54,6 +54,7 @@ def login():
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit('5 per hour', methods=['POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
