@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "rm -rf templates && cp -R app/templates templates",
+  "functions": {
+    "server.py": {
+      "includeFiles": "templates/**"
+    }
+  }
+}
