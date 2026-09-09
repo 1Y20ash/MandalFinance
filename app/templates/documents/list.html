@@ -2,52 +2,46 @@
 {% block title %}Financial Evidence Vault - Ashtavinayak Mandal{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="fw-bold mb-0"><i class="fa-solid fa-vault me-2 text-primary"></i>Financial Evidence Vault</h3>
-    <a href="{{ url_for('documents.upload_document') }}" class="btn btn-primary"><i class="fa-solid fa-cloud-arrow-up me-1"></i>Upload Document</a>
+<div class="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="fa-solid fa-vault me-2 text-primary"></i>Financial Evidence Vault</h3>
+        <div class="small text-muted"><i class="fa-solid fa-lock me-1"></i>Authenticated access to private financial records</div>
+    </div>
+    <a href="{{ url_for('documents.upload_document') }}" class="btn btn-primary">
+        <i class="fa-solid fa-cloud-arrow-up me-1"></i>Upload Document
+    </a>
 </div>
 
-<div class="card shadow-sm border-0">
+<div class="card shadow-sm border-0 overflow-hidden">
     <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
-                <tr>
-                    <th>Doc Ref</th>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Entity Link</th>
-                    <th>Version</th>
-                    <th>SHA-256 Hash</th>
-                    <th>Integrity</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr><th>Doc Ref</th><th>Title</th><th>Category</th><th>Entity Link</th><th>Version</th><th>Integrity</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
                 {% for doc in pagination.items %}
-                <tr>
-                    <td class="fw-bold">{{ doc.doc_ref }}</td>
-                    <td>{{ doc.title }}</td>
-                    <td><span class="badge bg-secondary">{{ doc.category }}</span></td>
-                    <td>{{ doc.entity_type }} #{{ doc.entity_id or 'Gen' }}</td>
-                    <td><span class="badge bg-info text-dark">v{{ doc.current_version_number }}</span></td>
-                    <td><code class="small">{{ doc.current_sha256_hash[:12] }}...</code></td>
-                    <td>
-                        {% if doc.is_verified %}
-                            <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Verified</span>
-                        {% else %}
-                            <span class="badge bg-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i>Mismatch</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('documents.view_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-info me-1"><i class="fa-solid fa-eye"></i></a>
-                        <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-success" target="_blank"><i class="fa-solid fa-download"></i></a>
-                    </td>
-                </tr>
+                    <tr>
+                        <td class="fw-bold text-nowrap">{{ doc.doc_ref }}</td>
+                        <td><div class="fw-semibold">{{ doc.title }}</div><small class="text-muted">{{ doc.original_filename }}</small></td>
+                        <td><span class="badge bg-secondary">{{ doc.category }}</span></td>
+                        <td>{{ doc.entity_type }} #{{ doc.entity_id or 'General' }}</td>
+                        <td><span class="badge bg-info text-dark">v{{ doc.current_version_number }}</span></td>
+                        <td>
+                            {% if doc.is_verified %}<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Verified</span>
+                            {% else %}<span class="badge bg-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i>Integrity issue</span>{% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            <a href="{{ url_for('documents.view_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-info me-1" title="View details"><i class="fa-solid fa-eye"></i></a>
+                            <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-success" title="Secure download"><i class="fa-solid fa-download"></i></a>
+                        </td>
+                    </tr>
                 {% else %}
-                <tr><td colspan="8" class="text-center py-4 text-muted">No documents uploaded in evidence vault.</td></tr>
+                    <tr><td colspan="7" class="text-center py-5 text-muted"><i class="fa-solid fa-folder-open fa-2x mb-2"></i><div>No documents uploaded in the evidence vault.</div></td></tr>
                 {% endfor %}
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}
