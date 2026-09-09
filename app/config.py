@@ -47,11 +47,10 @@ class TestingConfig(Config):
     SECRET_KEY = 'testing-secret-key'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
-    # Account-state authorization tests intentionally mutate the database
-    # between requests. Basic mode preserves the authenticated session so the
-    # application's authorization boundary can return the required 403.
-    # Production remains strong below.
-    SESSION_PROTECTION = 'basic'
+    # Tests must exercise the same strong session protection configured for
+    # production. Account-state authorization is tested through the server-side
+    # authorization boundary rather than weakening session security in tests.
+    SESSION_PROTECTION = 'strong'
 
 
 class ProductionConfig(Config):
