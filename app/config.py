@@ -23,8 +23,17 @@ class Config:
     RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
     RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
     RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
+
+    # Authentication/session hardening. Secure is enabled explicitly in
+    # production; SameSite=Lax protects normal browser navigation while still
+    # allowing ordinary login/logout flows. Remember cookies receive the same
+    # protections as the Flask session cookie.
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SECURE = False
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = 'Lax'
+    REMEMBER_COOKIE_SECURE = False
 
 
 class DevelopmentConfig(Config):
@@ -42,6 +51,7 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     SESSION_COOKIE_SECURE = True
+    REMEMBER_COOKIE_SECURE = True
 
     @classmethod
     def validate(cls):
