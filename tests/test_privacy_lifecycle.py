@@ -1,5 +1,11 @@
 from app.models.auth import User
 from app.models.privacy import ConsentRecord, PrivacyRequest
+from app.models.income import Donation
+from app.models.ledger import Transaction
+from app.models.audit import AuditLog
+from app.models.mandal import Event
+from app.models.ledger import Account
+from app.services.donation_service import DonationService
 
 
 def login(client, username='volunteer', password='password'):
@@ -53,3 +59,38 @@ def test_profile_correction_cannot_take_another_users_email(client, app):
     with app.app_context():
         user = User.query.filter_by(username='volunteer').one()
         assert user.email == 'vol@test.com'
+
+
+def test_donation_minimises_unnecessary_personal_data(app):
+    with app.app_context():
+        user = User.query.filter_by(username='volunteer').one()
+        event = Event.query.first()
+        account = Account.query.first()
+        donor_name = 'Minimisation Test Donor'
+
+        donation = DonationService.record_offline_donation(
+            event_id=event.id,
+            donor_name=donor_name,
+            amount='100.00',
+            payment_mode='CASH',
+            account_id=account.id,
+            created_by_id=user.id,
+            donor_phone='9999999999',
+            donor_email='unnecessary@example.com',
+            donor_address='Unnecessary private address',
+            pan_number='ABCDE1234F',
+            purpose='General Donation',
+            notes='Operational note only',
+        )
+
+        assert donation.donor_name == donor_name
+        assert donation.donor_phone == '9999999999'
+        assert donation.donor_email is None
+        assert donation.donor_address is None
+        assert donation.pan_number is None
+
+        ledger_entry = Transaction.query.filter_by(source_module='DONATION', source_id=donation.id).one()
+        assert donor_name not in ledger_entry.description
+
+        audit_entry = AuditLog.query.filter_by(entity_type='DONATION', entity_id=str(donation.id)).one()
+        assert donor_name not in audit_entry.description
