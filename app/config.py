@@ -25,6 +25,7 @@ class Config:
     RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI') or os.environ.get('REDIS_URL')
+    REDIS_PROVIDER_NAME = os.environ.get('REDIS_PROVIDER_NAME', '').strip()
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
 
@@ -57,6 +58,8 @@ class ProductionConfig(Config):
             raise RuntimeError('SUPABASE_STORAGE_PRIVATE must be true in production.')
         if not cls.RATELIMIT_STORAGE_URI or cls.RATELIMIT_STORAGE_URI.strip().lower().startswith('memory://'):
             required.append('RATELIMIT_STORAGE_URI or REDIS_URL (persistent shared storage)')
+        if not cls.REDIS_PROVIDER_NAME:
+            required.append('REDIS_PROVIDER_NAME (production processor identity)')
         missing = [name for name in required if not os.environ.get(name)]
         if cls.RATELIMIT_STORAGE_URI and cls.RATELIMIT_STORAGE_URI.strip().lower().startswith('memory://'):
             missing.append('RATELIMIT_STORAGE_URI or REDIS_URL (persistent shared storage)')
