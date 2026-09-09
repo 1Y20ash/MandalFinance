@@ -18,9 +18,18 @@ def upgrade() -> None:
     constraints = {item['name'] for item in inspector.get_unique_constraints('document_versions')}
 
     if 'uq_document_version_number' not in constraints and 'uq_document_version_number' not in indexes:
-        op.create_unique_constraint(
-            'uq_document_version_number', 'document_versions', ['document_id', 'version_number']
-        )
+        if bind.dialect.name == 'sqlite':
+            # SQLite cannot ALTER a table to add a UNIQUE constraint. Alembic's
+            # batch mode recreates the table while preserving existing columns,
+            # foreign keys, indexes, and constraints.
+            with op.batch_alter_table('document_versions', recreate='always') as batch:
+                batch.create_unique_constraint(
+                    'uq_document_version_number', ['document_id', 'version_number']
+                )
+        else:
+            op.create_unique_constraint(
+                'uq_document_version_number', 'document_versions', ['document_id', 'version_number']
+            )
 
     # SQLite cannot add CHECK constraints through ALTER TABLE in the same way as
     # PostgreSQL. The application model enforces these at validation time there;
