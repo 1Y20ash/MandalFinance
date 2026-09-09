@@ -7,7 +7,6 @@ from app.models.ledger import Account, Transaction
 from app.models.mandal import FinancialYear
 from app.services.audit_service import AuditService
 
-
 MONEY_ZERO = Decimal('0.00')
 
 
@@ -118,7 +117,7 @@ class LedgerService:
                                      created_by_id, payment_mode, external_ref, category_id, event_id, commit)
 
     @staticmethod
-    def reverse_transaction(transaction_id, reversed_by_user_id, reason):
+    def reverse_transaction(transaction_id, reversed_by_user_id, reason, commit=True):
         if not reason or not str(reason).strip():
             raise ValueError('A reversal reason is required.')
         try:
@@ -147,40 +146,35 @@ class LedgerService:
             else:
                 account.current_balance = LedgerService._to_money(account.current_balance) + orig_txn.amount
 
-            # A reversal is its own immutable ledger entry. It deliberately has
-            # no source_id so the active-source uniqueness invariant remains
-            # attached to the original financial record.
             reversal_txn = Transaction(
                 transaction_ref=LedgerService._generate_txn_ref(), event_id=orig_txn.event_id,
-                account_id=orig_txn.account_id, category_id=orig_txn.category_id, transaction_type='REVERSAL',
-                amount=orig_txn.amount, payment_mode=orig_txn.payment_mode,
-                external_ref=reversal_ref,
+                account_id=orig_txn.account_id, category_id=orig_txn.category_id,
+                transaction_type='REVERSAL', amount=orig_txn.amount,
+                payment_mode=orig_txn.payment_mode, external_ref=reversal_ref,
                 description=f'Reversal of {orig_txn.transaction_ref}: {str(reason).strip()}',
-                source_module='REVERSAL', source_id=None,
-                created_by_id=reversed_by_user_id,
+                source_module='REVERSAL', source_id=None, created_by_id=reversed_by_user_id,
             )
             db.session.add(reversal_txn)
             db.session.flush()
-
             orig_txn.is_reversed = True
             orig_txn.reversal_reason = str(reason).strip()
             orig_txn.reversed_by_txn_id = reversal_txn.id
             db.session.flush()
-
             AuditService.log_action(
                 action='REVERSE', entity_type='TRANSACTION', entity_id=orig_txn.id,
                 description=f'Reversed transaction {orig_txn.transaction_ref} with {reversal_txn.transaction_ref}. Reason: {orig_txn.reversal_reason}',
                 commit=False,
             )
-            db.session.commit()
+            if commit:
+                db.session.commit()
             return reversal_txn
         except Exception:
-            db.session.rollback()
+            if commit:
+                db.session.rollback()
             raise
 
     @staticmethod
     def _effective_transaction_totals(query):
-        """Calculate economic totals without double-counting preserved reversals."""
         income = MONEY_ZERO
         expense = MONEY_ZERO
         transactions = query.all()
@@ -230,14 +224,9 @@ class LedgerService:
             stored = LedgerService._to_money(account.current_balance)
             difference = stored - expected
             results.append({
-                'account': account,
-                'opening_balance': opening,
-                'income': income,
-                'expense': expense,
-                'expected_balance': expected,
-                'stored_balance': stored,
-                'difference': difference,
-                'is_balanced': difference == MONEY_ZERO,
+                'account': account, 'opening_balance': opening, 'income': income,
+                'expense': expense, 'expected_balance': expected, 'stored_balance': stored,
+                'difference': difference, 'is_balanced': difference == MONEY_ZERO,
             })
         return results
 
