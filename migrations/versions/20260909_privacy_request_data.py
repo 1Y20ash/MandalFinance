@@ -9,8 +9,20 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('privacy_requests', sa.Column('requested_data', sa.JSON(), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {column['name'] for column in inspector.get_columns('privacy_requests')}
+
+    # Keep the migration safe for databases where the model/schema already
+    # contains the column (for example, a prior development migration).
+    if 'requested_data' not in columns:
+        op.add_column('privacy_requests', sa.Column('requested_data', sa.JSON(), nullable=True))
 
 
 def downgrade():
-    op.drop_column('privacy_requests', 'requested_data')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {column['name'] for column in inspector.get_columns('privacy_requests')}
+
+    if 'requested_data' in columns:
+        op.drop_column('privacy_requests', 'requested_data')
