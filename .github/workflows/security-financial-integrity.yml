@@ -37,15 +37,12 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
       - name: Compile Python sources
-        run: python -m compileall -q app api app.py
+        run: python -m compileall -q app api server.py
       - name: Check migration heads
-        run: flask --app app.py db heads
+        run: flask --app server.py db heads
       - name: Apply migrations on clean PostgreSQL
         env:
-          # TestingConfig intentionally uses an in-memory SQLite database for
-          # the regression suite. Migration verification must exercise the
-          # PostgreSQL service configured above instead.
           FLASK_ENV: development
-        run: flask --app app.py db upgrade
+        run: flask --app server.py db upgrade
       - name: Run regression and security tests
         run: python -m pytest -q
