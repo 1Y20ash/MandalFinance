@@ -212,7 +212,7 @@ def test_webhook_rejects_order_identity_mismatch(app):
         )
         assert response.status_code == 400
         assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_identity').count() == 0
-        assert Donation.query.get(donation.id).status == 'PENDING'
+        assert db.session.get(Donation, donation.id).status == 'PENDING'
 
 
 def test_webhook_rejects_malformed_amount_without_500(app):
@@ -253,7 +253,7 @@ def test_webhook_ignores_failed_payment_without_marking_donation_failed(app):
                                    event='payment.failed')
         response = _post_mock_webhook(app.test_client(), payload, 'evt_phase13_failed')
         assert response.status_code == 200
-        assert Donation.query.get(donation.id).status == 'PENDING'
+        assert db.session.get(Donation, donation.id).status == 'PENDING'
         assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_failed').count() == 1
         assert PaymentWebhookEvent.query.filter_by(event_id='evt_phase13_failed', status='IGNORED').count() == 1
 
