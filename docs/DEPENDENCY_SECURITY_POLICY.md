@@ -29,7 +29,7 @@ The manifest uses minimum-version constraints rather than floating unbounded pac
 
 ## Mandatory CI audit
 
-Every push and pull request runs `pip-audit` against the dependency manifest after installation. The audit tool itself is pinned to an exact version in CI (`pip-audit==2.10.1`) so the security gate is reproducible.
+Every push and pull request first installs `requirements.txt` into a clean CI environment. CI then installs the exact audit tool version `pip-audit==2.10.1` and runs `pip-audit --local --strict` against that already-resolved environment. This avoids a second isolated dependency-resolution environment while auditing the exact package set that the application test suite will use.
 
 The audit must fail the workflow when a known vulnerability is reported. A vulnerability may only be accepted when the dependency is removed/replaced or a documented, reviewed exception exists; silently ignoring scanner output is prohibited.
 
@@ -48,7 +48,7 @@ The audit must fail the workflow when a known vulnerability is reported. A vulne
 
 ## Direct versus transitive dependencies
 
-The application manifest records direct dependencies. Framework dependencies such as Jinja2, Click, itsdangerous, MarkupSafe, SQLAlchemy, and Werkzeug may be installed transitively. `pip-audit` evaluates the resolved environment rather than relying only on the direct manifest, so transitive vulnerabilities are included in the gate.
+The application manifest records direct dependencies. Framework dependencies such as Jinja2, Click, itsdangerous, MarkupSafe, SQLAlchemy, and Werkzeug may be installed transitively. `pip-audit --local --strict` evaluates the complete resolved CI environment rather than relying only on the direct manifest, so transitive vulnerabilities are included in the gate.
 
 ## Unused dependency review
 
@@ -73,8 +73,8 @@ Review dependencies:
 ## Phase 29 acceptance criteria
 
 - `requirements.txt` is the declared dependency manifest.
-- CI installs from a clean environment.
-- CI runs pinned `pip-audit` against the manifest.
+- CI installs the manifest in a clean environment.
+- CI runs pinned `pip-audit==2.10.1` against that resolved environment.
 - A known vulnerability causes CI failure.
 - Dependency changes remain subject to regression/security tests.
 - The PDP matrix records the evidence and any remaining dependency-maintenance work.
