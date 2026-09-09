@@ -1,15 +1,20 @@
 import os
+from pathlib import Path
 from flask import Flask
 from app.config import config_by_name
 from app.extensions import db,migrate,login_manager,csrf,limiter
 from app.models.auth import User
 
 
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATE_DIR = BASE_DIR / 'templates'
+
+
 def create_app(config_name=None):
     if config_name is None: config_name=os.environ.get('FLASK_ENV','development')
     config_class=config_by_name.get(config_name,config_by_name['default'])
     if config_name=='production': config_class.validate()
-    app=Flask(__name__);app.config.from_object(config_class);app.config['APP_ENV']=config_name
+    app=Flask(__name__, template_folder=str(TEMPLATE_DIR));app.config.from_object(config_class);app.config['APP_ENV']=config_name
     db.init_app(app);migrate.init_app(app,db);login_manager.init_app(app);csrf.init_app(app);limiter.init_app(app)
     from app.services.financial_guard import install_financial_guard
     from app.services.rbac_guard import install_rbac_guard
