@@ -44,15 +44,21 @@ class DonationService:
         DonationService._validate_common(event_id,donor_name,payment_mode);decimal_amount=DonationService._normalize_amount(amount)
         if payment_mode in {'UPI','BANK_TRANSFER','CHEQUE'} and not transaction_ref:raise ValueError('Transaction reference is required for this payment mode.')
         if transaction_ref and Transaction.query.filter_by(external_ref=transaction_ref).first():raise ValueError('This external payment reference is already recorded.')
-        donation=Donation(donation_number=DonationService._generate_donation_number(),event_id=event_id,donor_name=donor_name.strip(),donor_phone=donor_phone or None,donor_email=donor_email or None,donor_address=donor_address or None,pan_number=pan_number or None,amount=decimal_amount,purpose=(purpose or 'General Donation').strip(),donation_type='OFFLINE',payment_mode=payment_mode,status='SUCCESS',transaction_ref=transaction_ref or None,receipt_number=DonationService._generate_receipt_number(),receipt_generated_at=datetime.utcnow(),notes=notes or None,created_by_id=created_by_id)
+
+        # Privacy minimisation: donor email, postal address and PAN are not required
+        # for the Mandal's core accounting workflow and are deliberately not persisted.
+        # Keep the legacy parameters temporarily for API compatibility with older callers.
+        del donor_email, donor_address, pan_number
+
+        donation=Donation(donation_number=DonationService._generate_donation_number(),event_id=event_id,donor_name=donor_name.strip(),donor_phone=donor_phone or None,donor_email=None,donor_address=None,pan_number=None,amount=decimal_amount,purpose=(purpose or 'General Donation').strip(),donation_type='OFFLINE',payment_mode=payment_mode,status='SUCCESS',transaction_ref=transaction_ref or None,receipt_number=DonationService._generate_receipt_number(),receipt_generated_at=datetime.utcnow(),notes=notes or None,created_by_id=created_by_id)
         try:
             db.session.add(donation);db.session.flush()
             evidence=FinancialControlsService.check_evidence('DONATION',donation.id,decimal_amount)
             if not evidence['complete']:
                 missing=sorted({c for failure in evidence['failures'] for c in failure['missing']})
                 raise ValueError('Required evidence is missing before donation posting: '+', '.join(missing))
-            LedgerService.record_income(account_id,decimal_amount,f"Donation {donation.donation_number} ({donation.receipt_number}) from {donation.donor_name}",'DONATION',donation.id,created_by_id,payment_mode=payment_mode,external_ref=transaction_ref,category_id=DonationService._donation_category_id(),event_id=event_id,commit=False)
-            AuditService.log_action('CREATE','DONATION',donation.id,f"Recorded offline donation {donation.donation_number} of ₹{decimal_amount} for {donation.donor_name}",commit=False)
+            LedgerService.record_income(account_id,decimal_amount,f"Donation {donation.donation_number} ({donation.receipt_number})",'DONATION',donation.id,created_by_id,payment_mode=payment_mode,external_ref=transaction_ref,category_id=DonationService._donation_category_id(),event_id=event_id,commit=False)
+            AuditService.log_action('CREATE','DONATION',donation.id,f"Recorded offline donation {donation.donation_number} of ₹{decimal_amount}",commit=False)
             db.session.commit();return donation
         except Exception:db.session.rollback();raise
 
@@ -70,6 +76,6 @@ class DonationService:
             if not evidence['complete']:
                 missing=sorted({c for failure in evidence['failures'] for c in failure['missing']})
                 raise ValueError('Required evidence is missing before donation confirmation: '+', '.join(missing))
-            LedgerService.record_income(account_id=account_id,amount=donation.amount,description=f"Online Donation {donation.donation_number} ({donation.receipt_number}) from {donation.donor_name}",source_module='DONATION',source_id=donation.id,created_by_id=donation.created_by_id,payment_mode='GATEWAY',external_ref=gateway_payment_id,category_id=DonationService._donation_category_id(),event_id=donation.event_id,commit=False)
+            LedgerService.record_income(account_id=account_id,amount=donation.amount,description=f"Online Donation {donation.donation_number} ({donation.receipt_number})",source_module='DONATION',source_id=donation.id,created_by_id=donation.created_by_id,payment_mode='GATEWAY',external_ref=gateway_payment_id,category_id=DonationService._donation_category_id(),event_id=donation.event_id,commit=False)
             AuditService.log_action('VERIFY','DONATION',donation.id,f"Confirmed online donation {donation.donation_number} of ₹{donation.amount}",commit=False);db.session.commit();return donation
         except Exception:db.session.rollback();raise
