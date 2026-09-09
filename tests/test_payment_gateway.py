@@ -124,9 +124,14 @@ def test_webhook_is_idempotent_and_does_not_double_post(app):
     with app.app_context():
         from app.models.mandal import Event
         event = Event.query.first()
-        account = Account.query.filter_by(name='Main Cash').first()
         actor = User.query.filter_by(username='admin').first()
-        app.config['ONLINE_DONATION_ACCOUNT_ID'] = account.id
+        online_account = Account(
+            name='Main UPI Phase12', account_type='upi',
+            opening_balance=Decimal('0.00'), current_balance=Decimal('0.00'), is_active=True,
+        )
+        db.session.add(online_account)
+        db.session.commit()
+        app.config['ONLINE_DONATION_ACCOUNT_ID'] = online_account.id
         donation = Donation(
             donation_number='DON-TEST-PHASE12-WEBHOOK', event_id=event.id,
             donor_name='Webhook Donor', amount=Decimal('501.00'),
