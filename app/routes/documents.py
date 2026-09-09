@@ -5,6 +5,7 @@ from app.services.document_service import DocumentService
 from app.utils.storage_driver import StorageDriver
 from app.utils.decorators import permission_required
 from app.services.audit_service import AuditService
+from app.extensions import limiter
 
 documents_bp = Blueprint('documents', __name__, url_prefix='/documents')
 
@@ -39,6 +40,7 @@ def list_documents():
 @documents_bp.route('/upload',methods=['GET','POST'])
 @login_required
 @permission_required('document.upload')
+@limiter.limit('20 per minute', methods=['POST'])
 def upload_document():
     if request.method=='POST':
         title=request.form.get('title','').strip();category=request.form.get('category','').strip();entity_type=request.form.get('entity_type','GENERAL').strip();entity_id=request.form.get('entity_id',type=int);description=request.form.get('description','').strip()
@@ -59,6 +61,7 @@ def view_document(doc_id): return render_template('documents/view.html',doc=Docu
 @documents_bp.route('/<int:doc_id>/download')
 @login_required
 @permission_required('document.download')
+@limiter.limit('30 per minute')
 def download_document(doc_id):
     doc=Document.query.get_or_404(doc_id)
     try:file_bytes=StorageDriver.get_file(doc.storage_provider,doc.storage_path)
@@ -70,6 +73,7 @@ def download_document(doc_id):
 @documents_bp.route('/<int:doc_id>/replace',methods=['POST'])
 @login_required
 @permission_required('document.replace')
+@limiter.limit('20 per minute', methods=['POST'])
 def replace_document(doc_id):
     reason=request.form.get('replacement_reason','').strip()
     try:
@@ -83,6 +87,7 @@ def replace_document(doc_id):
 @documents_bp.route('/<int:doc_id>/verify')
 @login_required
 @permission_required('document.verify')
+@limiter.limit('30 per minute')
 def verify_document(doc_id):
     try:
         ok,recorded,computed=DocumentService.verify_document_integrity(doc_id)
@@ -93,6 +98,7 @@ def verify_document(doc_id):
 @documents_bp.route('/evidence-pack/<entity_type>/<int:entity_id>')
 @login_required
 @permission_required('evidence_pack.create')
+@limiter.limit('5 per minute')
 def generate_evidence_pack(entity_type,entity_id):
     try:
         pack,zip_bytes=DocumentService.generate_evidence_pack(entity_type,entity_id,current_user);response=make_response(zip_bytes);response.headers['Content-Type']='application/zip';response.headers['Content-Disposition']=f'attachment; filename="EvidencePack_{pack.pack_ref}.zip"';return response
