@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Data Retention - Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Data Retention</h3>
+        <p class="text-muted mb-0">Review and maintain approved retention schedules. Expiry does not automatically delete data.</p>
+    </div>
+    <span class="badge rounded-pill text-bg-light border px-3 py-2">Admin only</span>
+</div>
+
+<div class="alert alert-info border-0 shadow-sm">
+    <i class="fa-solid fa-shield-halved me-2"></i>
+    Retention is enforced as a controlled review policy. Destructive deletion is handled separately so financial evidence is not silently removed.
+</div>
+
+<div class="row g-3">
+{% for policy in policies %}
+    <div class="col-12 col-xl-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <div class="text-muted small">DATA CATEGORY</div>
+                        <h5 class="fw-bold mb-1">{{ policy.data_category.replace('_', ' ') }}</h5>
+                        <div class="small text-muted">{{ policy.retention_basis }}</div>
+                    </div>
+                    <span class="badge rounded-pill {% if policy.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                        {{ 'Active' if policy.is_active else 'Inactive' }}
+                    </span>
+                </div>
+
+                <form method="post" action="{{ url_for('admin.update_retention_policy', policy_id=policy.id) }}">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-sm-7">
+                            <label class="form-label small fw-semibold" for="days-{{ policy.id }}">Retention period (days)</label>
+                            <input id="days-{{ policy.id }}" name="retention_days" type="number" min="1" max="36500" required
+                                   class="form-control" value="{{ policy.retention_days }}">
+                        </div>
+                        <div class="col-sm-5">
+                            <label class="form-label small fw-semibold" for="action-{{ policy.id }}">Disposal action</label>
+                            <select id="action-{{ policy.id }}" name="disposal_action" class="form-select">
+                                <option value="REVIEW" {% if policy.disposal_action == 'REVIEW' %}selected{% endif %}>Review</option>
+                                <option value="ARCHIVE" {% if policy.disposal_action == 'ARCHIVE' %}selected{% endif %}>Archive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <span class="small text-muted">Last updated {{ policy.updated_at.strftime('%Y-%m-%d') }}</span>
+                        <button type="submit" class="btn btn-primary btn-sm px-3">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>Save policy
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="col-12"><div class="card border-0 shadow-sm"><div class="card-body text-center py-5 text-muted">No retention policies configured.</div></div></div>
+{% endfor %}
+</div>
+{% endblock %}
