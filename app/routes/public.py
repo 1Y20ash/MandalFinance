@@ -91,9 +91,9 @@ def public_donate():
                 order_info=order_info,
                 active_event=active_event,
             )
-        except Exception as exc:
+        except Exception:
             db.session.rollback()
-            flash(f'Donation setup failed: {exc}', 'danger')
+            flash('Donation setup could not be completed. Please verify the details and try again.', 'danger')
 
     return render_template('public/donate.html', active_event=active_event)
 
@@ -135,8 +135,9 @@ def confirm_online_payment():
             signature,
             account.id,
         )
-    except Exception as exc:
-        flash(f'Payment could not be recorded: {exc}', 'danger')
+    except Exception:
+        db.session.rollback()
+        flash('Payment could not be recorded. Please try again or contact the Mandal administrator.', 'danger')
         return redirect(url_for('public.public_donate'))
 
     flash(f'Thank you! Your donation was successful. Receipt No: {donation.receipt_number}', 'success')
