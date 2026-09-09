@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
 from flask_login import login_required, current_user
-from flask_limiter import Limiter
 from app.models.income import Donation
 from app.models.ledger import Account
 from app.models.mandal import Event
