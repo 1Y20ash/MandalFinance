@@ -8,6 +8,7 @@ from app.models.ledger import Account, TransactionCategory
 from app.models.mandal import Event
 from app.services.income_service import IncomeService
 from app.utils.decorators import permission_required
+from app.extensions import limiter
 
 income_bp = Blueprint('income', __name__, url_prefix='/income')
 
@@ -39,6 +40,7 @@ def list_income():
 @income_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 @permission_required('income.create')
+@limiter.limit('20 per minute', methods=['POST'])
 def create_income():
     if request.method == 'POST':
         event_id = request.form.get('event_id', type=int)
