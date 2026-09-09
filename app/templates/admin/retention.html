@@ -12,7 +12,7 @@
 
 <div class="alert alert-info border-0 shadow-sm">
     <i class="fa-solid fa-shield-halved me-2"></i>
-    <strong>Delete</strong> is a governed disposal action only. It does not authorize deletion of legally required financial evidence, payment records, audit history, or retained documents.
+    <strong>Delete</strong> is currently enabled only for the controlled user-account erasure workflow. Financial evidence, payment records, audit history, and retained documents are not eligible for deletion through this control.
 </div>
 
 <div class="row g-3">
@@ -43,7 +43,9 @@
                             <select id="action-{{ policy.id }}" name="disposal_action" class="form-select">
                                 <option value="REVIEW" {% if policy.disposal_action == 'REVIEW' %}selected{% endif %}>Review</option>
                                 <option value="ARCHIVE" {% if policy.disposal_action == 'ARCHIVE' %}selected{% endif %}>Archive</option>
+                                {% if policy.data_category == 'USER_ACCOUNTS' %}
                                 <option value="DELETE" {% if policy.disposal_action == 'DELETE' %}selected{% endif %}>Delete (governed)</option>
+                                {% endif %}
                             </select>
                         </div>
                     </div>
