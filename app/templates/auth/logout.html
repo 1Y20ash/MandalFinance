@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Signing out…</title>
+</head>
+<body>
+    <form id="logout-form" method="post" action="{{ action }}">
+        <input type="hidden" name="csrf_token" value="{{ token }}">
+    </form>
+    <script>document.getElementById('logout-form').submit();</script>
+    <noscript>
+        <p>JavaScript is disabled. Submit the form to sign out.</p>
+        <button form="logout-form" type="submit">Sign out</button>
+    </noscript>
+</body>
+</html>
