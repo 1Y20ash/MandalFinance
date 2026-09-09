@@ -32,7 +32,7 @@ def test_dependency_security_policy_and_ci_audit_are_present():
     assert "pip-audit" in policy_text
     assert "pip-audit==2.10.1" in policy_text
     assert "pip-audit==2.10.1" in workflow_text
-    assert "pip-audit -r requirements.txt" in workflow_text
+    assert "pip-audit --local --strict" in workflow_text
 
 
 def test_dependency_policy_requires_failure_on_known_vulnerabilities():
