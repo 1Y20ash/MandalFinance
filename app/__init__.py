@@ -30,12 +30,22 @@ def create_app(config_name=None):
 
     from app.services.financial_guard import install_financial_guard
     from app.services.rbac_guard import install_rbac_guard
+    from app.services.retention_service import RetentionService
     install_financial_guard()
     install_rbac_guard(app)
 
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.get(User, int(user_id))
+
+    @app.cli.command('purge-audit-logs')
+    def purge_audit_logs():
+        """Apply the configured audit-log retention policy."""
+        result = RetentionService.purge_audit_logs(
+            financial_days=app.config['AUDIT_FINANCIAL_RETENTION_DAYS'],
+            security_days=app.config['AUDIT_SECURITY_RETENTION_DAYS'],
+        )
+        print(f"Purged {result['total_deleted']} audit records ({result['financial_deleted']} financial, {result['security_deleted']} security).")
 
     @app.after_request
     def security_headers(response):
