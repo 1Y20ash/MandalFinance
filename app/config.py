@@ -20,6 +20,7 @@ class Config:
     SUPABASE_STORAGE_PRIVATE = os.environ.get('SUPABASE_STORAGE_PRIVATE', 'true').lower() == 'true'
     PAYMENT_GATEWAY_DRIVER = os.environ.get('PAYMENT_GATEWAY_DRIVER', 'mock').strip().lower()
     ONLINE_DONATION_ACCOUNT_ID = os.environ.get('ONLINE_DONATION_ACCOUNT_ID', '')
+    ONLINE_DONATION_ACTOR_ID = os.environ.get('ONLINE_DONATION_ACTOR_ID', '')
     RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
     RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
     RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
@@ -50,6 +51,8 @@ class ProductionConfig(Config):
             'DATABASE_URL',
             'SUPABASE_URL',
             'SUPABASE_SERVICE_ROLE_KEY',
+            'ONLINE_DONATION_ACCOUNT_ID',
+            'ONLINE_DONATION_ACTOR_ID',
         ]
         if cls.PAYMENT_GATEWAY_DRIVER == 'razorpay':
             required += [
