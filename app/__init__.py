@@ -6,6 +6,7 @@ from app.config import config_by_name
 from app.extensions import db, migrate, login_manager, csrf, limiter
 from app.models.auth import User
 from app.logging_config import configure_logging, install_request_logging
+from app.template_assets import verify_template_assets
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -39,6 +40,11 @@ def create_app(config_name=None):
     config_class = config_by_name.get(config_name, config_by_name['default'])
     if config_name == 'production':
         config_class.validate()
+
+    # Keep every tracked Jinja template reachable to Vercel's Python dependency
+    # tracer. The files themselves remain the only template source.
+    verify_template_assets()
+
     app = Flask(__name__, template_folder=str(_template_directory()))
     app.config.from_object(config_class)
     app.config['APP_ENV'] = config_name
