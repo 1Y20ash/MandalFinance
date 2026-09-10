@@ -10,13 +10,10 @@ from app.logging_config import configure_logging, install_request_logging
 
 BASE_DIR = Path(__file__).resolve().parent
 PACKAGE_TEMPLATE_DIR = BASE_DIR / 'templates'
-DEPLOYMENT_TEMPLATE_DIR = BASE_DIR.parent / 'templates'
 
 
 def _template_directory():
-    """Prefer the root template tree generated for Vercel, with local fallback."""
-    if DEPLOYMENT_TEMPLATE_DIR.is_dir():
-        return DEPLOYMENT_TEMPLATE_DIR
+    """Use the tracked application template tree as the single template source."""
     return PACKAGE_TEMPLATE_DIR
 
 
