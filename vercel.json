@@ -3,7 +3,7 @@
   "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ]; then FLASK_ENV=production python -m flask db upgrade; fi",
   "functions": {
     "server.py": {
-      "includeFiles": "app/templates/**"
+      "includeFiles": "app/templates/**/*"
     }
   }
 }
