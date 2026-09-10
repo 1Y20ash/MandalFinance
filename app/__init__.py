@@ -1,11 +1,13 @@
 import os
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request
+from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
 from werkzeug.exceptions import HTTPException, TooManyRequests
 from app.config import config_by_name
 from app.extensions import db, migrate, login_manager, csrf, limiter
 from app.models.auth import User
 from app.logging_config import configure_logging, install_request_logging
+from app.template_fallbacks import TEMPLATE_FALLBACKS
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -13,7 +15,7 @@ PACKAGE_TEMPLATE_DIR = BASE_DIR / 'templates'
 
 
 def _template_directory():
-    """Use the tracked application template tree as the single template source."""
+    """Use the tracked application template tree as the primary template source."""
     return PACKAGE_TEMPLATE_DIR
 
 
@@ -42,6 +44,15 @@ def create_app(config_name=None):
     app = Flask(__name__, template_folder=str(_template_directory()))
     app.config.from_object(config_class)
     app.config['APP_ENV'] = config_name
+
+    # Flask keeps the tracked app/templates tree as the source of truth. The
+    # DictLoader is a deterministic fallback only for files Vercel's Python
+    # bundler omits because Jinja selects them dynamically at runtime.
+    app.jinja_loader = ChoiceLoader([
+        FileSystemLoader(str(PACKAGE_TEMPLATE_DIR)),
+        DictLoader(TEMPLATE_FALLBACKS),
+    ])
+
     configure_logging(app)
     db.init_app(app)
     migrate.init_app(app, db)
