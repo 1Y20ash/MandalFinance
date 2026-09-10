@@ -124,6 +124,27 @@ def create_app(config_name=None):
             response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
         return response
 
+    # Temporary deployment probe used only to identify why Vercel's function
+    # bundle cannot see the tracked Jinja template tree. Remove after diagnosis.
+    @app.get('/__template_probe')
+    def _template_probe():
+        targets = [
+            BASE_DIR / 'templates',
+            Path.cwd() / 'app' / 'templates',
+            Path('/var/task/app/templates'),
+            Path('/var/task/templates'),
+        ]
+        return jsonify({
+            'root_path': app.root_path,
+            'template_folder': app.template_folder,
+            'loader_searchpath': getattr(app.jinja_loader, 'searchpath', None),
+            'targets': {str(path): path.exists() for path in targets},
+            'transparency': {
+                str(path / 'public' / 'transparency.html'): (path / 'public' / 'transparency.html').exists()
+                for path in targets
+            },
+        })
+
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
