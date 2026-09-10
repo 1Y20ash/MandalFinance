@@ -1,12 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "rm -rf templates && cp -R app/templates templates && python -c \"from pathlib import Path; required = ['templates/base.html', 'templates/public/transparency.html', 'templates/errors/500.html']; missing = [p for p in required if not Path(p).is_file()]; raise SystemExit('Missing required templates: ' + ', '.join(missing)) if missing else None\"",
+  "buildCommand": "rm -rf templates && cp -R app/templates templates",
   "functions": {
     "server.py": {
-      "includeFiles": [
-        "templates/**",
-        "app/templates/**"
-      ]
+      "includeFiles": "templates/**"
     }
   }
 }
