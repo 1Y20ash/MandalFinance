@@ -6,7 +6,6 @@ from app.config import config_by_name
 from app.extensions import db, migrate, login_manager, csrf, limiter
 from app.models.auth import User
 from app.logging_config import configure_logging, install_request_logging
-from app.template_assets import verify_public_template_assets
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -40,9 +39,6 @@ def create_app(config_name=None):
     config_class = config_by_name.get(config_name, config_by_name['default'])
     if config_name == 'production':
         config_class.validate()
-    # These three public templates are dynamically selected by Flask and are
-    # otherwise invisible to Vercel's Python dependency tracer.
-    verify_public_template_assets()
     app = Flask(__name__, template_folder=str(_template_directory()))
     app.config.from_object(config_class)
     app.config['APP_ENV'] = config_name
@@ -127,27 +123,6 @@ def create_app(config_name=None):
         if config_name == 'production':
             response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
         return response
-
-    # Temporary deployment probe used only to verify the final bundle. Remove
-    # immediately after production template loading is confirmed.
-    @app.get('/__template_probe')
-    def _template_probe():
-        targets = [
-            BASE_DIR / 'templates',
-            Path.cwd() / 'app' / 'templates',
-            Path('/var/task/app/templates'),
-            Path('/var/task/templates'),
-        ]
-        return jsonify({
-            'root_path': app.root_path,
-            'template_folder': app.template_folder,
-            'loader_searchpath': getattr(app.jinja_loader, 'searchpath', None),
-            'targets': {str(path): path.exists() for path in targets},
-            'transparency': {
-                str(path / 'public' / 'transparency.html'): (path / 'public' / 'transparency.html').exists()
-                for path in targets
-            },
-        })
 
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
