@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "rm -rf templates && cp -R app/templates templates && if [ \"$VERCEL_ENV\" = \"production\" ]; then FLASK_ENV=production python -m flask db upgrade; fi",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ]; then FLASK_ENV=production python -m flask db upgrade; fi",
   "functions": {
     "server.py": {
-      "includeFiles": "{app/templates/**,templates/**}"
+      "includeFiles": ["app/templates/**"]
     }
   }
 }
