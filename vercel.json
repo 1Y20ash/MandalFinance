@@ -2,10 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ]; then FLASK_ENV=production python -m flask db upgrade; fi",
   "functions": {
-    "server.py": {
-      "includeFiles": "app/templates/**/*.html"
-    },
-    "app/server.py": {
+    "**/*.py": {
       "includeFiles": "app/templates/**/*.html"
     }
   }
