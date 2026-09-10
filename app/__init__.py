@@ -10,6 +10,14 @@ from app.logging_config import configure_logging, install_request_logging
 
 BASE_DIR = Path(__file__).resolve().parent
 PACKAGE_TEMPLATE_DIR = BASE_DIR / 'templates'
+DEPLOYMENT_TEMPLATE_DIR = BASE_DIR.parent / 'templates'
+
+
+def _template_directory():
+    """Prefer the root template tree generated for Vercel, with local fallback."""
+    if DEPLOYMENT_TEMPLATE_DIR.is_dir():
+        return DEPLOYMENT_TEMPLATE_DIR
+    return PACKAGE_TEMPLATE_DIR
 
 
 def _wants_json_response():
@@ -34,7 +42,7 @@ def create_app(config_name=None):
     config_class = config_by_name.get(config_name, config_by_name['default'])
     if config_name == 'production':
         config_class.validate()
-    app = Flask(__name__, template_folder=str(PACKAGE_TEMPLATE_DIR))
+    app = Flask(__name__, template_folder=str(_template_directory()))
     app.config.from_object(config_class)
     app.config['APP_ENV'] = config_name
     configure_logging(app)
