@@ -1,11 +1,24 @@
 import hashlib
 import hmac
+import logging
 import uuid
 from abc import ABC, abstractmethod
 from decimal import Decimal, ROUND_HALF_UP
 
 import requests
 from flask import current_app
+
+
+logger = logging.getLogger(__name__)
+
+
+class PaymentGatewayError(RuntimeError):
+    """Safe, user-facing payment gateway failure with no secret leakage."""
+
+    def __init__(self, message, *, code='gateway_error', http_status=None):
+        super().__init__(message)
+        self.code = code
+        self.http_status = http_status
 
 
 class PaymentGatewayInterface(ABC):
@@ -51,41 +64,111 @@ class RazorpayGateway(PaymentGatewayInterface):
         key_id = current_app.config.get('RAZORPAY_KEY_ID', '').strip()
         key_secret = current_app.config.get('RAZORPAY_KEY_SECRET', '').strip()
         if not key_id or not key_secret:
-            raise RuntimeError('Razorpay credentials are not configured.')
+            raise PaymentGatewayError(
+                'The payment gateway is not configured correctly. Please contact the Mandal administrator.',
+                code='configuration_missing',
+            )
         return key_id, key_secret
 
     def _key_secret(self):
         key_secret = current_app.config.get('RAZORPAY_KEY_SECRET', '').strip()
         if not key_secret:
-            raise RuntimeError('Razorpay key secret is not configured.')
+            raise PaymentGatewayError(
+                'The payment gateway is not configured correctly. Please contact the Mandal administrator.',
+                code='configuration_missing',
+            )
         return key_secret
+
+    @staticmethod
+    def _error_details(response):
+        """Extract only non-secret Razorpay error metadata for server logs."""
+        try:
+            payload = response.json() or {}
+        except ValueError:
+            payload = {}
+        error = payload.get('error') or {}
+        return str(error.get('code') or 'unknown'), str(error.get('description') or '')[:300]
 
     def create_order(self, amount_decimal, donation_id, donor_name):
         key_id, key_secret = self._credentials()
         amount = Decimal(str(amount_decimal)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         if amount <= 0:
-            raise ValueError('Payment amount must be greater than zero.')
+            raise PaymentGatewayError('Payment amount must be greater than zero.', code='invalid_amount')
 
-        response = requests.post(
-            'https://api.razorpay.com/v1/orders',
-            auth=(key_id, key_secret),
-            json={
-                'amount': int(amount * 100),
-                'currency': 'INR',
-                'receipt': f'don_{donation_id}',
-                'notes': {'donor_name': donor_name[:120]},
-            },
-            timeout=10,
-        )
+        try:
+            response = requests.post(
+                'https://api.razorpay.com/v1/orders',
+                auth=(key_id, key_secret),
+                json={
+                    'amount': int(amount * 100),
+                    'currency': 'INR',
+                    'receipt': f'don_{donation_id}',
+                    'notes': {'donor_name': donor_name[:120]},
+                },
+                timeout=10,
+            )
+        except requests.RequestException:
+            logger.exception('Razorpay order request failed before a response was received')
+            raise PaymentGatewayError(
+                'The payment gateway could not be reached. Please try again in a moment.',
+                code='gateway_unreachable',
+            ) from None
+
         if response.status_code not in (200, 201):
-            raise RuntimeError(f'Razorpay order creation failed ({response.status_code}).')
+            error_code, error_description = RazorpayGateway._error_details(response)
+            logger.error(
+                'Razorpay order creation rejected: status=%s code=%s description=%s',
+                response.status_code,
+                error_code,
+                error_description or '<none>',
+            )
+            if response.status_code in (401, 403):
+                message = 'The payment gateway credentials were rejected. Please contact the Mandal administrator.'
+                code = 'credentials_rejected'
+            elif response.status_code == 429:
+                message = 'The payment gateway is temporarily busy. Please try again shortly.'
+                code = 'gateway_rate_limited'
+            elif 500 <= response.status_code <= 599:
+                message = 'The payment gateway is temporarily unavailable. Please try again shortly.'
+                code = 'gateway_unavailable'
+            else:
+                message = 'The payment gateway rejected this donation request. Please verify the amount and try again.'
+                code = error_code or 'gateway_rejected'
+            raise PaymentGatewayError(message, code=code, http_status=response.status_code)
 
-        data = response.json()
+        try:
+            data = response.json()
+            order_id = data['id']
+            response_amount = int(data['amount'])
+            response_currency = data['currency']
+            response_status = data['status']
+        except (ValueError, KeyError, TypeError):
+            logger.exception('Razorpay returned an invalid order response')
+            raise PaymentGatewayError(
+                'The payment gateway returned an invalid response. Please try again.',
+                code='invalid_gateway_response',
+            ) from None
+
+        expected_paise = int(amount * 100)
+        if response_amount != expected_paise or response_currency != 'INR' or response_status != 'created':
+            logger.error(
+                'Razorpay order response failed validation: order=%s amount=%s currency=%s status=%s expected_amount=%s',
+                order_id,
+                response_amount,
+                response_currency,
+                response_status,
+                expected_paise,
+            )
+            raise PaymentGatewayError(
+                'The payment gateway returned an unexpected order response. Please try again.',
+                code='invalid_gateway_response',
+            )
+
         return {
-            'order_id': data['id'],
-            'amount_in_paise': data['amount'],
-            'currency': data['currency'],
-            'status': data['status'],
+            'order_id': order_id,
+            'amount_in_paise': response_amount,
+            'currency': response_currency,
+            'status': response_status,
             'key_id': key_id,
         }
 
@@ -111,4 +194,7 @@ def get_payment_gateway():
         return RazorpayGateway()
     if driver == 'mock':
         return MockPaymentGateway()
-    raise RuntimeError(f'Unsupported payment gateway driver: {driver}')
+    raise PaymentGatewayError(
+        'The payment gateway is not configured correctly. Please contact the Mandal administrator.',
+        code='unsupported_driver',
+    )
