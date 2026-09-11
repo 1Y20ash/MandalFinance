@@ -22,11 +22,17 @@ def test_deployment_architecture_policy_exists_and_has_required_boundaries():
         assert item in text
 
 
-def test_vercel_configuration_uses_canonical_production_entrypoint():
-    text = (ROOT / 'vercel.json').read_text(encoding='utf-8')
-    assert '"server.py"' in text
-    assert '"functions"' in text
-    assert 'templates/**' in text
+def test_vercel_configuration_uses_current_canonical_production_entrypoint():
+    vercel_text = (ROOT / 'vercel.json').read_text(encoding='utf-8')
+    pyproject_text = (ROOT / 'pyproject.toml').read_text(encoding='utf-8')
+
+    # The canonical Vercel entrypoint is explicitly declared in pyproject.toml.
+    # server.py remains the repository's production application entrypoint and
+    # is intentionally retained as the documented hosting boundary.
+    assert 'entrypoint = "app.server:app"' in pyproject_text
+    assert '"functions"' in vercel_text
+    assert '"includeFiles"' in vercel_text
+    assert 'app/templates/public/*.html' in vercel_text
 
 
 def _set_valid_production_environment(monkeypatch):
