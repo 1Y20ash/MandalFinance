@@ -32,7 +32,9 @@ def test_vercel_configuration_uses_current_canonical_production_entrypoint():
     assert 'entrypoint = "app.server:app"' in pyproject_text
     assert '"functions"' in vercel_text
     assert '"includeFiles"' in vercel_text
-    assert 'app/templates/public/*.html' in vercel_text
+    # Vercel must bundle the complete Jinja template tree, not only public/*.html,
+    # because public templates inherit from the shared base template.
+    assert 'app/templates/**/*.html' in vercel_text
 
 
 def _set_valid_production_environment(monkeypatch):
