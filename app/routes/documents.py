@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app
 from flask_login import login_required, current_user
 from app.models.document import Document
 from app.services.document_service import DocumentService
@@ -16,12 +16,12 @@ def _validated_upload(file):
     if not file or not file.filename:
         raise ValueError('Please select a valid file to upload.')
     content = file.read()
-    max_size = 10 * 1024 * 1024
+    max_size = current_app.config.get('MAX_DOCUMENT_SIZE', 10 * 1024 * 1024)
     if len(content) > max_size:
-        raise ValueError('Document exceeds the 10 MB financial evidence limit.')
+        raise ValueError(f'Document exceeds the {max_size // (1024 * 1024)} MB financial evidence limit.')
     mime = (file.mimetype or 'application/octet-stream').lower().split(';')[0].strip()
     if mime not in ALLOWED_MIME:
-        raise ValueError(f'Unsupported document type: {mime}.')
+        raise ValueError(f'Unsupported document type: {mime}. Please use PDF, JPG, JPEG, PNG, GIF, or a supported office/text file.')
     filename, mime = StorageDriver.validate_document(content, file.filename, mime)
     return content, filename, mime
 
@@ -45,13 +45,19 @@ def upload_document():
     if request.method=='POST':
         title=request.form.get('title','').strip();category=request.form.get('category','').strip();entity_type=request.form.get('entity_type','GENERAL').strip();entity_id=request.form.get('entity_id',type=int);description=request.form.get('description','').strip()
         try:
+            if not title or not category:
+                raise ValueError('Document title and category are required.')
             content,filename,mime=_validated_upload(request.files.get('file'))
-            if not title or not category: raise ValueError('Document title and category are required.')
             doc=DocumentService.upload_document(content,filename,mime,category,title,entity_type,current_user,entity_id,description)
             flash(f'Document "{doc.title}" uploaded successfully with SHA-256 verification.','success')
             return redirect(url_for('documents.view_document',doc_id=doc.id))
-        except Exception:
-            flash('Upload failed. Please verify the document and required details, then try again.','danger')
+        except ValueError as exc:
+            current_app.logger.info('Document upload validation failed: %s', exc)
+            flash(str(exc),'danger')
+        except Exception as exc:
+            current_app.logger.exception('Document upload failed for user_id=%s filename=%r', current_user.id, request.files.get('file').filename if request.files.get('file') else None)
+            # Never expose storage credentials, URLs, or provider response bodies to the user.
+            flash('Upload failed due to a secure storage or server error. Please try again.','danger')
     return render_template('documents/upload.html',entity_type=request.args.get('entity_type','GENERAL'),entity_id=request.args.get('entity_id',type=int))
 
 @documents_bp.route('/<int:doc_id>')
