@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = '20260911_online_gateway'
-down_revision = '20260909_audit_immutability'
+down_revision = '20260911_mandal_bootstrap'
 branch_labels = None
 depends_on = None
 
@@ -65,4 +65,4 @@ def downgrade():
     columns = {column['name'] for column in sa.inspect(bind).get_columns('donations')}
     for name in ('gateway_signature', 'gateway_payment_id', 'gateway_order_id'):
         if name in columns:
-            op.drop_column('donations', name)
+            op.drop_column(name, table_name='donations')
