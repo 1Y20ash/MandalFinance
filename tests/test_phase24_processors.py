@@ -46,9 +46,9 @@ def test_vercel_deployment_is_documented_as_hosting_processor():
     # Vercel's canonical application entrypoint is app.server:app in pyproject.toml.
     # server.py remains the documented application boundary, so this test verifies
     # the actual deployment configuration rather than requiring an obsolete string
-    # in vercel.json.
+    # in vercel.json. The recursive include bundles the complete Jinja template tree.
     pyproject = Path('pyproject.toml').read_text(encoding='utf-8')
     assert 'entrypoint = "app.server:app"' in pyproject
     assert 'includeFiles' in vercel_config
-    assert 'app/templates/public/*.html' in vercel_config
+    assert 'app/templates/**/*.html' in vercel_config
     assert '**Vercel**' in register
