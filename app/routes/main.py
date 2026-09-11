@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, url_for, jsonify, send_from_directory, current_app
+from flask import Blueprint, redirect, url_for, jsonify, send_from_directory, current_app, render_template
 from flask_login import current_user
 from app.extensions import db
 import os
@@ -10,6 +10,10 @@ def index():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
     return redirect(url_for('public.transparency'))
+
+@main_bp.route('/privacy')
+def privacy_notice():
+    return render_template('public/privacy.html')
 
 @main_bp.route('/sw.js')
 def service_worker():
