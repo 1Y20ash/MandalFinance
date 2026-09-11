@@ -35,10 +35,12 @@ def test_deployment_architecture_and_vercel_target_are_canonical():
 
     # server.py remains the documented application boundary, while Vercel
     # resolves the Flask application through the canonical module entrypoint.
+    # Vercel must bundle the complete Jinja template tree because public
+    # templates inherit from the shared base template.
     assert "server.py" in architecture
     assert 'entrypoint = "app.server:app"' in pyproject
     assert "includeFiles" in vercel
-    assert "app/templates/public/*.html" in vercel
+    assert "app/templates/**/*.html" in vercel
 
 
 def test_deployment_policy_does_not_claim_live_success():
