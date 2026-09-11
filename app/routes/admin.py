@@ -1,9 +1,11 @@
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from app.models.auth import User, Role, Permission
 from app.models.audit import AuditLog
+from app.models.mandal import Mandal, FinancialYear, Event
 from app.extensions import db, limiter
 from app.utils.decorators import admin_required
 from app.services.audit_service import AuditService
@@ -245,6 +247,207 @@ def delete_role(role_id):
     db.session.commit()
     flash(f'Role "{role_name}" deleted successfully.', 'success')
     return redirect(url_for('admin.list_roles'))
+
+
+@admin_bp.route('/financial-events')
+@login_required
+@admin_required
+@limiter.limit('60 per minute')
+def financial_events():
+    events = Event.query.order_by(Event.year.desc(), Event.start_date.desc(), Event.id.desc()).all()
+    financial_years = FinancialYear.query.order_by(FinancialYear.start_date.desc(), FinancialYear.id.desc()).all()
+    mandals = Mandal.query.order_by(Mandal.name.asc()).all()
+    active_event = Event.query.filter_by(is_active=True).order_by(Event.id.asc()).first()
+    return render_template(
+        'admin/financial_events.html',
+        events=events,
+        financial_years=financial_years,
+        mandals=mandals,
+        active_event=active_event,
+    )
+
+
+@admin_bp.route('/financial-years/create', methods=['POST'])
+@login_required
+@admin_required
+@limiter.limit('20 per minute', methods=['POST'])
+def create_financial_year():
+    name = request.form.get('name', '').strip()
+    start_raw = request.form.get('start_date', '').strip()
+    end_raw = request.form.get('end_date', '').strip()
+    opening_raw = request.form.get('opening_balance', '0').strip()
+    notes = request.form.get('notes', '').strip() or None
+
+    try:
+        start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+        opening_balance = Decimal(opening_raw).quantize(Decimal('0.01'))
+        if not name:
+            raise ValueError('Financial year name is required.')
+        if start_date > end_date:
+            raise ValueError('Financial year start date cannot be after the end date.')
+        if opening_balance < 0:
+            raise ValueError('Opening balance cannot be negative.')
+        if FinancialYear.query.filter_by(name=name).first():
+            raise ValueError(f'Financial year "{name}" already exists.')
+
+        fy = FinancialYear(
+            name=name,
+            start_date=start_date,
+            end_date=end_date,
+            is_active=True,
+            is_locked=False,
+            opening_balance=opening_balance,
+            notes=notes,
+        )
+        db.session.add(fy)
+        db.session.flush()
+        AuditService.log_action(
+            'CREATE', 'FINANCIAL_YEAR', fy.id,
+            f'Administrator {current_user.username} created financial year {fy.name}.',
+            commit=False,
+        )
+        db.session.commit()
+        flash(f'Financial year "{fy.name}" created.', 'success')
+    except (ValueError, InvalidOperation, TypeError) as exc:
+        db.session.rollback()
+        flash(str(exc), 'danger')
+
+    return redirect(url_for('admin.financial_events'))
+
+
+@admin_bp.route('/financial-events/create', methods=['POST'])
+@login_required
+@admin_required
+@limiter.limit('20 per minute', methods=['POST'])
+def create_financial_event():
+    title = request.form.get('title', '').strip()
+    year = request.form.get('year', type=int)
+    mandal_id = request.form.get('mandal_id', type=int)
+    financial_year_id = request.form.get('financial_year_id', type=int)
+    start_raw = request.form.get('start_date', '').strip()
+    end_raw = request.form.get('end_date', '').strip()
+    budget_raw = request.form.get('budget_target', '0').strip()
+
+    try:
+        if not title:
+            raise ValueError('Event title is required.')
+        if not year or year < 2000 or year > 2100:
+            raise ValueError('Event year must be between 2000 and 2100.')
+        mandal = db.session.get(Mandal, mandal_id) if mandal_id else None
+        fy = db.session.get(FinancialYear, financial_year_id) if financial_year_id else None
+        if not mandal:
+            raise ValueError('Select a valid mandal.')
+        if not fy:
+            raise ValueError('Select a valid financial year.')
+        if fy.is_locked:
+            raise ValueError('A locked financial year cannot receive a new event.')
+        start_date = datetime.strptime(start_raw, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_raw, '%Y-%m-%d').date()
+        if start_date > end_date:
+            raise ValueError('Event start date cannot be after the end date.')
+        if start_date < fy.start_date or end_date > fy.end_date:
+            raise ValueError('Event dates must fall within the selected financial year.')
+        budget_target = Decimal(budget_raw).quantize(Decimal('0.01'))
+        if budget_target < 0:
+            raise ValueError('Budget target cannot be negative.')
+
+        event = Event(
+            mandal_id=mandal.id,
+            financial_year_id=fy.id,
+            title=title,
+            year=year,
+            start_date=start_date,
+            end_date=end_date,
+            is_active=False,
+            status='OPEN',
+            budget_target=budget_target,
+        )
+        db.session.add(event)
+        db.session.flush()
+        AuditService.log_action(
+            'CREATE', 'EVENT', event.id,
+            f'Administrator {current_user.username} created event {event.title} in OPEN/inactive state.',
+            commit=False,
+        )
+        db.session.commit()
+        flash(f'Event "{event.title}" created. Activate it when it is operationally ready.', 'success')
+    except (ValueError, InvalidOperation, TypeError) as exc:
+        db.session.rollback()
+        flash(str(exc), 'danger')
+
+    return redirect(url_for('admin.financial_events'))
+
+
+@admin_bp.route('/financial-events/<int:event_id>/activate', methods=['POST'])
+@login_required
+@admin_required
+@limiter.limit('20 per minute', methods=['POST'])
+def activate_financial_event(event_id):
+    event = db.session.get(Event, event_id)
+    if event is None:
+        abort(404)
+    if event.status != 'OPEN':
+        flash('Only an OPEN event can be activated. Closed or locked events must not be reopened through this control.', 'warning')
+        return redirect(url_for('admin.financial_events'))
+    if event.financial_year is None or event.financial_year.is_locked:
+        flash('This event cannot be activated because its financial year is locked or unavailable.', 'danger')
+        return redirect(url_for('admin.financial_events'))
+    if event.start_date > event.end_date:
+        flash('This event has invalid dates and cannot be activated.', 'danger')
+        return redirect(url_for('admin.financial_events'))
+
+    try:
+        previous_active = Event.query.filter(Event.is_active.is_(True), Event.id != event.id).all()
+        for other in previous_active:
+            other.is_active = False
+            AuditService.log_action(
+                'DEACTIVATE', 'EVENT', other.id,
+                f'Event {other.title} was deactivated because administrator {current_user.username} activated event {event.title}.',
+                commit=False,
+            )
+
+        event.is_active = True
+        AuditService.log_action(
+            'ACTIVATE', 'EVENT', event.id,
+            f'Administrator {current_user.username} activated event {event.title}.',
+            commit=False,
+        )
+        db.session.commit()
+        flash(f'Financial event "{event.title}" is now ACTIVE and OPEN. The public donation portal can use it.', 'success')
+    except Exception:
+        db.session.rollback()
+        flash('Unable to activate the financial event. No changes were saved.', 'danger')
+
+    return redirect(url_for('admin.financial_events'))
+
+
+@admin_bp.route('/financial-events/<int:event_id>/deactivate', methods=['POST'])
+@login_required
+@admin_required
+@limiter.limit('20 per minute', methods=['POST'])
+def deactivate_financial_event(event_id):
+    event = db.session.get(Event, event_id)
+    if event is None:
+        abort(404)
+    if event.status != 'OPEN':
+        flash('Only an OPEN event can be deactivated.', 'warning')
+        return redirect(url_for('admin.financial_events'))
+
+    try:
+        event.is_active = False
+        AuditService.log_action(
+            'DEACTIVATE', 'EVENT', event.id,
+            f'Administrator {current_user.username} deactivated event {event.title}.',
+            commit=False,
+        )
+        db.session.commit()
+        flash(f'Financial event "{event.title}" is now inactive. No public donation event is selected.', 'success')
+    except Exception:
+        db.session.rollback()
+        flash('Unable to deactivate the financial event. No changes were saved.', 'danger')
+
+    return redirect(url_for('admin.financial_events'))
 
 
 @admin_bp.route('/audit-logs')
