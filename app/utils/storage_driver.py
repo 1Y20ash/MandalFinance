@@ -25,6 +25,10 @@ class StorageDriver:
         '.jpeg': 'image/jpeg',
         '.png': 'image/png',
         '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.heic': 'image/heic',
+        '.heif': 'image/heif',
+        '.avif': 'image/avif',
     }
 
     @staticmethod
@@ -64,6 +68,10 @@ class StorageDriver:
             'image/png': lambda data: data.startswith(b'\x89PNG\r\n\x1a\n'),
             'image/jpeg': lambda data: data.startswith(b'\xff\xd8\xff'),
             'image/gif': lambda data: data.startswith((b'GIF87a', b'GIF89a')),
+            'image/webp': lambda data: len(data) >= 12 and data[:4] == b'RIFF' and data[8:12] == b'WEBP',
+            'image/heic': lambda data: cls._is_heif_container(data),
+            'image/heif': lambda data: cls._is_heif_container(data),
+            'image/avif': lambda data: cls._is_heif_container(data),
             'application/zip': lambda data: data.startswith((b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08')),
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document': lambda data: data.startswith(b'PK'),
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': lambda data: data.startswith(b'PK'),
@@ -73,6 +81,15 @@ class StorageDriver:
         if checker and not checker(file_bytes):
             raise ValueError('Document content does not match the declared file type.')
         return safe_name, mime
+
+    @staticmethod
+    def _is_heif_container(data):
+        if len(data) < 12 or data[4:8] != b'ftyp':
+            return False
+        compatible_brands = data[8:64]
+        return any(brand in compatible_brands for brand in (
+            b'heic', b'heix', b'hevc', b'hevx', b'heim', b'heis', b'hevm', b'hevs', b'mif1', b'msf1', b'avif', b'avis'
+        ))
 
     @staticmethod
     def generate_object_token(length=32):
@@ -86,11 +103,13 @@ class StorageDriver:
         if len(file_bytes) > max_size:
             raise ValueError(f'Document exceeds the {max_size // (1024 * 1024)} MB limit.')
         destination_path = StorageDriver.safe_relative_path(destination_path)
-        supabase_url = current_app.config.get('SUPABASE_URL')
-        supabase_key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
-        bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET')
+        supabase_url = (current_app.config.get('SUPABASE_URL') or '').strip().rstrip('/')
+        supabase_key = (current_app.config.get('SUPABASE_SERVICE_ROLE_KEY') or '').strip()
+        bucket = (current_app.config.get('SUPABASE_STORAGE_BUCKET') or '').strip()
         if supabase_url and supabase_key:
-            endpoint = f"{supabase_url.rstrip('/')}/storage/v1/object/{bucket}/{destination_path}"
+            if not bucket:
+                raise RuntimeError('Private object storage bucket is not configured.')
+            endpoint = f"{supabase_url}/storage/v1/object/{bucket}/{destination_path}"
             headers = {
                 'Authorization': f'Bearer {supabase_key}',
                 'apikey': supabase_key,
@@ -101,8 +120,12 @@ class StorageDriver:
                 response = requests.post(endpoint, data=file_bytes, headers=headers, timeout=20)
                 if response.status_code in (200, 201):
                     return ('SUPABASE', destination_path)
-                if response.status_code == 409:
-                    raise ValueError('Storage object already exists; overwrite is forbidden.')
+                if response.status_code in (400, 409):
+                    raise ValueError('Storage object already exists or was rejected by storage policy.')
+                if response.status_code in (401, 403):
+                    raise RuntimeError('Secure object storage rejected the configured credentials or policy.')
+                if response.status_code == 413:
+                    raise ValueError('The storage provider rejected the document because it exceeds its size limit.')
                 raise RuntimeError(f'Supabase Storage upload rejected ({response.status_code}).')
             except requests.RequestException as exc:
                 if current_app.config.get('APP_ENV') == 'production':
@@ -124,12 +147,12 @@ class StorageDriver:
     def delete_file(storage_provider, storage_path):
         storage_path = StorageDriver.safe_relative_path(storage_path)
         if storage_provider == 'SUPABASE':
-            url = current_app.config.get('SUPABASE_URL')
-            key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
-            bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET')
-            if not url or not key:
+            url = (current_app.config.get('SUPABASE_URL') or '').strip().rstrip('/')
+            key = (current_app.config.get('SUPABASE_SERVICE_ROLE_KEY') or '').strip()
+            bucket = (current_app.config.get('SUPABASE_STORAGE_BUCKET') or '').strip()
+            if not url or not key or not bucket:
                 return False
-            endpoint = f"{url.rstrip('/')}/storage/v1/object/{bucket}/{storage_path}"
+            endpoint = f"{url}/storage/v1/object/{bucket}/{storage_path}"
             try:
                 response = requests.delete(endpoint, headers={'Authorization': f'Bearer {key}', 'apikey': key}, timeout=20)
                 return response.status_code in (200, 204)
@@ -148,12 +171,12 @@ class StorageDriver:
     def get_file(storage_provider, storage_path):
         storage_path = StorageDriver.safe_relative_path(storage_path)
         if storage_provider == 'SUPABASE':
-            url = current_app.config.get('SUPABASE_URL')
-            key = current_app.config.get('SUPABASE_SERVICE_ROLE_KEY')
-            bucket = current_app.config.get('SUPABASE_STORAGE_BUCKET')
-            if not url or not key:
+            url = (current_app.config.get('SUPABASE_URL') or '').strip().rstrip('/')
+            key = (current_app.config.get('SUPABASE_SERVICE_ROLE_KEY') or '').strip()
+            bucket = (current_app.config.get('SUPABASE_STORAGE_BUCKET') or '').strip()
+            if not url or not key or not bucket:
                 raise RuntimeError('Supabase storage configuration is missing.')
-            endpoint = f"{url.rstrip('/')}/storage/v1/object/{bucket}/{storage_path}"
+            endpoint = f"{url}/storage/v1/object/{bucket}/{storage_path}"
             try:
                 response = requests.get(endpoint, headers={'Authorization': f'Bearer {key}', 'apikey': key}, timeout=20)
                 if response.status_code == 200:
