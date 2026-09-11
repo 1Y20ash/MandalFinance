@@ -43,5 +43,12 @@ def test_supabase_storage_uses_server_side_service_role_only():
 def test_vercel_deployment_is_documented_as_hosting_processor():
     vercel_config = Path('vercel.json').read_text(encoding='utf-8')
     register = Path('docs/THIRD_PARTY_PROCESSOR_REGISTER.md').read_text(encoding='utf-8')
-    assert 'server.py' in vercel_config
+    # Vercel's canonical application entrypoint is app.server:app in pyproject.toml.
+    # server.py remains the documented application boundary, so this test verifies
+    # the actual deployment configuration rather than requiring an obsolete string
+    # in vercel.json.
+    pyproject = Path('pyproject.toml').read_text(encoding='utf-8')
+    assert 'entrypoint = "app.server:app"' in pyproject
+    assert 'includeFiles' in vercel_config
+    assert 'app/templates/public/*.html' in vercel_config
     assert '**Vercel**' in register
