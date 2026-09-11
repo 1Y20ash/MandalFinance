@@ -3,6 +3,7 @@ import io
 import zipfile
 from pathlib import Path
 
+from flask import current_app
 from app.extensions import db
 from app.models.document import Document, DocumentVersion, EvidencePack
 from app.utils.hash_utils import compute_sha256
