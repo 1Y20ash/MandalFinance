@@ -37,11 +37,11 @@ class DocumentService:
         """Store and atomically create the document and its initial version."""
         filename = StorageDriver.sanitize_filename(filename)
         file_type = (file_type or 'application/octet-stream').lower().split(';')[0].strip()
-        max_size = 10 * 1024 * 1024
+        max_size = current_app.config.get('MAX_DOCUMENT_SIZE', 10 * 1024 * 1024)
         if file_bytes is None:
             raise ValueError('File content is required.')
         if len(file_bytes) > max_size:
-            raise ValueError('Document exceeds the 10 MB financial evidence limit.')
+            raise ValueError(f'Document exceeds the {max_size // (1024 * 1024)} MB financial evidence limit.')
 
         sha256_hash = compute_sha256(file_bytes)
         file_size = len(file_bytes)
@@ -86,11 +86,11 @@ class DocumentService:
             raise ValueError('Document not found.')
         new_filename = StorageDriver.sanitize_filename(new_filename)
         new_file_type = (new_file_type or 'application/octet-stream').lower().split(';')[0].strip()
-        max_size = 10 * 1024 * 1024
+        max_size = current_app.config.get('MAX_DOCUMENT_SIZE', 10 * 1024 * 1024)
         if new_file_bytes is None:
             raise ValueError('File content is required.')
         if len(new_file_bytes) > max_size:
-            raise ValueError('Document exceeds the 10 MB financial evidence limit.')
+            raise ValueError(f'Document exceeds the {max_size // (1024 * 1024)} MB financial evidence limit.')
         if not replacement_reason or not replacement_reason.strip():
             raise ValueError('Replacement reason is required.')
 
