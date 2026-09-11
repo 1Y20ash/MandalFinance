@@ -25,7 +25,7 @@
             <button id="rzp-pay-button" type="button" class="btn btn-success btn-lg w-100 py-3 fw-bold">
                 <i class="fa-solid fa-lock me-2"></i>Pay ₹{{ donation.amount }} securely
             </button>
-            <p id="payment-status" class="small text-muted text-center mt-3 mb-0">You will be redirected to the secure Razorpay checkout.</p>
+            <p id="payment-status" class="small text-muted text-center mt-3 mb-0">Choose UPI, cards or other payment methods in secure Razorpay Checkout.</p>
         </div>
         {% else %}
         <div class="payment-action">
@@ -73,6 +73,25 @@
             name: {{ donation.donor_name|tojson }},
             email: {{ donation.donor_email|tojson }},
             contact: {{ donation.donor_phone|tojson }}
+        },
+        // UPI is served by Razorpay Checkout using the merchant's enabled
+        // payment methods. Current UPI flows are Intent on mobile and QR on
+        // desktop; deprecated manual VPA/Collect should not be implemented here.
+        config: {
+            display: {
+                blocks: {
+                    upi: {
+                        name: 'Pay using UPI',
+                        instruments: [
+                            { method: 'upi' }
+                        ]
+                    }
+                },
+                sequence: ['block.upi', 'block.other'],
+                preferences: {
+                    show_default_blocks: true
+                }
+            }
         },
         theme: { color: '#d97706' },
         handler: async function (response) {
