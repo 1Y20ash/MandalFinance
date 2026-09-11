@@ -31,9 +31,16 @@ def test_single_clean_deployment_policy_exists_and_has_release_boundaries():
 def test_deployment_architecture_and_vercel_target_are_canonical():
     architecture = read("docs/DEPLOYMENT_ARCHITECTURE.md")
     vercel = read("vercel.json")
+    pyproject = read("pyproject.toml")
+
     assert "server.py" in architecture
-    assert '"server.py"' in vercel
-    assert "templates/**" in vercel
+    # Vercel's canonical function entrypoint is explicitly declared in
+    # pyproject.toml; the architecture document keeps server.py as the
+    # application boundary. The Vercel config additionally bundles templates.
+    assert 'entrypoint = "app.server:app"' in pyproject
+    assert "templates/**" in architecture or "app/templates" in architecture
+    assert "includeFiles" in vercel
+    assert "app/templates/public/*.html" in vercel
 
 
 def test_deployment_policy_does_not_claim_live_success():
