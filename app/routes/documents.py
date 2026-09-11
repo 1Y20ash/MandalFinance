@@ -54,10 +54,14 @@ def upload_document():
         except ValueError as exc:
             current_app.logger.info('Document upload validation failed: %s', exc)
             flash(str(exc),'danger')
-        except Exception as exc:
+        except RuntimeError as exc:
+            current_app.logger.error('Document upload infrastructure failure for user_id=%s: %s', current_user.id, exc)
+            # RuntimeError messages from StorageDriver are deliberately sanitized.
+            flash(str(exc),'danger')
+        except Exception:
             current_app.logger.exception('Document upload failed for user_id=%s filename=%r', current_user.id, request.files.get('file').filename if request.files.get('file') else None)
             # Never expose storage credentials, URLs, or provider response bodies to the user.
-            flash('Upload failed due to a secure storage or server error. Please try again.','danger')
+            flash('Upload failed due to an unexpected server error. Please try again.','danger')
     return render_template('documents/upload.html',entity_type=request.args.get('entity_type','GENERAL'),entity_id=request.args.get('entity_id',type=int))
 
 @documents_bp.route('/<int:doc_id>')
