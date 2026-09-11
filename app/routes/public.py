@@ -9,7 +9,7 @@ from app.models.ledger import Account
 from app.models.mandal import Event, Mandal
 from app.services.donation_service import DonationService
 from app.services.ledger_service import LedgerService
-from app.services.payment_gateway import get_payment_gateway
+from app.services.payment_gateway import PaymentGatewayError, get_payment_gateway
 
 
 public_bp = Blueprint('public', __name__)
@@ -91,8 +91,12 @@ def public_donate():
                 order_info=order_info,
                 active_event=active_event,
             )
+        except PaymentGatewayError as exc:
+            db.session.rollback()
+            flash(str(exc), 'danger')
         except Exception:
             db.session.rollback()
+            current_app.logger.exception('Unexpected online donation setup failure')
             flash('Donation setup could not be completed. Please verify the details and try again.', 'danger')
 
     return render_template('public/donate.html', active_event=active_event)
@@ -137,6 +141,7 @@ def confirm_online_payment():
         )
     except Exception:
         db.session.rollback()
+        current_app.logger.exception('Online donation confirmation failed for donation_id=%s', donation.id)
         flash('Payment could not be recorded. Please try again or contact the Mandal administrator.', 'danger')
         return redirect(url_for('public.public_donate'))
 
