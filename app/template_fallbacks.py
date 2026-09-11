@@ -225,6 +225,64 @@ TRANSPARENCY_TEMPLATE = r'''{% extends "base.html" %}
 {% endblock %}
 '''
 
+PRIVACY_NOTICE_TEMPLATE = r'''{% extends "base.html" %}
+{% block title %}Privacy Notice - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9 col-xl-8">
+        <div class="card border-0 shadow-sm premium-glass-card">
+            <div class="card-body p-4 p-lg-5">
+                <div class="mb-4">
+                    <span class="text-uppercase small fw-bold text-muted">Privacy & data</span>
+                    <h1 class="fw-bold mt-1 mb-2">Privacy Notice</h1>
+                    <p class="text-muted mb-0">How MandalFinance handles personal data, financial information and supporting documents.</p>
+                </div>
+
+                <div class="alert alert-info border-0 bg-info bg-opacity-10" role="note">
+                    This notice describes the application's engineering privacy controls. It is not a legal certification and does not replace the Mandal's applicable legal, statutory or contractual obligations.
+                </div>
+
+                <h2 class="h5 fw-bold mt-4">1. What we collect</h2>
+                <p>Depending on the feature you use, MandalFinance may process account information such as your name, username, email address and phone number; financial records such as donations, income, expenses and transaction references; and supporting documents associated with financial records.</p>
+
+                <h2 class="h5 fw-bold mt-4">2. Why we use it</h2>
+                <p>Information is used to provide authenticated Mandal services, maintain accurate financial records, process and verify payments, manage approvals and permissions, issue receipts, protect documents, and maintain an accountable audit history.</p>
+
+                <h2 class="h5 fw-bold mt-4">3. Security and access</h2>
+                <p>Authenticated access is controlled by server-side sessions and role/permission checks. Payment verification and document authorization remain server-side. Sensitive storage is intended to remain private, and service credentials are not exposed to browser JavaScript.</p>
+
+                <h2 class="h5 fw-bold mt-4">4. Browser privacy</h2>
+                <p>The public application may use short-lived browser session state for non-sensitive interface behavior such as the optional PWA installation prompt. The application must not use browser storage for passwords, authentication tokens, payment credentials, donor records, financial records or private documents.</p>
+
+                <h2 class="h5 fw-bold mt-4">5. Service providers</h2>
+                <p>The application uses infrastructure and service providers for hosting, private document storage, payment processing, persistent rate limiting and browser-delivered presentation resources. Data shared with these providers is limited to what is required for the relevant service and server-side application flow.</p>
+
+                <h2 class="h5 fw-bold mt-4">6. Payments</h2>
+                <p>Payment initiation and verification are handled through the configured payment gateway. MandalFinance does not place gateway secret credentials in client-side code. Payment signatures and webhook authenticity are verified on the server.</p>
+
+                <h2 class="h5 fw-bold mt-4">7. Documents</h2>
+                <p>Supporting financial documents are treated as private evidence. Access is controlled by authenticated authorization checks rather than public URLs or client-side access decisions.</p>
+
+                <h2 class="h5 fw-bold mt-4">8. Your requests</h2>
+                <p>For account, personal-data or privacy questions, contact the Mandal administrator through the established administrative channel. Requests are subject to applicable verification, legal requirements and the application's controlled privacy workflows.</p>
+
+                <h2 class="h5 fw-bold mt-4">9. Changes</h2>
+                <p>This notice may be updated when the application's data flows, browser behavior, processors or privacy controls materially change. The current published version is the one available on this page.</p>
+
+                <div class="mt-5 pt-4 border-top">
+                    <a class="btn btn-outline-primary" href="{{ url_for('public.transparency') }}">
+                        <i class="fa-solid fa-arrow-left me-2"></i>Back to Transparency
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+'''
+
 TEMPLATE_FALLBACKS = {
     "public/transparency.html": TRANSPARENCY_TEMPLATE,
+    "public/privacy.html": PRIVACY_NOTICE_TEMPLATE,
 }
