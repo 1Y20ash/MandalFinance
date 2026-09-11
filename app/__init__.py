@@ -8,6 +8,7 @@ from app.extensions import db, migrate, login_manager, csrf, limiter
 from app.models.auth import User
 from app.logging_config import configure_logging, install_request_logging
 from app.template_fallbacks import TEMPLATE_FALLBACKS
+from app.donation_template_fallbacks import DONATION_TEMPLATE_FALLBACKS
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -50,7 +51,7 @@ def create_app(config_name=None):
     # bundler omits because Jinja selects them dynamically at runtime.
     app.jinja_loader = ChoiceLoader([
         FileSystemLoader(str(PACKAGE_TEMPLATE_DIR)),
-        DictLoader(TEMPLATE_FALLBACKS),
+        DictLoader({**TEMPLATE_FALLBACKS, **DONATION_TEMPLATE_FALLBACKS}),
     ])
 
     configure_logging(app)
