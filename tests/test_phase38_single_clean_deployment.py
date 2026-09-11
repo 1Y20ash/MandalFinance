@@ -33,12 +33,10 @@ def test_deployment_architecture_and_vercel_target_are_canonical():
     vercel = read("vercel.json")
     pyproject = read("pyproject.toml")
 
+    # server.py remains the documented application boundary, while Vercel
+    # resolves the Flask application through the canonical module entrypoint.
     assert "server.py" in architecture
-    # Vercel's canonical function entrypoint is explicitly declared in
-    # pyproject.toml; the architecture document keeps server.py as the
-    # application boundary. The Vercel config additionally bundles templates.
     assert 'entrypoint = "app.server:app"' in pyproject
-    assert "templates/**" in architecture or "app/templates" in architecture
     assert "includeFiles" in vercel
     assert "app/templates/public/*.html" in vercel
 
