@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, url_for, jsonify, send_from_directory, current_app, render_template
+from flask import Blueprint, redirect, url_for, jsonify, send_from_directory, current_app, render_template, Response
 from flask_login import current_user
 from app.extensions import db
 import os
@@ -28,6 +28,32 @@ def refund_policy():
 @main_bp.route('/contact')
 def contact_page():
     return render_template('public/contact.html')
+
+@main_bp.route('/robots.txt')
+def robots_txt():
+    body = """User-agent: *
+Allow: /
+
+Sitemap: https://mandal-finance-one.vercel.app/sitemap.xml
+"""
+    return Response(body, mimetype='text/plain')
+
+
+@main_bp.route('/sitemap.xml')
+def sitemap_xml():
+    urls = [
+        'https://mandal-finance-one.vercel.app/',
+        'https://mandal-finance-one.vercel.app/transparency',
+        'https://mandal-finance-one.vercel.app/donate',
+        'https://mandal-finance-one.vercel.app/privacy',
+        'https://mandal-finance-one.vercel.app/terms',
+        'https://mandal-finance-one.vercel.app/refund',
+        'https://mandal-finance-one.vercel.app/contact',
+    ]
+    entries = ''.join(f'<url><loc>{url}</loc></url>' for url in urls)
+    body = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{entries}</urlset>\n'
+    return Response(body, mimetype='application/xml')
+
 
 @main_bp.route('/sw.js')
 def service_worker():
