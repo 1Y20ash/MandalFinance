@@ -20,6 +20,22 @@ def test_mock_gateway_requires_exact_payment_signature():
     assert not gateway.verify_payment_signature(order['order_id'], order['mock_payment_id'], 'valid_anything')
 
 
+def test_mock_gateway_payment_status_matches_order():
+    gateway = MockPaymentGateway()
+    order = gateway.create_order(Decimal('250.00'), 123, 'Test Donor')
+    payment = gateway.fetch_payment(order['mock_payment_id'])
+    assert payment['id'] == order['mock_payment_id']
+    assert payment['order_id'] == order['order_id']
+    assert payment['status'] == 'captured'
+    assert payment['captured'] is True
+
+
+def test_mock_gateway_rejects_unknown_payment():
+    with pytest.raises(PaymentGatewayError, match='could not be found') as exc_info:
+        MockPaymentGateway().fetch_payment('pay_mock_unknown')
+    assert exc_info.value.code == 'payment_not_found'
+
+
 def test_razorpay_payment_signature_verification(app):
     with app.app_context():
         app.config.update(RAZORPAY_KEY_SECRET='test-secret')
@@ -94,6 +110,34 @@ def test_razorpay_order_validates_gateway_response(app, monkeypatch):
         monkeypatch.setattr('app.services.payment_gateway.requests.post', lambda *args, **kwargs: FakeResponse())
         with pytest.raises(PaymentGatewayError, match='unexpected order response'):
             RazorpayGateway().create_order(Decimal('501.00'), 1, 'Test Donor')
+
+
+def test_razorpay_fetch_payment_validates_backend_status(app, monkeypatch):
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                'id': 'pay_test_456',
+                'order_id': 'order_test_123',
+                'amount': 50100,
+                'currency': 'INR',
+                'status': 'captured',
+                'captured': True,
+            }
+
+    with app.app_context():
+        app.config.update(RAZORPAY_KEY_ID='rzp_test_example', RAZORPAY_KEY_SECRET='secret-value')
+        monkeypatch.setattr('app.services.payment_gateway.requests.get', lambda *args, **kwargs: FakeResponse())
+        payment = RazorpayGateway().fetch_payment('pay_test_456')
+        assert payment == {
+            'id': 'pay_test_456',
+            'order_id': 'order_test_123',
+            'amount': 50100,
+            'currency': 'INR',
+            'status': 'captured',
+            'captured': True,
+        }
 
 
 def test_online_donation_is_not_ledger_posted_before_confirmation(app):
