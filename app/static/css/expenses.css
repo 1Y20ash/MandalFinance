@@ -1,0 +1,10 @@
+/*
+ * Expense-page stylesheet placeholder.
+ *
+ * The base template references this asset globally. Keep the file present so
+ * Flask/Vercel serves a real CSS response instead of the application's HTML
+ * fallback when the stylesheet is requested.
+ *
+ * Expense-specific styling remains in the existing shared stylesheets until
+ * a dedicated expense design is introduced.
+ */
