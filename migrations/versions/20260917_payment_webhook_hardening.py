@@ -1,6 +1,6 @@
 """Persist Razorpay webhook idempotency metadata.
 
-Revision ID: 20260917_payment_webhook_hardening
+Revision ID: 20260917_payment_webhook
 Revises: 20260917_merge_upi_into_bank
 
 The 0001 bootstrap creates the schema from SQLAlchemy metadata. When the
@@ -8,12 +8,15 @@ metadata already contains these columns, the bootstrap has already created
 them before this revision runs. This revision therefore adds only objects
 that are genuinely missing, so clean databases and upgraded databases both
 follow the same migration path.
+
+The revision identifier is intentionally <= 32 characters because Alembic's
+standard version table uses VARCHAR(32).
 """
 
 from alembic import op
 import sqlalchemy as sa
 
-revision = '20260917_payment_webhook_hardening'
+revision = '20260917_payment_webhook'
 down_revision = '20260917_merge_upi_into_bank'
 branch_labels = None
 depends_on = None
