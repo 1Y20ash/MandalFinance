@@ -27,7 +27,7 @@ def seed():
             ('income.create', 'Add income entries', 'income'),
             ('expense.view', 'View expense list and details', 'expense'),
             ('expense.create', 'Submit new expense', 'expense'),
-            ('expense.approve', 'Approve/reject submitted expenses', 'expense'),
+            ('expense.approve', 'Approve submitted expenses', 'expense'),
             ('expense.reject', 'Reject submitted expenses', 'expense'),
             ('expense.pay', 'Disburse payment for approved expenses', 'expense'),
             ('vendor.view', 'View vendor list', 'vendor'),
@@ -35,14 +35,17 @@ def seed():
             ('vendor.edit', 'Modify vendor details', 'vendor'),
             ('budget.view', 'View budget and limits', 'budget'),
             ('budget.edit', 'Configure budget allocations', 'budget'),
+            ('budget.approve', 'Approve or reject event budgets', 'budget'),
             ('document.view', 'View evidence vault documents', 'document'),
             ('document.upload', 'Upload financial proof documents', 'document'),
             ('document.download', 'Download financial documents', 'document'),
-            ('document.replace', 'Replace document (create version N+1)', 'document'),
+            ('document.replace', 'Replace document and create a new version', 'document'),
             ('document.verify', 'Verify SHA-256 digital integrity', 'document'),
-            ('evidence_pack.create', 'Generate ZIP evidence pack', 'document'),
+            ('evidence_pack.create', 'Generate a ZIP evidence pack', 'document'),
             ('report.view', 'View financial reports', 'report'),
-            ('report.export', 'Export reports to CSV/PDF', 'report'),
+            ('report.export', 'Export reports to CSV', 'report'),
+            ('finance.view', 'View financial control data and reconciliation status', 'finance'),
+            ('finance.manage', 'Create, match, resolve and correct financial control records', 'finance'),
             ('audit_log.view', 'View audit log trail', 'admin'),
             ('user.manage', 'Manage users and roles', 'admin'),
             ('role.manage', 'Manage roles and permissions', 'admin')
@@ -73,7 +76,7 @@ def seed():
                 perms_dict['expense.reject'], perms_dict['expense.pay'], perms_dict['vendor.view'],
                 perms_dict['budget.view'], perms_dict['document.view'], perms_dict['document.upload'],
                 perms_dict['document.download'], perms_dict['document.verify'], perms_dict['report.view'],
-                perms_dict['report.export']
+                perms_dict['report.export'], perms_dict['finance.view'], perms_dict['finance.manage']
             ]
             db.session.add(treasurer_role)
 
