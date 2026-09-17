@@ -44,10 +44,11 @@ class MockPaymentGateway(PaymentGatewayInterface):
 
     def create_order(self, amount_decimal, donation_id, donor_name):
         order_id = f"order_mock_{uuid.uuid4().hex[:12]}"
-        payment_id = f"pay_mock_{order_id}"
+        amount_paise = int(Decimal(str(amount_decimal)).quantize(Decimal('0.01')) * 100)
+        payment_id = f"pay_mock_{order_id}_{amount_paise}"
         return {
             'order_id': order_id,
-            'amount_in_paise': int(Decimal(str(amount_decimal)).quantize(Decimal('0.01')) * 100),
+            'amount_in_paise': amount_paise,
             'currency': 'INR',
             'status': 'created',
             'key_id': 'mock_key_id',
@@ -60,14 +61,20 @@ class MockPaymentGateway(PaymentGatewayInterface):
         return bool(signature) and hmac.compare_digest(expected, signature)
 
     def fetch_payment(self, payment_id):
-        if not payment_id:
-            raise PaymentGatewayError('Payment ID is required.', code='invalid_payment_id')
-        if not payment_id.startswith('pay_mock_order_mock_'):
+        if not payment_id or not payment_id.startswith('pay_mock_order_mock_'):
             raise PaymentGatewayError('The payment could not be found at the gateway.', code='payment_not_found')
+        parts = payment_id.split('_')
+        if len(parts) < 6:
+            raise PaymentGatewayError('The payment could not be found at the gateway.', code='payment_not_found')
+        try:
+            amount_paise = int(parts[-1])
+        except ValueError:
+            raise PaymentGatewayError('The payment could not be found at the gateway.', code='payment_not_found') from None
+        order_id = '_'.join(parts[2:-1])
         return {
             'id': payment_id,
-            'order_id': payment_id[len('pay_mock_'):],
-            'amount': None,
+            'order_id': order_id,
+            'amount': amount_paise,
             'currency': 'INR',
             'status': 'captured',
             'captured': True,
