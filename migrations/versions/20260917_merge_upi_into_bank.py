@@ -1,20 +1,23 @@
 """Merge the starter UPI receiving account into Main Bank.
 
 Revision ID: 20260917_merge_upi_into_bank
-Revises: 20260917_account_seeds
+Revises: 20260917_account_seeds, 20260917_rbac_permission_catalog
 
 UPI is treated as a payment method rather than a separate ledger account.
 Existing UPI transactions are reassigned to Main Bank and the UPI account's
 opening/current balances are folded into Main Bank. The old UPI row is kept
 but deactivated so historical foreign-key references remain valid while the
 receiving-account dropdown exposes only Cash and Bank.
+
+This migration intentionally joins the account-seed and RBAC migration
+branches so the migration graph has a single head before production upgrade.
 """
 
 from alembic import op
 import sqlalchemy as sa
 
 revision = '20260917_merge_upi_into_bank'
-down_revision = '20260917_account_seeds'
+down_revision = ('20260917_account_seeds', '20260917_rbac_permission_catalog')
 branch_labels = None
 depends_on = None
 
