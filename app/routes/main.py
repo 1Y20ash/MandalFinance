@@ -17,6 +17,18 @@ def index():
 def privacy_notice():
     return render_template('public/privacy.html')
 
+@main_bp.route('/terms')
+def terms_notice():
+    return render_template('public/terms.html')
+
+@main_bp.route('/refund')
+def refund_policy():
+    return render_template('public/refund.html')
+
+@main_bp.route('/contact')
+def contact_page():
+    return render_template('public/contact.html')
+
 @main_bp.route('/sw.js')
 def service_worker():
     static_folder = os.path.join(current_app.root_path, 'static')
