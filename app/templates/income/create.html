@@ -3,7 +3,7 @@
 {% block content %}
 <div class="income-form-shell">
   <div class="income-form-card">
-    <div class="income-form-header"><div><span class="income-eyebrow">PHASE 10</span><h1>Record Income</h1><p>Record non-donation income and post it to the central financial ledger.</p></div><i class="fa-solid fa-arrow-trend-up income-header-icon"></i></div>
+    <div class="income-form-header"><div><h1>Record Income</h1><p>Record income from donations and other sources, and post it to the central financial ledger.</p></div><i class="fa-solid fa-arrow-trend-up income-header-icon"></i></div>
     <form method="POST" class="mt-4">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row g-3">
