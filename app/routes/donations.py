@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app
 from flask_login import login_required, current_user
 from app.models.income import Donation
 from app.models.ledger import Account
@@ -73,7 +73,6 @@ def create_donation():
         except Exception:
             # Keep database/internal details out of the UI while preserving the
             # failure in the server logs for diagnosis.
-            current_app = __import__('flask').current_app
             current_app.logger.exception('Failed to record offline donation')
             flash('Unable to record the donation. Please verify the details and try again.', 'danger')
             events = Event.query.filter_by(is_active=True).all()
@@ -93,7 +92,6 @@ def create_donation():
             response.headers['Content-Disposition'] = f'inline; filename=Receipt_{donation.receipt_number or donation.donation_number}.pdf'
             return response
         except Exception:
-            current_app = __import__('flask').current_app
             current_app.logger.exception('Donation recorded but receipt generation failed')
             flash('Donation was recorded successfully, but the receipt could not be generated. You can try the receipt action from the donation record.', 'warning')
             return redirect(url_for('donations.view_donation', donation_id=donation.id))
