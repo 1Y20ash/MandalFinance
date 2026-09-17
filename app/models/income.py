@@ -25,6 +25,8 @@ class Donation(db.Model):
     gateway_order_id = db.Column(db.String(100), nullable=True, index=True)
     gateway_payment_id = db.Column(db.String(100), nullable=True, unique=True, index=True)
     gateway_signature = db.Column(db.String(255), nullable=True)
+    gateway_webhook_event_id = db.Column(db.String(100), nullable=True, unique=True, index=True)
+    gateway_webhook_signature = db.Column(db.String(255), nullable=True)
     transaction_ref = db.Column(db.String(100), nullable=True, index=True)
 
     receipt_number = db.Column(db.String(50), unique=True, nullable=True, index=True)
