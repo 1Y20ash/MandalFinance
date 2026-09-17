@@ -32,10 +32,10 @@ def test_storage_error_class_maps_supabase_codes():
 @pytest.mark.parametrize(
     ('payload', 'status', 'message'),
     [
-        ({'code': 'ResourceAlreadyExists', 'message': 'private'}, 409, 'Storage object already exists'),
-        ({'error': 'Duplicate', 'message': 'private'}, 400, 'Storage object already exists'),
-        ({'code': 'InvalidMimeType', 'message': 'private'}, 400, 'rejected this document MIME type'),
-        ({'code': 'NoSuchBucket', 'message': 'private'}, 404, 'configured private storage bucket is unavailable'),
+        ({'code': 'ResourceAlreadyExists', 'message': 'PROVIDER_PRIVATE_DETAIL_123'}, 409, 'Storage object already exists'),
+        ({'error': 'Duplicate', 'message': 'PROVIDER_PRIVATE_DETAIL_123'}, 400, 'Storage object already exists'),
+        ({'code': 'InvalidMimeType', 'message': 'PROVIDER_PRIVATE_DETAIL_123'}, 400, 'rejected this document MIME type'),
+        ({'code': 'NoSuchBucket', 'message': 'PROVIDER_PRIVATE_DETAIL_123'}, 404, 'configured private storage bucket is unavailable'),
     ],
 )
 def test_upload_file_uses_structured_provider_code_without_leaking_message(app, payload, status, message):
@@ -51,4 +51,4 @@ def test_upload_file_uses_structured_provider_code_without_leaking_message(app, 
                 StorageDriver.upload_file(b'%PDF-test', 'documents/expense/ref/v1/file.pdf', 'application/pdf')
 
         assert message in str(exc_info.value)
-        assert 'private' not in str(exc_info.value)
+        assert 'PROVIDER_PRIVATE_DETAIL_123' not in str(exc_info.value)
