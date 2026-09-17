@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Refund & Cancellation Policy - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9 col-xl-8">
+        <div class="card border-0 shadow-sm premium-glass-card">
+            <div class="card-body p-4 p-lg-5">
+                <div class="mb-4">
+                    <span class="text-uppercase small fw-bold text-muted">Payments policy</span>
+                    <h1 class="fw-bold mt-1 mb-2">Refund & Cancellation Policy</h1>
+                    <p class="text-muted mb-0">How donation cancellations, payment failures and refund requests are handled.</p>
+                </div>
+
+                <h2 class="h5 fw-bold mt-4">1. Donation cancellations</h2>
+                <p>A donation that has not been successfully captured by the payment gateway is not treated as a completed donation. If a payment attempt fails, is cancelled or expires before capture, no successful donation receipt is issued for that attempt.</p>
+
+                <h2 class="h5 fw-bold mt-4">2. Refund requests</h2>
+                <p>If a successfully completed donation needs to be refunded, the donor should contact the Mandal administrator through the established administrative channel and provide the donation or receipt reference, transaction details and the reason for the request.</p>
+
+                <h2 class="h5 fw-bold mt-4">3. Review and processing</h2>
+                <p>Refund requests are reviewed by the Mandal based on the donation record, payment status and applicable requirements. Where a refund is approved, it is processed through the payment gateway and, where supported, returned to the original payment method.</p>
+
+                <h2 class="h5 fw-bold mt-4">4. Duplicate or erroneous payments</h2>
+                <p>Duplicate charges or payments made in error should be reported with the relevant transaction or receipt information so that the Mandal can verify the payment and determine the appropriate resolution.</p>
+
+                <h2 class="h5 fw-bold mt-4">5. Payment-provider processing</h2>
+                <p>Payment authorization, capture and refund execution depend on the configured payment gateway and the payment method used. A payment showing as pending is not necessarily a completed donation.</p>
+
+                <h2 class="h5 fw-bold mt-4">6. Policy changes</h2>
+                <p>This policy may be updated when the donation process or applicable requirements change. The current version is the one published on this page.</p>
+
+                <div class="mt-5 pt-4 border-top">
+                    <a class="btn btn-outline-primary" href="{{ url_for('public.transparency') }}"><i class="fa-solid fa-arrow-left me-2"></i>Back to Transparency</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
