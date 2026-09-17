@@ -19,11 +19,18 @@ def login_rate_limit_key():
     return f"{get_remote_address()}:{username}"
 
 
+def authenticated_landing_url():
+    """Return a page the authenticated user is authorized to open by default."""
+    if current_user.is_admin or current_user.has_permission('dashboard.view'):
+        return url_for('dashboard.index')
+    return url_for('auth.profile')
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit('5 per minute', methods=['POST'], key_func=login_rate_limit_key)
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard.index'))
+        return redirect(authenticated_landing_url())
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
@@ -46,7 +53,7 @@ def login():
             AuditService.log_action('LOGIN', 'USER', user.id, f"User {user.username} logged in successfully.")
             next_page = request.args.get('next')
             if not is_safe_local_redirect(next_page):
-                next_page = url_for('dashboard.index')
+                next_page = authenticated_landing_url()
             return redirect(next_page)
         AuditService.log_action('LOGIN_FAILED', 'AUTH', None, 'A login attempt failed due to invalid credentials.', outcome='failure')
         flash('Invalid username or password.', 'danger')
@@ -57,7 +64,7 @@ def login():
 @limiter.limit('5 per hour', methods=['POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard.index'))
+        return redirect(authenticated_landing_url())
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
         username = request.form.get('username', '').strip()
