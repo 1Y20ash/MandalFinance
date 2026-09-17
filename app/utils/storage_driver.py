@@ -96,6 +96,21 @@ class StorageDriver:
         return secrets.token_urlsafe(length)
 
     @staticmethod
+    def _storage_error_code(response):
+        """Return only Supabase's machine-readable error code; never log provider body text."""
+        try:
+            payload = response.json()
+        except (ValueError, TypeError):
+            return None
+        if not isinstance(payload, dict):
+            return None
+        code = payload.get('code')
+        if not isinstance(code, str):
+            return None
+        code = re.sub(r'[^A-Za-z0-9_.-]', '', code)[:80]
+        return code or None
+
+    @staticmethod
     def upload_file(file_bytes, destination_path, mime_type='application/octet-stream'):
         if file_bytes is None:
             raise ValueError('File content is required.')
@@ -114,14 +129,36 @@ class StorageDriver:
                 'Authorization': f'Bearer {supabase_key}',
                 'apikey': supabase_key,
                 'Content-Type': mime_type,
+                'Content-Length': str(len(file_bytes)),
                 'x-upsert': 'false',
             }
             try:
                 response = requests.post(endpoint, data=file_bytes, headers=headers, timeout=20)
                 if response.status_code in (200, 201):
                     return ('SUPABASE', destination_path)
+
+                error_code = StorageDriver._storage_error_code(response)
+                current_app.logger.warning(
+                    'Supabase Storage upload rejected: status=%s code=%s bucket_configured=%s object_suffix=%s size=%s',
+                    response.status_code,
+                    error_code or 'unknown',
+                    bool(bucket),
+                    Path(destination_path).suffix.lower() or 'none',
+                    len(file_bytes),
+                )
+
                 if response.status_code in (400, 409):
-                    raise ValueError('Storage object already exists or was rejected by storage policy.')
+                    if error_code in ('ResourceAlreadyExists', 'KeyAlreadyExists', 'already_exists'):
+                        raise ValueError('Storage object already exists; please retry the upload.')
+                    if error_code in ('InvalidMimeType',):
+                        raise ValueError('The storage bucket rejected this document MIME type.')
+                    if error_code in ('EntityTooLarge',):
+                        raise ValueError('The storage bucket rejected the document because it exceeds its size limit.')
+                    if error_code in ('InvalidBucketName', 'NoSuchBucket'):
+                        raise RuntimeError('The configured private storage bucket is unavailable.')
+                    if error_code in ('InvalidKey',):
+                        raise RuntimeError('The storage provider rejected the generated document path.')
+                    raise ValueError('The storage provider rejected the upload request. Please verify the private storage bucket configuration.')
                 if response.status_code in (401, 403):
                     raise RuntimeError('Secure object storage rejected the configured credentials or policy.')
                 if response.status_code == 413:
