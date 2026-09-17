@@ -55,6 +55,20 @@ def test_recorded_donation_generates_printable_receipt_pdf(app):
         assert len(pdf) > 1000
 
 
+def test_cash_donation_treats_blank_transaction_reference_as_null(app):
+    with app.app_context():
+        event_id, account, user = _ids()
+        donation = DonationService.record_offline_donation(
+            event_id=event_id, donor_name='Blank Ref Cash Donor', amount='250.00', payment_mode='CASH',
+            account_id=account.id, created_by_id=user.id, transaction_ref=''
+        )
+        db.session.expire_all()
+        saved = db.session.get(Donation, donation.id)
+        txn = Transaction.query.filter_by(source_module='DONATION', source_id=saved.id).one()
+        assert saved.transaction_ref is None
+        assert txn.external_ref is None
+
+
 def test_non_cash_donation_requires_reference(app):
     with app.app_context():
         event_id, account, user = _ids()
