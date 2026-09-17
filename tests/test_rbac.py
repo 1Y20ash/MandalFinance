@@ -65,6 +65,26 @@ def test_finance_view_and_manage_permissions_are_distinct(client, app):
     assert response.status_code == 201
 
 
+def test_authenticated_user_without_dashboard_permission_gets_safe_landing(client, app):
+    with app.app_context():
+        volunteer = User.query.filter_by(username='volunteer').first()
+        dashboard_role = Role(name='Profile Only')
+        db.session.add(dashboard_role)
+        db.session.flush()
+        volunteer.roles = [dashboard_role]
+        volunteer.is_active = True
+        volunteer.approval_status = User.APPROVAL_APPROVED
+        db.session.commit()
+
+    response = _login(client, 'volunteer')
+    assert response.status_code == 302
+    assert response.headers['Location'].endswith('/auth/profile')
+
+    response = client.get('/')
+    assert response.status_code == 302
+    assert response.headers['Location'].endswith('/auth/profile')
+
+
 def test_inactive_user_cannot_login(client, app):
     with app.app_context():
         volunteer = User.query.filter_by(username='volunteer').first()
