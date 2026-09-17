@@ -20,10 +20,9 @@ def _online_donation_account():
     if configured_id:
         account = Account.query.filter_by(id=configured_id, is_active=True).first()
     else:
-        account = Account.query.filter(
-            Account.is_active.is_(True),
-            Account.account_type.in_(['bank', 'upi']),
-        ).first()
+        # Online gateway proceeds are intentionally posted to Main Bank. UPI is
+        # a payment method, not a separate ledger receiving account.
+        account = Account.query.filter_by(name='Main Bank', is_active=True).first()
     if not account:
         raise ValueError('No active online-donation receiving account is configured.')
     return account
@@ -118,20 +117,32 @@ def confirm_online_payment():
     if donation.status == 'SUCCESS':
         return redirect(url_for('donations.download_receipt', donation_id=donation.id))
 
+    if donation.status in {'FAILED', 'CANCELLED'}:
+        flash('This donation is no longer available for payment. Please start a new donation.', 'danger')
+        return redirect(url_for('public.public_donate'))
+
     if not donation.gateway_order_id or order_id != donation.gateway_order_id:
-        donation.status = 'FAILED'
-        db.session.commit()
         flash('Payment verification failed because the order reference did not match.', 'danger')
         return redirect(url_for('public.public_donate'))
 
     gateway = get_payment_gateway()
     if not gateway.verify_payment_signature(donation.gateway_order_id, payment_id, signature):
-        donation.status = 'FAILED'
-        db.session.commit()
         flash('Payment verification failed due to an invalid gateway signature.', 'danger')
         return redirect(url_for('public.public_donate'))
 
     try:
+        payment = gateway.fetch_payment(payment_id)
+        expected_paise = int(Decimal(str(donation.amount)) * 100)
+        if payment.get('id') != payment_id or payment.get('order_id') != donation.gateway_order_id:
+            flash('Payment verification failed because the gateway payment did not match this donation.', 'danger')
+            return redirect(url_for('public.public_donate'))
+        if payment.get('amount') != expected_paise or payment.get('currency') != 'INR':
+            flash('Payment verification failed because the amount or currency did not match.', 'danger')
+            return redirect(url_for('public.public_donate'))
+        if payment.get('status') != 'captured' or payment.get('captured') is not True:
+            flash('Payment is not captured yet. Your donation remains pending; please wait for confirmation.', 'warning')
+            return redirect(url_for('public.public_donate'))
+
         account = _online_donation_account()
         DonationService.confirm_online_donation(
             donation.id,
@@ -139,6 +150,19 @@ def confirm_online_payment():
             signature,
             account.id,
         )
+    except PaymentGatewayError as exc:
+        db.session.rollback()
+        current_app.logger.warning(
+            'Online donation payment verification failed: donation_id=%s code=%s',
+            donation.id,
+            exc.code,
+        )
+        flash(str(exc), 'danger')
+        return redirect(url_for('public.public_donate'))
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), 'danger')
+        return redirect(url_for('public.public_donate'))
     except Exception:
         db.session.rollback()
         current_app.logger.exception('Online donation confirmation failed for donation_id=%s', donation.id)
@@ -155,7 +179,7 @@ def confirm_online_payment():
 def payment_webhook():
     payload = request.get_data()
     signature = request.headers.get('X-Razorpay-Signature', '')
-    event_id = request.headers.get('x-razorpay-event-id', '')
+    event_id = request.headers.get('x-razorpay-event-id', '').strip()
 
     gateway = get_payment_gateway()
     if not gateway.verify_webhook_signature(payload, signature):
@@ -176,25 +200,34 @@ def payment_webhook():
         return jsonify({'status': 'unknown order', 'event_id': event_id}), 200
     if donation.status == 'SUCCESS':
         return jsonify({'status': 'already processed', 'event_id': event_id}), 200
+    if donation.status in {'FAILED', 'CANCELLED'}:
+        return jsonify({'status': 'donation not payable', 'event_id': event_id}), 200
+
+    if event_id and Donation.query.filter_by(gateway_webhook_event_id=event_id).first():
+        return jsonify({'status': 'already processed', 'event_id': event_id}), 200
 
     amount_paise = payment_entity.get('amount')
     status = payment_entity.get('status')
     captured = payment_entity.get('captured')
     expected_paise = int(Decimal(str(donation.amount)) * 100)
-    if amount_paise is not None and int(amount_paise) != expected_paise:
+    if amount_paise is None or int(amount_paise) != expected_paise:
         return jsonify({'status': 'amount mismatch', 'event_id': event_id}), 400
-    if status not in (None, 'captured') and captured is not True:
+    if payment_entity.get('currency') != 'INR':
+        return jsonify({'status': 'currency mismatch', 'event_id': event_id}), 400
+    if status != 'captured' or captured is not True:
         return jsonify({'status': 'payment not captured', 'event_id': event_id}), 200
-    if not payment_id:
-        return jsonify({'status': 'missing payment id', 'event_id': event_id}), 400
+    if not payment_id or not order_id or order_id != donation.gateway_order_id:
+        return jsonify({'status': 'invalid payment reference', 'event_id': event_id}), 400
 
     try:
         account = _online_donation_account()
         DonationService.confirm_online_donation(
             donation.id,
             payment_id,
-            f'WEBHOOK_VERIFIED:{event_id or "unknown"}',
+            None,
             account.id,
+            webhook_event_id=event_id or None,
+            webhook_signature=signature,
         )
     except ValueError as exc:
         if 'already exists' in str(exc).lower() or 'already' in str(exc).lower():
@@ -202,6 +235,7 @@ def payment_webhook():
         return jsonify({'status': 'processing failed'}), 400
     except Exception:
         db.session.rollback()
+        current_app.logger.exception('Razorpay webhook processing failed for donation_id=%s event_id=%s', donation.id, event_id or '<none>')
         return jsonify({'status': 'processing failed'}), 500
 
     return jsonify({'status': 'ok', 'event_id': event_id}), 200
