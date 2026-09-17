@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Terms & Conditions - Ashtavinayak Mandal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9 col-xl-8">
+        <div class="card border-0 shadow-sm premium-glass-card">
+            <div class="card-body p-4 p-lg-5">
+                <div class="mb-4">
+                    <span class="text-uppercase small fw-bold text-muted">Website terms</span>
+                    <h1 class="fw-bold mt-1 mb-2">Terms & Conditions</h1>
+                    <p class="text-muted mb-0">Terms for using MandalFinance and the public donation service.</p>
+                </div>
+
+                <h2 class="h5 fw-bold mt-4">1. Use of the service</h2>
+                <p>MandalFinance provides public transparency information and an online donation facility for Shree Ashtavinayak Ganesh Utsav Mandal. By using the public website, you agree to use it lawfully and provide accurate information when making a donation.</p>
+
+                <h2 class="h5 fw-bold mt-4">2. Donations</h2>
+                <p>Donation amounts, donor details and the stated purpose of a donation should be entered accurately. A donation is recorded only after the configured payment gateway confirms successful payment. A receipt may be issued for a successfully recorded donation.</p>
+
+                <h2 class="h5 fw-bold mt-4">3. Payment processing</h2>
+                <p>Online payments are processed through the configured payment gateway. MandalFinance does not request or store card, UPI, net-banking or other payment credentials on this website. Payment verification is performed server-side before an online donation is marked successful.</p>
+
+                <h2 class="h5 fw-bold mt-4">4. Accuracy and availability</h2>
+                <p>The Mandal aims to keep published financial and event information accurate and current. The website or donation facility may temporarily be unavailable for maintenance, security, infrastructure or payment-provider reasons.</p>
+
+                <h2 class="h5 fw-bold mt-4">5. Prohibited use</h2>
+                <p>You must not attempt to interfere with the website, bypass access controls, submit malicious content, impersonate another person, or use the service for unlawful activity.</p>
+
+                <h2 class="h5 fw-bold mt-4">6. Privacy</h2>
+                <p>Personal and financial information is handled according to the published <a href="{{ url_for('main.privacy_notice') }}">Privacy Notice</a>.</p>
+
+                <h2 class="h5 fw-bold mt-4">7. Refunds and cancellations</h2>
+                <p>Refunds and cancellations for donations are handled according to the published <a href="{{ url_for('main.refund_policy') }}">Refund & Cancellation Policy</a>.</p>
+
+                <h2 class="h5 fw-bold mt-4">8. Changes</h2>
+                <p>These terms may be updated when the service, payment flow or applicable requirements change. The current version is the one published on this page.</p>
+
+                <div class="mt-5 pt-4 border-top">
+                    <a class="btn btn-outline-primary" href="{{ url_for('public.transparency') }}"><i class="fa-solid fa-arrow-left me-2"></i>Back to Transparency</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
