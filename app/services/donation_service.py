@@ -62,9 +62,11 @@ class DonationService:
     ):
         DonationService._validate_common(event_id, donor_name, payment_mode)
         decimal_amount = DonationService._normalize_amount(amount)
-        if payment_mode in {'UPI', 'BANK_TRANSFER', 'CHEQUE'} and not transaction_ref:
+        normalized_transaction_ref = transaction_ref.strip() if transaction_ref else None
+        normalized_transaction_ref = normalized_transaction_ref or None
+        if payment_mode in {'UPI', 'BANK_TRANSFER', 'CHEQUE'} and not normalized_transaction_ref:
             raise ValueError('Transaction reference is required for this payment mode.')
-        if transaction_ref and Transaction.query.filter_by(external_ref=transaction_ref).first():
+        if normalized_transaction_ref and Transaction.query.filter_by(external_ref=normalized_transaction_ref).first():
             raise ValueError('This external payment reference is already recorded.')
 
         donation = Donation(
@@ -80,7 +82,7 @@ class DonationService:
             donation_type='OFFLINE',
             payment_mode=payment_mode,
             status='SUCCESS',
-            transaction_ref=transaction_ref or None,
+            transaction_ref=normalized_transaction_ref,
             receipt_number=DonationService._generate_receipt_number(),
             receipt_generated_at=datetime.utcnow(),
             notes=notes or None,
@@ -98,7 +100,7 @@ class DonationService:
                 f"Donation {donation.donation_number} ({donation.receipt_number}) from {donation.donor_name}",
                 'DONATION', donation.id, created_by_id,
                 payment_mode=payment_mode,
-                external_ref=transaction_ref,
+                external_ref=normalized_transaction_ref,
                 category_id=DonationService._donation_category_id(),
                 event_id=event_id,
                 commit=False,
