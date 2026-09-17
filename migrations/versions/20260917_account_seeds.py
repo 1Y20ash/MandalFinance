@@ -37,7 +37,6 @@ def upgrade():
     standard_accounts = [
         ('Main Cash', 'cash'),
         ('Main Bank', 'bank'),
-        ('Main UPI', 'upi'),
     ]
 
     for name, account_type in standard_accounts:
