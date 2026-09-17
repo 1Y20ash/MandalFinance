@@ -62,9 +62,11 @@ class MockPaymentGateway(PaymentGatewayInterface):
     def fetch_payment(self, payment_id):
         if not payment_id:
             raise PaymentGatewayError('Payment ID is required.', code='invalid_payment_id')
+        if not payment_id.startswith('pay_mock_order_mock_'):
+            raise PaymentGatewayError('The payment could not be found at the gateway.', code='payment_not_found')
         return {
             'id': payment_id,
-            'order_id': payment_id.removeprefix('pay_mock_order_mock_'),
+            'order_id': payment_id[len('pay_mock_'):],
             'amount': None,
             'currency': 'INR',
             'status': 'captured',
