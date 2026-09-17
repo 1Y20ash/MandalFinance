@@ -1,8 +1,9 @@
-"""Ensure the application RBAC permission catalog exists in production.
+"""Ensure the application RBAC catalog and baseline system roles exist.
 
-The application routes enforce permissions that must also exist in the
-permissions table so administrators can assign them through the Role Editor.
-This migration is additive and does not change any existing role assignments.
+Application routes enforce permission names that must exist in the permissions
+table so administrators can assign them through the Role Editor. The
+registration workflow also depends on the Volunteer role being present.
+This migration is additive and never removes existing role permissions.
 """
 
 from alembic import op
@@ -47,14 +48,41 @@ PERMISSIONS = [
     ('role.manage', 'Manage roles and permissions', 'admin'),
 ]
 
+ROLE_BASELINES = {
+    'Volunteer': [
+        'dashboard.view', 'donation.view', 'donation.create',
+        'expense.view', 'expense.create', 'document.view', 'document.upload',
+    ],
+    'Treasurer': [
+        'dashboard.view', 'donation.view', 'donation.create', 'donation.receipt',
+        'expense.view', 'expense.approve', 'expense.reject', 'expense.pay',
+        'vendor.view', 'budget.view', 'document.view', 'document.upload',
+        'document.download', 'document.verify', 'report.view', 'report.export',
+        'finance.view', 'finance.manage',
+    ],
+}
+
 
 def upgrade():
     bind = op.get_bind()
     permissions = sa.table(
         'permissions',
+        sa.column('id', sa.Integer),
         sa.column('name', sa.String(100)),
         sa.column('description', sa.String(255)),
         sa.column('module', sa.String(50)),
+    )
+    roles = sa.table(
+        'roles',
+        sa.column('id', sa.Integer),
+        sa.column('name', sa.String(64)),
+        sa.column('description', sa.String(255)),
+        sa.column('is_system', sa.Boolean),
+    )
+    role_permissions = sa.table(
+        'role_permissions',
+        sa.column('role_id', sa.Integer),
+        sa.column('permission_id', sa.Integer),
     )
 
     for name, description, module in PERMISSIONS:
@@ -72,8 +100,46 @@ def upgrade():
                 )
             )
 
+    for role_name, permission_names in ROLE_BASELINES.items():
+        role_row = bind.execute(
+            sa.select(roles.c.id).where(roles.c.name == role_name)
+        ).first()
+        if role_row is None:
+            bind.execute(
+                roles.insert().values(
+                    name=role_name,
+                    description=(
+                        'Record donations and submit expenses'
+                        if role_name == 'Volunteer'
+                        else 'Financial approval and disbursal role'
+                    ),
+                    is_system=True,
+                )
+            )
+            role_row = bind.execute(
+                sa.select(roles.c.id).where(roles.c.name == role_name)
+            ).first()
+
+        for permission_name in permission_names:
+            permission_row = bind.execute(
+                sa.select(permissions.c.id).where(permissions.c.name == permission_name)
+            ).first()
+            pair_exists = bind.execute(
+                sa.select(sa.literal(1)).select_from(role_permissions).where(
+                    role_permissions.c.role_id == role_row.id,
+                    role_permissions.c.permission_id == permission_row.id,
+                )
+            ).first()
+            if pair_exists is None:
+                bind.execute(
+                    role_permissions.insert().values(
+                        role_id=role_row.id,
+                        permission_id=permission_row.id,
+                    )
+                )
+
 
 def downgrade():
-    # Permission rows may be assigned to roles and are authorization master
-    # data. Never delete them automatically during a rollback.
+    # Permissions and system-role assignments are authorization master data.
+    # Never delete or revoke them automatically during rollback.
     pass
