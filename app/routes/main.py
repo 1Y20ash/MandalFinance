@@ -8,7 +8,9 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 def index():
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard.index'))
+        if current_user.is_admin or current_user.has_permission('dashboard.view'):
+            return redirect(url_for('dashboard.index'))
+        return redirect(url_for('auth.profile'))
     return redirect(url_for('public.transparency'))
 
 @main_bp.route('/privacy')
