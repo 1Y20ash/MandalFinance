@@ -11,24 +11,12 @@ class StorageDriver:
     """Secure storage abstraction for private financial evidence."""
 
     ALLOWED_TYPES = {
-        '.pdf': 'application/pdf',
-        '.txt': 'text/plain',
-        '.csv': 'text/csv',
-        '.zip': 'application/zip',
-        '.doc': 'application/msword',
-        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        '.xls': 'application/vnd.ms-excel',
-        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        '.ppt': 'application/vnd.ms-powerpoint',
-        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.heic': 'image/heic',
-        '.heif': 'image/heif',
-        '.avif': 'image/avif',
+        '.pdf': 'application/pdf', '.txt': 'text/plain', '.csv': 'text/csv', '.zip': 'application/zip',
+        '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.ppt': 'application/vnd.ms-powerpoint', '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
+        '.heic': 'image/heic', '.heif': 'image/heif', '.avif': 'image/avif',
     }
 
     @staticmethod
@@ -62,15 +50,13 @@ class StorageDriver:
             raise ValueError(f'Unsupported document extension: {suffix or "none"}.')
         if mime != expected_mime:
             raise ValueError('Document extension does not match its MIME type.')
-
         signatures = {
             'application/pdf': lambda data: data.startswith(b'%PDF-'),
             'image/png': lambda data: data.startswith(b'\x89PNG\r\n\x1a\n'),
             'image/jpeg': lambda data: data.startswith(b'\xff\xd8\xff'),
             'image/gif': lambda data: data.startswith((b'GIF87a', b'GIF89a')),
             'image/webp': lambda data: len(data) >= 12 and data[:4] == b'RIFF' and data[8:12] == b'WEBP',
-            'image/heic': lambda data: cls._is_heif_container(data),
-            'image/heif': lambda data: cls._is_heif_container(data),
+            'image/heic': lambda data: cls._is_heif_container(data), 'image/heif': lambda data: cls._is_heif_container(data),
             'image/avif': lambda data: cls._is_heif_container(data),
             'application/zip': lambda data: data.startswith((b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08')),
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document': lambda data: data.startswith(b'PK'),
@@ -97,18 +83,44 @@ class StorageDriver:
 
     @staticmethod
     def _storage_error_code(response):
-        """Return only Supabase's machine-readable error code; never log provider body text."""
+        """Extract only a safe machine-readable provider error identifier."""
         try:
             payload = response.json()
         except (ValueError, TypeError):
             return None
         if not isinstance(payload, dict):
             return None
-        code = payload.get('code')
-        if not isinstance(code, str):
-            return None
-        code = re.sub(r'[^A-Za-z0-9_.-]', '', code)[:80]
-        return code or None
+        candidates = [payload.get('code'), payload.get('error'), payload.get('name')]
+        nested_error = payload.get('error')
+        if isinstance(nested_error, dict):
+            candidates = [nested_error.get('code'), nested_error.get('error'), nested_error.get('name'), *candidates]
+        for candidate in candidates:
+            if isinstance(candidate, str):
+                cleaned = re.sub(r'[^A-Za-z0-9_.-]', '', candidate)[:80]
+                if cleaned:
+                    return cleaned
+        return None
+
+    @staticmethod
+    def _storage_error_class(error_code, status_code):
+        """Map provider identifiers to safe internal categories without exposing provider text."""
+        normalized = (error_code or '').strip().lower()
+        aliases = {
+            'resourcealreadyexists': 'already_exists', 'keyalreadyexists': 'already_exists', 'already_exists': 'already_exists',
+            'duplicate': 'already_exists', 'assetalreadyexists': 'already_exists',
+            'nosuchbucket': 'bucket_unavailable', 'invalidbucketname': 'bucket_unavailable', 'notfound': 'bucket_unavailable',
+            'invalidmimetype': 'invalid_mime_type', 'invalidkey': 'invalid_key', 'entitytoolarge': 'too_large',
+            'missingcontentlength': 'missing_content_length', 'missingparameter': 'invalid_request', 'invalidrequest': 'invalid_request',
+            'invalidchecksum': 'invalid_checksum', 'accessdenied': 'access_denied', 'unauthorized': 'access_denied',
+            'invalidjwt': 'access_denied', 'invalidsignature': 'access_denied', 'signaturedoesnotmatch': 'access_denied',
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        if status_code == 413:
+            return 'too_large'
+        if status_code in (401, 403):
+            return 'access_denied'
+        return 'provider_rejected'
 
     @staticmethod
     def upload_file(file_bytes, destination_path, mime_type='application/octet-stream'):
@@ -125,44 +137,39 @@ class StorageDriver:
             if not bucket:
                 raise RuntimeError('Private object storage bucket is not configured.')
             endpoint = f"{supabase_url}/storage/v1/object/{bucket}/{destination_path}"
-            headers = {
-                'Authorization': f'Bearer {supabase_key}',
-                'apikey': supabase_key,
-                'Content-Type': mime_type,
-                'Content-Length': str(len(file_bytes)),
-                'x-upsert': 'false',
-            }
+            headers = {'Authorization': f'Bearer {supabase_key}', 'apikey': supabase_key, 'Content-Type': mime_type,
+                       'Content-Length': str(len(file_bytes)), 'x-upsert': 'false'}
             try:
                 response = requests.post(endpoint, data=file_bytes, headers=headers, timeout=20)
                 if response.status_code in (200, 201):
                     return ('SUPABASE', destination_path)
-
                 error_code = StorageDriver._storage_error_code(response)
+                error_class = StorageDriver._storage_error_class(error_code, response.status_code)
                 current_app.logger.warning(
-                    'Supabase Storage upload rejected: status=%s code=%s bucket_configured=%s object_suffix=%s size=%s',
-                    response.status_code,
-                    error_code or 'unknown',
-                    bool(bucket),
-                    Path(destination_path).suffix.lower() or 'none',
-                    len(file_bytes),
+                    'Supabase Storage upload rejected: status=%s code=%s class=%s bucket_configured=%s object_suffix=%s size=%s',
+                    response.status_code, error_code or 'unknown', error_class, bool(bucket),
+                    Path(destination_path).suffix.lower() or 'none', len(file_bytes),
                 )
-
-                if response.status_code in (400, 409):
-                    if error_code in ('ResourceAlreadyExists', 'KeyAlreadyExists', 'already_exists'):
-                        raise ValueError('Storage object already exists; please retry the upload.')
-                    if error_code in ('InvalidMimeType',):
-                        raise ValueError('The storage bucket rejected this document MIME type.')
-                    if error_code in ('EntityTooLarge',):
-                        raise ValueError('The storage bucket rejected the document because it exceeds its size limit.')
-                    if error_code in ('InvalidBucketName', 'NoSuchBucket'):
-                        raise RuntimeError('The configured private storage bucket is unavailable.')
-                    if error_code in ('InvalidKey',):
-                        raise RuntimeError('The storage provider rejected the generated document path.')
-                    raise ValueError('The storage provider rejected the upload request. Please verify the private storage bucket configuration.')
-                if response.status_code in (401, 403):
+                if error_class == 'already_exists':
+                    raise ValueError('Storage object already exists; please retry the upload.')
+                if error_class == 'invalid_mime_type':
+                    raise ValueError('The storage bucket rejected this document MIME type.')
+                if error_class == 'too_large':
+                    raise ValueError('The storage bucket rejected the document because it exceeds its size limit.')
+                if error_class == 'bucket_unavailable':
+                    raise RuntimeError('The configured private storage bucket is unavailable.')
+                if error_class == 'invalid_key':
+                    raise RuntimeError('The storage provider rejected the generated document path.')
+                if error_class == 'missing_content_length':
+                    raise RuntimeError('The storage provider rejected the upload request format.')
+                if error_class == 'invalid_checksum':
+                    raise RuntimeError('The storage provider rejected the document integrity check.')
+                if error_class == 'access_denied':
                     raise RuntimeError('Secure object storage rejected the configured credentials or policy.')
-                if response.status_code == 413:
-                    raise ValueError('The storage provider rejected the document because it exceeds its size limit.')
+                if error_class == 'invalid_request':
+                    raise RuntimeError('The storage provider rejected the upload request format.')
+                if response.status_code in (400, 409):
+                    raise RuntimeError('The storage provider rejected the upload request. Please verify the private storage bucket configuration.')
                 raise RuntimeError(f'Supabase Storage upload rejected ({response.status_code}).')
             except requests.RequestException as exc:
                 if current_app.config.get('APP_ENV') == 'production':
