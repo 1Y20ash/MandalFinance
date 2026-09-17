@@ -47,8 +47,8 @@ def test_upload_file_uses_structured_provider_code_without_leaking_message(app, 
 
         response = _response(status, payload)
         with patch('app.utils.storage_driver.requests.post', return_value=response):
-            with pytest.raises((ValueError, RuntimeError), match=message):
+            with pytest.raises((ValueError, RuntimeError)) as exc_info:
                 StorageDriver.upload_file(b'%PDF-test', 'documents/expense/ref/v1/file.pdf', 'application/pdf')
 
-        # Provider response text must never become part of the raised message.
-        assert 'private' not in str(response.json.return_value)
+        assert message in str(exc_info.value)
+        assert 'private' not in str(exc_info.value)
