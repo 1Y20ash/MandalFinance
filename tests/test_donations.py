@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -9,6 +10,7 @@ from app.models.income import Donation
 from app.models.ledger import Account, Transaction
 from app.models.mandal import Event
 from app.services.donation_service import DonationService
+from app.utils.pdf_generator import generate_donation_receipt_pdf
 
 
 def _ids():
@@ -32,11 +34,25 @@ def test_offline_donation_posts_once_to_ledger_and_audit(app):
         assert saved.status == 'SUCCESS'
         assert saved.amount == Decimal('1250.50')
         assert saved.receipt_number
+        assert saved.receipt_generated_at is not None
         txn = Transaction.query.filter_by(source_module='DONATION', source_id=saved.id).one()
         assert txn.amount == Decimal('1250.50')
         assert txn.transaction_type == 'INCOME'
         assert db.session.get(Account, account.id).current_balance == before + Decimal('1250.50')
         assert AuditLog.query.filter_by(entity_type='DONATION', entity_id=str(saved.id)).count() == 1
+
+
+def test_recorded_donation_generates_printable_receipt_pdf(app):
+    with app.app_context():
+        event_id, account, user = _ids()
+        donation = DonationService.record_offline_donation(
+            event_id=event_id, donor_name='Receipt Test', amount='1500.00', payment_mode='CASH',
+            account_id=account.id, created_by_id=user.id, purpose='General Donation'
+        )
+        pdf = generate_donation_receipt_pdf(donation)
+        assert isinstance(pdf, bytes)
+        assert pdf.startswith(b'%PDF-')
+        assert len(pdf) > 1000
 
 
 def test_non_cash_donation_requires_reference(app):

@@ -66,7 +66,7 @@ def create_donation():
                 notes=notes
             )
             flash(f'Donation recorded successfully! Receipt No: {donation.receipt_number}', 'success')
-            return redirect(url_for('donations.view_donation', donation_id=donation.id))
+            return redirect(url_for('donations.download_receipt', donation_id=donation.id))
         except Exception:
             flash('Unable to record the donation. Please verify the details and try again.', 'danger')
 
