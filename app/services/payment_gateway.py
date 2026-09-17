@@ -31,6 +31,10 @@ class PaymentGatewayInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def fetch_payment(self, payment_id):
+        raise NotImplementedError
+
+    @abstractmethod
     def verify_webhook_signature(self, payload_bytes, signature_header):
         raise NotImplementedError
 
@@ -55,11 +59,25 @@ class MockPaymentGateway(PaymentGatewayInterface):
         expected = f"mock_sig_{order_id}_{payment_id}"
         return bool(signature) and hmac.compare_digest(expected, signature)
 
+    def fetch_payment(self, payment_id):
+        if not payment_id:
+            raise PaymentGatewayError('Payment ID is required.', code='invalid_payment_id')
+        return {
+            'id': payment_id,
+            'order_id': payment_id.removeprefix('pay_mock_order_mock_'),
+            'amount': None,
+            'currency': 'INR',
+            'status': 'captured',
+            'captured': True,
+        }
+
     def verify_webhook_signature(self, payload_bytes, signature_header):
         return bool(signature_header) and hmac.compare_digest('valid_mock_webhook_sig', signature_header)
 
 
 class RazorpayGateway(PaymentGatewayInterface):
+    API_BASE = 'https://api.razorpay.com/v1'
+
     def _credentials(self):
         key_id = current_app.config.get('RAZORPAY_KEY_ID', '').strip()
         key_secret = current_app.config.get('RAZORPAY_KEY_SECRET', '').strip()
@@ -97,7 +115,7 @@ class RazorpayGateway(PaymentGatewayInterface):
 
         try:
             response = requests.post(
-                'https://api.razorpay.com/v1/orders',
+                f'{self.API_BASE}/orders',
                 auth=(key_id, key_secret),
                 json={
                     'amount': int(amount * 100),
@@ -179,6 +197,63 @@ class RazorpayGateway(PaymentGatewayInterface):
         message = f'{order_id}|{payment_id}'.encode('utf-8')
         expected = hmac.new(key_secret.encode('utf-8'), message, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
+
+    def fetch_payment(self, payment_id):
+        key_id, key_secret = self._credentials()
+        if not payment_id:
+            raise PaymentGatewayError('Payment ID is required.', code='invalid_payment_id')
+        try:
+            response = requests.get(
+                f'{self.API_BASE}/payments/{payment_id}',
+                auth=(key_id, key_secret),
+                timeout=10,
+            )
+        except requests.RequestException:
+            logger.exception('Razorpay payment status request failed before a response was received')
+            raise PaymentGatewayError(
+                'The payment gateway could not be reached while verifying the payment. Please try again.',
+                code='gateway_unreachable',
+            ) from None
+
+        if response.status_code != 200:
+            error_code, error_description = self._error_details(response)
+            logger.error(
+                'Razorpay payment fetch rejected: status=%s code=%s description=%s payment_id=%s',
+                response.status_code,
+                error_code,
+                error_description or '<none>',
+                payment_id,
+            )
+            if response.status_code in (401, 403):
+                raise PaymentGatewayError(
+                    'The payment gateway credentials were rejected. Please contact the Mandal administrator.',
+                    code='credentials_rejected',
+                    http_status=response.status_code,
+                )
+            if response.status_code == 404:
+                raise PaymentGatewayError('The payment could not be found at the gateway.', code='payment_not_found', http_status=404)
+            raise PaymentGatewayError(
+                'The payment gateway could not verify the payment status. Please try again.',
+                code='payment_status_unavailable',
+                http_status=response.status_code,
+            )
+
+        try:
+            data = response.json()
+            return {
+                'id': data['id'],
+                'order_id': data.get('order_id'),
+                'amount': int(data['amount']),
+                'currency': data['currency'],
+                'status': data['status'],
+                'captured': data.get('captured'),
+            }
+        except (ValueError, KeyError, TypeError):
+            logger.exception('Razorpay returned an invalid payment response')
+            raise PaymentGatewayError(
+                'The payment gateway returned an invalid payment response. Please try again.',
+                code='invalid_gateway_response',
+            ) from None
 
     def verify_webhook_signature(self, payload_bytes, signature_header):
         webhook_secret = current_app.config.get('RAZORPAY_WEBHOOK_SECRET', '').strip()
