@@ -152,7 +152,9 @@ def generate_donation_receipt_pdf(donation, event_title='Ganesh Utsav 2026'):
     )
     _draw_copy_fields(
         overlay_canvas,
-        receipt_no=receipt_no, date_x=347, donor_x=255, words_x=301, words_y=85,
+        receipt_no=receipt_no, date_text=date_text, donor_name=donor_name,
+        amount_words=amount_words, amount=donation.amount,
+        receipt_x=265, date_x=347, donor_x=255, words_x=301, words_y=85,
         amount_x=286, amount_y=38, receipt_width=42, date_width=37, donor_width=100,
         words_width=83, amount_width=105, second_words_x=224,
     )
