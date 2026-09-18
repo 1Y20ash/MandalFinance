@@ -127,3 +127,35 @@ def test_donation_rolls_back_if_ledger_posting_fails(app, monkeypatch):
         db.session.expire_all()
         assert db.session.get(Account, account.id).current_balance == before
         assert Donation.query.filter_by(donor_name='Rollback Donor').first() is None
+
+
+def test_save_donation_redirects_to_intermediate_options_page(app, client):
+    with app.app_context():
+        event = Event.query.first()
+        account = Account.query.filter_by(name='Main Cash').first()
+        user = User.query.filter_by(username='admin').first()
+
+        with client.session_transaction() as session:
+            session['_user_id'] = str(user.id)
+            session['_fresh'] = True
+
+        response = client.post('/donations/create', data={
+            'event_id': event.id,
+            'account_id': account.id,
+            'donor_name': 'Intermediate Options Donor',
+            'amount': '500.00',
+            'payment_mode': 'CASH',
+            'transaction_ref': '',
+            'donor_phone': '',
+            'donor_email': '',
+            'donor_address': '',
+            'pan_number': '',
+            'purpose': 'General Donation',
+            'notes': '',
+        }, follow_redirects=False)
+
+        assert response.status_code == 302
+        assert response.headers['Location'].endswith(
+            f'/donations/{Donation.query.filter_by(donor_name="Intermediate Options Donor").one().id}'
+        )
+        assert not response.headers['Content-Type'].startswith('application/pdf')
