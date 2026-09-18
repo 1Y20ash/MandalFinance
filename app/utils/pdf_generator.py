@@ -72,30 +72,19 @@ def _fit_text(c, text, font_name, max_size, min_size, max_width):
     return size, text
 
 
-def _wrap_amount_words(text, font_name='Helvetica', size=6.0, max_width=100, max_lines=2):
-    words = str(text or '').split()
-    lines = []
-    current = ''
-    for word in words:
-        candidate = word if not current else f'{current} {word}'
-        if stringWidth(candidate, font_name, size) <= max_width:
-            current = candidate
-        else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
+def _wrap_amount_words(text, max_width, max_lines=2):
+    text = str(text or '').strip()
+    for size in [6.0, 5.75, 5.5, 5.25, 5.0, 4.75, 4.5, 4.25, 4.0]:
+        if stringWidth(text, 'Helvetica', size) <= max_width:
+            return [(text, size)]
 
-    if len(lines) <= max_lines:
-        return lines
-
-    for smaller in [5.75, 5.5, 5.25, 5.0, 4.75, 4.5, 4.25, 4.0]:
+    words = text.split()
+    for size in [5.5, 5.25, 5.0, 4.75, 4.5, 4.25, 4.0]:
         lines = []
         current = ''
         for word in words:
             candidate = word if not current else f'{current} {word}'
-            if stringWidth(candidate, font_name, smaller) <= max_width:
+            if stringWidth(candidate, 'Helvetica', size) <= max_width:
                 current = candidate
             else:
                 if current:
@@ -104,8 +93,9 @@ def _wrap_amount_words(text, font_name='Helvetica', size=6.0, max_width=100, max
         if current:
             lines.append(current)
         if len(lines) <= max_lines:
-            return lines
-    return lines[:max_lines]
+            return [(line, size) for line in lines]
+
+    return [(line, 4.0) for line in lines[:max_lines]]
 
 
 def _draw_text(c, x, y, text, max_width, max_size, min_size=4.0, bold=False):
@@ -125,13 +115,13 @@ def _draw_copy_fields(c, *, receipt_no, date_text, donor_name, amount_words, amo
     _draw_text(c, date_x, 164, date_text, date_width, 7.0, 4.5)
     _draw_text(c, donor_x, 133, donor_name, donor_width, 8.0, 4.5)
 
-    words_lines = _wrap_amount_words(amount_words, max_width=words_width, max_lines=2)
-    if words_lines:
-        c.setFont('Helvetica', 6.0 if len(words_lines) == 1 else 5.5)
-        c.drawString(words_x, words_y, words_lines[0])
-    if len(words_lines) > 1:
-        c.setFont('Helvetica', 5.5)
-        c.drawString(second_words_x, words_y - 20, words_lines[1])
+    word_lines = _wrap_amount_words(amount_words, max_width=words_width, max_lines=2)
+    if word_lines:
+        c.setFont('Helvetica', word_lines[0][1])
+        c.drawString(words_x, words_y, word_lines[0][0])
+    if len(word_lines) > 1:
+        c.setFont('Helvetica', word_lines[1][1])
+        c.drawString(second_words_x, words_y - 20, word_lines[1][0])
 
     _draw_text(c, amount_x, amount_y, _format_amount(amount), amount_width, 10.0, 6.0, bold=True)
 
@@ -162,9 +152,7 @@ def generate_donation_receipt_pdf(donation, event_title='Ganesh Utsav 2026'):
     )
     _draw_copy_fields(
         overlay_canvas,
-        receipt_no=receipt_no, date_text=date_text, donor_name=donor_name,
-        amount_words=amount_words, amount=donation.amount,
-        receipt_x=265, date_x=347, donor_x=255, words_x=301, words_y=85,
+        receipt_no=receipt_no, date_x=347, donor_x=255, words_x=301, words_y=85,
         amount_x=286, amount_y=38, receipt_width=42, date_width=37, donor_width=100,
         words_width=83, amount_width=105, second_words_x=224,
     )
