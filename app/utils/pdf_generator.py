@@ -162,17 +162,17 @@ def generate_donation_receipt_pdf(donation, event_title='Ganesh Utsav 2026'):
     overlay_canvas.save()
     overlay_buffer.seek(0)
 
-    template_reader = PdfReader(str(TEMPLATE_PATH))
     overlay_reader = PdfReader(overlay_buffer)
-    template_page = template_reader.pages[0]
     overlay_page = overlay_reader.pages[0]
 
+    # Attach the template page to the writer before merging. This avoids pypdf's
+    # replace_contents deprecation warning under the repository's warnings-as-errors CI.
+    writer = PdfWriter(clone_from=str(TEMPLATE_PATH))
+    template_page = writer.pages[0]
     overlay_page.mediabox = template_page.mediabox
     overlay_page.cropbox = template_page.cropbox
     template_page.merge_page(overlay_page)
 
     output = io.BytesIO()
-    writer = PdfWriter()
-    writer.add_page(template_page)
     writer.write(output)
     return output.getvalue()
