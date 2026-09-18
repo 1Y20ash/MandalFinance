@@ -81,20 +81,10 @@ def create_donation():
 
         flash(f'Donation recorded successfully! Receipt No: {donation.receipt_number}', 'success')
 
-        # Generate the receipt in the same successful POST response. This avoids
-        # a second authenticated request and prevents URL-generation/permission
-        # failures from being mistaken for a failed donation recording.
-        try:
-            event_title = donation.event.title if donation.event else "Ganesh Utsav 2026"
-            pdf_bytes = generate_donation_receipt_pdf(donation, event_title=event_title)
-            response = make_response(pdf_bytes)
-            response.headers['Content-Type'] = 'application/pdf'
-            response.headers['Content-Disposition'] = f'inline; filename=Receipt_{donation.receipt_number or donation.donation_number}.pdf'
-            return response
-        except Exception:
-            current_app.logger.exception('Donation recorded but receipt generation failed')
-            flash('Donation was recorded successfully, but the receipt could not be generated. You can try the receipt action from the donation record.', 'warning')
-            return redirect(url_for('donations.view_donation', donation_id=donation.id))
+        # Return to the saved donation record first. This is the intermediate
+        # options screen where the user can review the record, open/print the
+        # receipt, or attach supporting proof.
+        return redirect(url_for('donations.view_donation', donation_id=donation.id))
 
     events = Event.query.filter_by(is_active=True).all()
     accounts = Account.query.filter_by(is_active=True).all()
