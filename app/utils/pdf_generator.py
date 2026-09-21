@@ -156,8 +156,7 @@ def generate_donation_receipt_pdf(donation, event_title='Ganesh Utsav 2026'):
     overlay_page.cropbox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
     source_page.merge_page(overlay_page)
 
-    # Keep only the single clean receipt copy.
-    writer.remove_page(1)
+    # The cropped media box exposes only the single clean receipt copy.
     output = io.BytesIO()
     writer.write(output)
     return output.getvalue()
