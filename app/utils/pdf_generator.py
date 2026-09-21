@@ -4,6 +4,8 @@ from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter, Transformation
 from pypdf.generic import RectangleObject
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.colors import HexColor
@@ -11,11 +13,16 @@ from reportlab.lib.colors import HexColor
 
 TEMPLATE_PATH = Path(__file__).resolve().parents[1] / 'assets' / 'receipt_template.pdf'
 
-# The Canva source sheet contains two copies. The supplied design is the
-# single receipt on the right-hand side of that source sheet.
+# The supplied Canva source sheet contains two copies. The clean receipt is the
+# right-hand copy, which is cropped and used as the single generated receipt.
 TEMPLATE_CROP = (206, 0, 612, 252)
 TEMPLATE_PAGE_SIZE = (406, 252)
 TEXT_COLOR = HexColor('#4A2118')
+DEVANAGARI_FONT = Path('/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf')
+
+
+if DEVANAGARI_FONT.is_file():
+    pdfmetrics.registerFont(TTFont('ReceiptDevanagari', str(DEVANAGARI_FONT)))
 
 
 def _format_amount(amount):
@@ -69,7 +76,7 @@ def _amount_in_words(amount):
     return result + ' Only'
 
 
-def _fit_text(c, text, font_name, max_size, min_size, max_width):
+def _fit_text(text, font_name, max_size, min_size, max_width):
     text = str(text or '')
     size = max_size
     while size > min_size and stringWidth(text, font_name, size) > max_width:
@@ -77,59 +84,41 @@ def _fit_text(c, text, font_name, max_size, min_size, max_width):
     return size, text
 
 
-def _wrap_amount_words(text, max_width, max_lines=2):
-    text = str(text or '').strip()
-    for size in [8.0, 7.75, 7.5, 7.25, 7.0, 6.75, 6.5, 6.25, 6.0, 5.75, 5.5]:
-        if stringWidth(text, 'Helvetica', size) <= max_width:
-            return [(text, size)]
-
-    words = text.split()
-    for size in [7.0, 6.75, 6.5, 6.25, 6.0, 5.75, 5.5]:
-        lines = []
-        current = ''
-        for word in words:
-            candidate = word if not current else f'{current} {word}'
-            if stringWidth(candidate, 'Helvetica', size) <= max_width:
-                current = candidate
-            else:
-                if current:
-                    lines.append(current)
-                current = word
-        if current:
-            lines.append(current)
-        if len(lines) <= max_lines:
-            return [(line, size) for line in lines]
-
-    return [(line, 5.5) for line in lines[:max_lines]]
-
-
 def _draw_text(c, x, y, text, max_width, max_size, min_size=4.0, bold=False):
     font_name = 'Helvetica-Bold' if bold else 'Helvetica'
-    size, text = _fit_text(c, text, font_name, max_size, min_size, max_width)
+    size, text = _fit_text(text, font_name, max_size, min_size, max_width)
     c.setFont(font_name, size)
     c.drawString(x, y, text)
+
+
+def _draw_donor_name(c, x, y, donor_name):
+    font_name = 'ReceiptDevanagari' if DEVANAGARI_FONT.is_file() else 'Helvetica'
+    size, text = _fit_text(donor_name, font_name, 8.0, 4.5, 100)
+    c.setFont(font_name, size)
+    c.drawString(x, y, text)
+
+
+def _draw_amount_words(c, text):
+    # The supplied artwork has one writing line for the amount in words.
+    size, text = _fit_text(text, 'Helvetica', 7.0, 4.5, 105)
+    c.setFont('Helvetica', size)
+    c.drawString(95, 62, text)
 
 
 def _draw_receipt_fields(c, *, receipt_no, date_text, donor_name, amount_words, amount):
     c.setFillColor(TEXT_COLOR)
 
-    # Coordinates are for the single cropped receipt, in points.
-    _draw_text(c, 59, 164, receipt_no, 44, 7.0, 3.75)
-    _draw_text(c, 141, 164, date_text, 37, 7.0, 4.5)
-    _draw_text(c, 49, 133, donor_name, 100, 8.0, 4.5)
-
-    word_lines = _wrap_amount_words(amount_words, max_width=83, max_lines=2)
-    c.setFont('Helvetica', word_lines[0][1])
-    c.drawString(95, 85, word_lines[0][0])
-    if len(word_lines) > 1:
-        c.setFont('Helvetica', word_lines[1][1])
-        c.drawString(18, 65, word_lines[1][0])
-
-    _draw_text(c, 80, 38, _format_amount(amount), 105, 10.0, 6.0, bold=True)
+    # These coordinates are aligned to the printed writing lines in the
+    # supplied right-hand receipt. All values remain horizontal and upright.
+    _draw_text(c, 59, 141, receipt_no, 44, 7.0, 3.75)
+    _draw_text(c, 141, 141, date_text, 37, 7.0, 4.5)
+    _draw_donor_name(c, 49, 103, donor_name)
+    _draw_amount_words(c, amount_words)
+    _draw_text(c, 80, 34, _format_amount(amount), 105, 10.0, 6.0, bold=True)
 
 
 def generate_donation_receipt_pdf(donation, event_title='Ganesh Utsav 2026'):
-    """Generate one receipt using the supplied Canva artwork as the fixed template."""
+    """Generate exactly one receipt using the supplied Canva artwork."""
     if not TEMPLATE_PATH.is_file():
         raise FileNotFoundError(f'Receipt template not found: {TEMPLATE_PATH}')
 
@@ -154,23 +143,21 @@ def generate_donation_receipt_pdf(donation, event_title='Ganesh Utsav 2026'):
 
     overlay_page = PdfReader(overlay_buffer).pages[0]
 
-    # Crop the single receipt from the original Canva source sheet and translate
-    # its artwork to the origin. This keeps the artwork itself untouched.
-    source_page = PdfReader(str(TEMPLATE_PATH)).pages[0]
-    source_page.add_transformation(Transformation().translate(
-        tx=-TEMPLATE_CROP[0],
-        ty=-TEMPLATE_CROP[1],
-    ))
+    # Clone the source into a writer before transforming it. This avoids the
+    # pypdf deprecation warning that is treated as an error by CI.
+    writer = PdfWriter(clone_from=str(TEMPLATE_PATH))
+    source_page = writer.pages[0]
+    source_page.add_transformation(
+        Transformation().translate(tx=-TEMPLATE_CROP[0], ty=-TEMPLATE_CROP[1])
+    )
     source_page.mediabox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
     source_page.cropbox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
-
     overlay_page.mediabox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
     overlay_page.cropbox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
     source_page.merge_page(overlay_page)
 
-    writer = PdfWriter()
-    writer.add_page(source_page)
-
+    # Keep only the single clean receipt copy.
+    writer.remove_page(1)
     output = io.BytesIO()
     writer.write(output)
     return output.getvalue()
