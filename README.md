@@ -4,6 +4,18 @@ A secure, server-rendered financial management platform for mandal/community org
 
 > **Engineering note:** This README documents the repository and its implemented architecture. It is not a legal, accounting, statutory-compliance, penetration-test, or financial-audit certification.
 
+## Live Demo / Production
+
+🚀 **Live application:** [MandalFinance — Production](https://mandal-finance-one.vercel.app/)
+
+The production application is deployed on **Vercel** and is available at:
+
+**https://mandal-finance-one.vercel.app/**
+
+Use the live deployment to explore the production-facing MandalFinance experience. Production functionality that depends on external services such as authentication, payments, private storage, database state, or administrative access may require the appropriate configured credentials and permissions.
+
+> **Production environment:** The live URL points to the current production deployment associated with the `main` branch.
+
 ## Table of Contents
 
 - [Overview](#overview)
