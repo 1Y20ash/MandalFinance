@@ -99,22 +99,26 @@ def _draw_donor_name(c, x, y, donor_name):
 
 
 def _draw_amount_words(c, text):
-    # The supplied artwork has one writing line for the amount in words.
-    size, text = _fit_text(text, 'Helvetica', 7.0, 4.5, 105)
+    # The amount-in-words field starts on the first printed writing line,
+    # immediately after the existing Marathi label. The lower line is part of
+    # the artwork and must not be mistaken for the field baseline.
+    size, text = _fit_text(text, 'Helvetica', 7.0, 4.0, 76)
     c.setFont('Helvetica', size)
-    c.drawString(95, 62, text)
+    c.drawString(101.5, 85.8, text)
 
 
 def _draw_receipt_fields(c, *, receipt_no, date_text, donor_name, amount_words, amount):
     c.setFillColor(TEXT_COLOR)
 
-    # These coordinates are aligned to the printed writing lines in the
-    # supplied right-hand receipt. All values remain horizontal and upright.
-    _draw_text(c, 59, 141, receipt_no, 44, 7.0, 3.75)
-    _draw_text(c, 141, 141, date_text, 37, 7.0, 4.5)
-    _draw_donor_name(c, 49, 103, donor_name)
+    # Coordinates are derived from the actual printed baselines/underlines in
+    # the supplied right-hand receipt after its 206pt left crop. Keep each
+    # value on the corresponding existing line/box rather than introducing
+    # a new visual line.
+    _draw_text(c, 62, 135.15, receipt_no, 50, 7.0, 3.75)
+    _draw_text(c, 141.7, 135.15, date_text, 50, 7.0, 4.5)
+    _draw_donor_name(c, 54, 108.6, donor_name)
     _draw_amount_words(c, amount_words)
-    _draw_text(c, 80, 34, _format_amount(amount), 105, 10.0, 6.0, bold=True)
+    _draw_text(c, 80, 38.4, _format_amount(amount), 74, 10.0, 6.0, bold=True)
 
 
 def generate_donation_receipt_pdf(donation, event_title='Ganesh Utsav 2026'):
