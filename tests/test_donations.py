@@ -44,7 +44,7 @@ def test_offline_donation_posts_once_to_ledger_and_audit(app):
         assert AuditLog.query.filter_by(entity_type='DONATION', entity_id=str(saved.id)).count() == 1
 
 
-def test_recorded_donation_generates_original_template_receipt(app):
+def test_recorded_donation_generates_one_receipt_from_original_design(app):
     with app.app_context():
         event_id, account, user = _ids()
         donation = DonationService.record_offline_donation(
@@ -57,16 +57,16 @@ def test_recorded_donation_generates_original_template_receipt(app):
         reader = PdfReader(io.BytesIO(pdf))
         assert len(reader.pages) == 1
         page = reader.pages[0]
-        assert float(page.mediabox.width) == pytest.approx(612)
+        assert float(page.mediabox.width) == pytest.approx(406)
         assert float(page.mediabox.height) == pytest.approx(252)
 
         text = page.extract_text() or ''
-        assert text.count('Receipt Test') == 2
-        assert text.count('1,500.00') == 2
-        assert text.count(donation.receipt_generated_at.strftime('%d-%m-%Y')) == 2
+        assert text.count('Receipt Test') == 1
+        assert text.count('1,500.00') == 1
+        assert text.count(donation.receipt_generated_at.strftime('%d-%m-%Y')) == 1
 
 
-def test_receipt_template_is_tracked_and_is_not_replaced_by_code():
+def test_receipt_template_is_tracked_and_single_receipt_crop_is_valid():
     template = Path(__file__).resolve().parents[1] / 'app' / 'assets' / 'receipt_template.pdf'
     assert template.is_file()
     reader = PdfReader(str(template))
