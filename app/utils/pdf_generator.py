@@ -3,6 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter, Transformation
+from pypdf.generic import RectangleObject
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.colors import HexColor
@@ -156,17 +157,15 @@ def generate_donation_receipt_pdf(donation, event_title='Ganesh Utsav 2026'):
     # Crop the single receipt from the original Canva source sheet and translate
     # its artwork to the origin. This keeps the artwork itself untouched.
     source_page = PdfReader(str(TEMPLATE_PATH)).pages[0]
-    source_page.mediabox.lower_left = (TEMPLATE_CROP[0], TEMPLATE_CROP[1])
-    source_page.mediabox.upper_right = (TEMPLATE_CROP[2], TEMPLATE_CROP[3])
-    source_page.cropbox.lower_left = (TEMPLATE_CROP[0], TEMPLATE_CROP[1])
-    source_page.cropbox.upper_right = (TEMPLATE_CROP[2], TEMPLATE_CROP[3])
     source_page.add_transformation(Transformation().translate(
         tx=-TEMPLATE_CROP[0],
         ty=-TEMPLATE_CROP[1],
     ))
+    source_page.mediabox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
+    source_page.cropbox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
 
-    overlay_page.mediabox = source_page.mediabox
-    overlay_page.cropbox = source_page.cropbox
+    overlay_page.mediabox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
+    overlay_page.cropbox = RectangleObject([0, 0, *TEMPLATE_PAGE_SIZE])
     source_page.merge_page(overlay_page)
 
     writer = PdfWriter()
