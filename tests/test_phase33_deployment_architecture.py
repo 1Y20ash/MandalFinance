@@ -5,6 +5,7 @@ import pytest
 from app import create_app
 from app.config import ProductionConfig
 from app.extensions import db
+from sqlalchemy.pool import NullPool
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,8 +69,11 @@ def test_production_app_is_created_through_application_factory(monkeypatch):
     # remove the scoped session before disposing the engine so any checked-out
     # Psycopg 3 connection is returned/closed before the test app is discarded.
     with app.app_context():
+        engine = db.engine
+        db.session.rollback()
+        db.session.close()
         db.session.remove()
-        db.engine.dispose()
+        engine.dispose()
 
 
 def test_server_entrypoint_does_not_create_tables_directly():
