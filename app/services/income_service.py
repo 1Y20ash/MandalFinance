@@ -53,6 +53,11 @@ class IncomeService:
     def record_income(event_id, category_id, account_id, source_name, description, amount, income_date,
                       payment_mode, created_by_id, transaction_ref=None, notes=None):
         decimal_amount = IncomeService._normalize_amount(amount)
+        # Treat blank/whitespace-only references as absent. PostgreSQL unique
+        # constraints consider '' a real value, so passing an empty string to
+        # transactions.external_ref makes the second CASH income collide with
+        # the first one.
+        transaction_ref = (transaction_ref or '').strip() or None
         IncomeService._validate(event_id, category_id, account_id, source_name, description, payment_mode, transaction_ref)
         income_ref = IncomeService._generate_income_ref()
         try:
