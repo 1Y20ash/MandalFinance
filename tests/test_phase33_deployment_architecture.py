@@ -62,6 +62,11 @@ def test_production_app_is_created_through_application_factory(monkeypatch):
     assert app.config['DEBUG'] is False
     assert app.config['SESSION_COOKIE_SECURE'] is True
 
+    # This test constructs a real production SQLAlchemy engine. Explicitly
+    # dispose that test-only engine so its pooled DBAPI connections cannot
+    # survive until pytest process shutdown under Psycopg 3.
+    app.extensions['sqlalchemy'].db.engine.dispose()
+
 
 def test_server_entrypoint_does_not_create_tables_directly():
     text = (ROOT / 'server.py').read_text(encoding='utf-8')
