@@ -51,7 +51,7 @@ class ProductionConfig(Config):
     def validate(cls):
         required = ['SECRET_KEY', 'DATABASE_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
         database_url = (os.environ.get('DATABASE_URL') or '').strip().lower()
-        if not database_url.startswith(('postgresql://', 'postgres://')):
+        if not database_url.startswith(('postgresql://', 'postgres://', 'postgresql+psycopg://', 'postgresql+psycopg2://')):
             raise RuntimeError('DATABASE_URL must use PostgreSQL in production.')
         if cls.PAYMENT_GATEWAY_DRIVER == 'razorpay':
             required += ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET']
