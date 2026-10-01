@@ -64,9 +64,10 @@ def test_production_app_is_created_through_application_factory(monkeypatch):
     assert app.config['SESSION_COOKIE_SECURE'] is True
 
     # This test constructs a real production SQLAlchemy engine. Explicitly
-    # dispose that test-only engine so its pooled DBAPI connections cannot
-    # survive until pytest process shutdown under Psycopg 3.
+    # remove the scoped session before disposing the engine so any checked-out
+    # Psycopg 3 connection is returned/closed before the test app is discarded.
     with app.app_context():
+        db.session.remove()
         db.engine.dispose()
 
 
