@@ -6,7 +6,6 @@ from app import create_app
 from app.config import ProductionConfig
 from app.extensions import db
 from sqlalchemy.pool import NullPool
-from sqlalchemy.pool import NullPool
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -78,6 +77,7 @@ def test_production_app_is_created_through_application_factory(monkeypatch):
         db.session.rollback()
         db.session.close()
         db.session.remove()
+        assert 'Checked out connections: 0' in engine.pool.status(), engine.pool.status()
         engine.dispose()
 
 
