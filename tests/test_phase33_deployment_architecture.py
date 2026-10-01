@@ -6,6 +6,7 @@ from app import create_app
 from app.config import ProductionConfig
 from app.extensions import db
 from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,6 +57,10 @@ def _set_valid_production_environment(monkeypatch):
     monkeypatch.setattr(ProductionConfig, 'RATELIMIT_STORAGE_URI', 'redis://localhost:6379/0')
     monkeypatch.setattr(ProductionConfig, 'REDIS_PROVIDER_NAME', 'test-redis')
     monkeypatch.setattr(ProductionConfig, 'SUPABASE_STORAGE_PRIVATE', True)
+    # This test validates production application construction, not pool
+    # persistence. A NullPool keeps the test from retaining DBAPI connections
+    # until interpreter shutdown when the Psycopg 3 driver is installed.
+    monkeypatch.setattr(ProductionConfig, 'SQLALCHEMY_ENGINE_OPTIONS', {'poolclass': NullPool})
 
 
 def test_production_app_is_created_through_application_factory(monkeypatch):
