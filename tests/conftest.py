@@ -216,6 +216,10 @@ def app(tmp_path):
         # Cleanup
         db.session.remove()
         db.drop_all()
+        # Psycopg 3 warns when an engine-owned connection is garbage
+        # collected while still open. Dispose the test engine explicitly so
+        # PYTHONWARNINGS=error cannot turn normal test cleanup into a failure.
+        db.engine.dispose()
 
         # The rate-limit test intentionally consumes a full login bucket.
         # Its Redis state must not leak into later tests that also
