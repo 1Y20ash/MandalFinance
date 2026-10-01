@@ -4,6 +4,7 @@ import pytest
 
 from app import create_app
 from app.config import ProductionConfig
+from app.extensions import db
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,7 +66,8 @@ def test_production_app_is_created_through_application_factory(monkeypatch):
     # This test constructs a real production SQLAlchemy engine. Explicitly
     # dispose that test-only engine so its pooled DBAPI connections cannot
     # survive until pytest process shutdown under Psycopg 3.
-    app.extensions['sqlalchemy'].db.engine.dispose()
+    with app.app_context():
+        db.engine.dispose()
 
 
 def test_server_entrypoint_does_not_create_tables_directly():
