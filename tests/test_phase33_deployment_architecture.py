@@ -40,7 +40,7 @@ def test_vercel_configuration_uses_current_canonical_production_entrypoint():
 
 def _set_valid_production_environment(monkeypatch):
     monkeypatch.setenv('SECRET_KEY', 'test-secret')
-    monkeypatch.setenv('DATABASE_URL', 'postgresql://example')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg2://example')
     monkeypatch.setenv('SUPABASE_URL', 'https://example.supabase.co')
     monkeypatch.setenv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test-key')
     monkeypatch.setenv('SUPABASE_STORAGE_PRIVATE', 'true')
