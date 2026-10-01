@@ -77,4 +77,4 @@ jobs:
           FLASK_ENV: development
         run: flask --app server.py db upgrade
       - name: Run regression and security tests
-        run: python -m pytest -q
+        run: PYTHONTRACEMALLOC=1 python -m pytest -q
