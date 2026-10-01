@@ -1,5 +1,6 @@
 from app import create_app
 from app.config import ProductionConfig
+from app.extensions import db
 
 
 def test_security_headers_are_present():
@@ -36,5 +37,14 @@ def test_security_headers_are_present():
 def test_production_hsts_is_enabled(monkeypatch):
     monkeypatch.setattr(ProductionConfig, 'validate', classmethod(lambda cls: None))
     app = create_app('production')
-    response = app.test_client().get('/health')
-    assert response.headers['Strict-Transport-Security'] == 'max-age=31536000; includeSubDomains'
+    try:
+        response = app.test_client().get('/health')
+        assert response.headers['Strict-Transport-Security'] == 'max-age=31536000; includeSubDomains'
+    finally:
+        # The production health endpoint exercises the real PostgreSQL engine.
+        # Close the scoped session before disposing the test app's engine so
+        # Psycopg 3 connections are returned to the pool and closed.
+        with app.app_context():
+            db.session.remove()
+            for engine in db.engines.values():
+                engine.dispose()
